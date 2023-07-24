@@ -1,17 +1,95 @@
 <!DOCTYPE html>
-
 <html>
+<html lang="en">
 
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.5.0/lib/p5.js"></script>
-    <script src="sketch.js"></script>
-    <!-- Add styles.css -->
-    <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compute Tech</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Link to your custom CSS file (if any) -->
+    <script src="script.js" defer></script> <!-- Link to your custom JavaScript file (if any) -->
 </head>
 
 <body>
-    <main>
-    </main>
+    <canvas id="canvas" style="width: 2560px; height: 1440px"></canvas>
+    <script>
+        var canvas = document.querySelector("#canvas");
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+
+        var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        gl.viewport(0, 0, canvas.width, canvas.height);
+
+        var vertexShaderSrc = `
+            attribute vec2 pos;
+            void main(void) {
+                gl_Position = vec4(pos, 0.0, 1.0);
+            }
+        `;
+
+        var fragmentShaderSrc = `
+            precision highp float;
+            uniform vec2 resolution;
+            uniform float time;
+            const vec2 c = vec2(-0.8, 0.156);
+            void main(void) {
+                vec2 uv = gl_FragCoord.xy/resolution.xy;
+                vec2 p = (uv - 0.5) * vec2(1.0, resolution.y/resolution.x);
+                float zoom = pow(1.01, time);  // Increase this value to zoom faster
+                p /= zoom;
+                float angle = time * 0.01;  // Increase this value to rotate faster
+                p = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)) * p;
+                vec2 z = p;
+                float n = 0.0;
+                for (int i = 0; i < 100; i++) {
+                    if(dot(z, z) > 4.0) break;
+                    z = vec2(z.x*z.x-z.y*z.y, 2.0*z.x*z.y) + c;
+                    n++;
+                }
+                float t = n/100.0;
+                gl_FragColor = vec4(
+                    0.5 * cos(t * time / 2.0) + 0.5,
+                    0.5 * cos(t * time / 3.0) + 0.5,
+                    0.5 * cos(t * time / 4.0) + 0.5,
+                    1.0
+                );
+            }
+        `;
+
+        var vertexShader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vertexShader, vertexShaderSrc);
+        gl.compileShader(vertexShader);
+
+        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fragmentShader, fragmentShaderSrc);
+        gl.compileShader(fragmentShader);
+
+        var shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        gl.useProgram(shaderProgram);
+
+        var vertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+        var vertexPosAttrib = gl.getAttribLocation(shaderProgram, 'pos');
+        gl.enableVertexAttribArray(vertexPosAttrib);
+        gl.vertexAttribPointer(vertexPosAttrib, 2, gl.FLOAT, false, 0, 0);
+
+        gl.uniform2f(gl.getUniformLocation(shaderProgram, "resolution"), canvas.width, canvas.height);
+
+        function animate() {
+            gl.uniform1f(gl.getUniformLocation(shaderProgram, "time"), performance.now() * 0.001);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
 </body>
 
 </html>
