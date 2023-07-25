@@ -1,22 +1,11 @@
 <!DOCTYPE html>
 <html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compute Tech</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Link to your custom CSS file (if any) -->
-    <script src="script.js" defer></script> <!-- Link to your custom JavaScript file (if any) -->
-</head>
-
-<body>
+    <body>
     <canvas id="canvas" style="width: 100%; height: 100%"></canvas>
     <script>
         var canvas = document.querySelector("#canvas");
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.width = window.innerWidth * 2;
+        canvas.height = window.innerHeight * 2;
 
         var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
         gl.viewport(0, 0, canvas.width, canvas.height);
@@ -24,7 +13,7 @@
         var vertexShaderSrc = `
             attribute vec2 pos;
             void main(void) {
-                gl_Position = vec4(pos, 0.0, 1.0);
+                gl_Position = vec4(pos, 1.0, 1.0);
             }
         `;
 
@@ -32,31 +21,26 @@
             precision highp float;
             uniform vec2 resolution;
             uniform float time;
-            const vec2 c = vec2(-0.8, 0.156);
+            const vec2 c = vec2(-0.7, 0.27015);
+            const int max_iter = 512;
             void main(void) {
-                vec2 uv = gl_FragCoord.xy/resolution.xy;
-                vec2 p = (uv - 0.5) * vec2(1.0, resolution.y/resolution.x);
-                float zoom = pow(1.01, time);
-                p /= zoom;
-                float angle = time * 0.01;
-                p = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)) * p;
-                vec2 z = p;
-                float n = 0.0;
-                for (int i = 0; i < 100; i++) {
-                    if(dot(z, z) > 4.0) break;
-                    z = vec2(z.x*z.x-z.y*z.y, 2.0*z.x*z.y) + c;
+                vec2 z = (2.0*gl_FragCoord.xy - resolution) / min(resolution.x, resolution.y);
+                float angle = time * -0.02; // Adjust rotation speed here
+                mat2 rotationMatrix = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+                z = rotationMatrix * z; // Rotate the coordinates
+                float n = time * 20.0;
+                for (int i = 0; i < max_iter; i++) {
+                    if(dot(z, z) > 100.0) break;
+                    z = vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y) - time * 0.00009 + c;
                     n++;
                 }
-                float t = n/100.0;
-                gl_FragColor = vec4(
-                    0.5 * cos(t * time / 2.0) + 0.5,
-                    0.5 * cos(t * time / 3.0) + 0.5,
-                    0.5 * cos(t * time / 4.0) + 0.5,
-                    1.0
-                );
+                float t = n / float(max_iter);
+                vec3 color = vec3(2.0 * t / 1.11, sin(-7.0 * 3.0 * t / 2.0), cos(2.0 - t * 30.0)); 
+                gl_FragColor = vec4(color, 1.0);
             }
         `;
-
+    
+    
         var vertexShader = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(vertexShader, vertexShaderSrc);
         gl.compileShader(vertexShader);
@@ -80,18 +64,21 @@
         gl.enableVertexAttribArray(vertexPosAttrib);
         gl.vertexAttribPointer(vertexPosAttrib, 2, gl.FLOAT, false, 0, 0);
 
-        function animate() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        var timeLocation = gl.getUniformLocation(shaderProgram, "time");
+
+        function animate(time) {
+            gl.uniform1f(timeLocation, time / 700.0); // time is in ms, divide to get seconds
+            
+            canvas.width = window.innerWidth * 2;
+            canvas.height = window.innerHeight * 2;
             gl.viewport(0, 0, canvas.width, canvas.height);
             gl.uniform2f(gl.getUniformLocation(shaderProgram, "resolution"), canvas.width, canvas.height);
-            gl.uniform1f(gl.getUniformLocation(shaderProgram, "time"), performance.now() * 0.001);
+            
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             requestAnimationFrame(animate);
-        }
+        }                    
 
         animate();
     </script>
-</body>
-
+    </body>
 </html>
