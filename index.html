@@ -13,38 +13,66 @@
     canvas {
       display: block;
     }
+
+    #email-icon {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      padding: 8px;
+      cursor: pointer;
+      background: transparent;
+      border-radius: 5px;
+      transition: background 0.3s ease;
+    }
+
+    #email-icon:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    #email-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    #parameters-button {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #parameters-menu {
+      display: none;
+      position: fixed;
+      top: 50px; /* Positioned directly below the button */
+      left: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+      color: white;
+    }
   </style>
 </head>
 
 <body>
-  <!-- Button to toggle the info panel -->
-  <button id="info-button"
-    style="position: fixed; bottom: 10px; left: 10px; padding: 10px; background: rgba(0, 0, 0, 0.8); color: white; border: none; border-radius: 5px;">Camera Info</button>
-
-  <!-- Button to toggle the parameters menu -->
-  <button id="parameters-button"
-    style="position: fixed; bottom: 10px; right: 10px; padding: 10px; background: rgba(0, 0, 0, 0.8); color: white; border: none; border-radius: 5px;">Global Parameters</button>
-
-  <!-- Info Panel -->
-  <div id="info-panel"
-    style="display: none; position: fixed; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.8); color: white; padding: 10px; border-radius: 5px;">
-    <div id="info-content"></div>
+  <!-- Email Contact Icon -->
+  <div id="email-icon" onclick="window.location.href='mailto:admin@intelligence.dev'">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <path fill="none" stroke="#D3D3D3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="m4 6l6.108 4.612l.002.002c.678.497 1.017.746 1.389.842a2 2 0 0 0 1.002 0c.372-.096.712-.345 1.392-.844c0 0 3.917-3.006 6.107-4.612M3 15.8V8.2c0-1.12 0-1.68.218-2.108c.192-.377.497-.682.874-.874C4.52 5 5.08 5 6.2 5h11.6c1.12 0 1.68 0 2.107.218c.377.192.683.497.875.874c.218.427.218.987.218 2.105v7.607c0 1.118 0 1.676-.218 2.104a2.002 2.002 0 0 1-.875.874c-.427.218-.986.218-2.104.218H6.197c-1.118 0-1.678 0-2.105-.218a2 2 0 0 1-.874-.874C3 17.48 3 16.92 3 15.8Z" />
+    </svg>
   </div>
 
+  <!-- Button to toggle the parameters menu -->
+  <button id="parameters-button">Parameters</button>
+
   <!-- Parameters Menu -->
-  <div id="parameters-menu"
-    style="display: none; position: fixed; bottom: 60px; right: 10px; background: rgba(0, 0, 0, 0.8); padding: 10px; border-radius: 5px; color: white;">
-    <h3>Parameters</h3>
-    <!-- Camera rotation controls -->
-    <label for="camera-rotation-x">Camera Rotation X</label>
-    <input type="range" id="camera-rotation-x" min="-3.14" max="3.14" step="0.01" value="0">
-    <br>
-    <label for="camera-rotation-y">Camera Rotation Y</label>
-    <input type="range" id="camera-rotation-y" min="-3.14" max="3.14" step="0.01" value="0">
-    <br>
-    <label for="camera-rotation-z">Camera Rotation Z</label>
-    <input type="range" id="camera-rotation-z" min="-3.14" max="3.14" step="0.01" value="0">
-    <br><br>
+  <div id="parameters-menu">
     <!-- Star parameters -->
     <label for="num-stars">Number of Stars</label>
     <input type="range" id="num-stars" min="1000" max="200000" step="1000" value="100000">
