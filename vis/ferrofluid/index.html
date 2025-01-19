@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Interactive Living Organism SDF Visualization</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            height: 100%;
+            width: 100%;
+        }
+
+        #gpuCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="gpuCanvas" width="800" height="600"></canvas>
+
+    <script type="module">
+        /******************************************************************************
+         * Minimal SDF Tests in JavaScript (example demonstration)
+         * We test a simplistic version of the SDF logic to ensure it returns expected
+         * distance values in known conditions. In production, you'd expand these.
+         *****************************************************************************/
+        function testSDF() {
+            // A simple example SDF: A sphere of radius 1 centered at origin
+            function sphereSDF(px, py, pz, radius = 1.0) {
+                const dist = Math.sqrt(px * px + py * py + pz * pz) - radius;
+                return dist;
+            }
+
+            // Test: At the origin, the sphereSDF should be -1.0 for radius 1
+            console.assert(
+                Math.abs(sphereSDF(0.0, 0.0, 0.0, 1.0) - (-1.0)) < 1e-6,
+                'SDF test failed for point at origin (inside sphere).'
+            );
+
+            // Test: On the surface, the distance should be ~0
+            console.assert(
+                Math.abs(sphereSDF(1.0, 0.0, 0.0, 1.0)) < 1e-6,
+                'SDF test failed for point on sphere boundary.'
+            );
+
+            // Test: Outside the sphere, distance should be > 0
+            console.assert(
+                sphereSDF(2.0, 0.0, 0.0, 1.0) > 0,
+                'SDF test failed for point outside sphere.'
+            );
+
+            console.log("Basic JS SDF tests passed!");
+        }
+        testSDF();
+
+        /******************************************************************************
+         * WebGPU and WebGL Ferrofluid SDF Implementation with Fallback, Interaction, and Enhanced Appearance
+         *****************************************************************************/
+
+        /******************************************************************************
+         * Shader Definitions
+         *****************************************************************************/
+
+        // WebGPU Shaders (WGSL)
+        const vertexShaderWGSL = /* wgsl */`
+    struct VertexOutput {
+      @builtin(position) Position : vec4<f32>,
+      @location(0) fragUV : vec2<f32>
+    };
+    
+    @vertex
+    fn main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
+      // Full-screen triangle technique
+      var pos = array<vec2<f32>, 3>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>( 3.0, -1.0),
+        vec2<f32>(-1.0,  3.0)
+      );
+      
+      var output: VertexOutput;
+      output.Position = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+    
+      // Calculate UV coordinates in [0..1]
+      let uv = (pos[vertexIndex] + vec2<f32>(1.0, 1.0)) * 0.5;
+      output.fragUV = uv;
+    
+      return output;
+    }
+    `;
+
+        const fragmentShaderWGSL = /* wgsl */`
+    struct Uniforms {
+      time : f32,
+      aspectRatio : f32,
+      mousePos : vec2<f32>,
+      dummy : f32,
+    };
+    
+    @group(0) @binding(0) var<uniform> uniforms : Uniforms;
+    
+    struct FragmentInput {
+      @location(0) fragUV : vec2<f32>,
+    };
+    
+    // SDF: Living Organism with Mouse Interaction
+    fn organismSDF(p: vec3<f32>, t: f32, mouse: vec2<f32>) -> f32 {
+      // Base sphere (radius ~ 1.0)
+      let sphereDist = length(p) - 1.0;
+      
+      // Low-frequency large deformations
+      let freq1 = 3.0;
+      let amp1  = 0.3;
+      let layer1 = amp1 * sin(p.x * freq1 + t) * sin(p.y * freq1 - t);
+    
+      // Medium-frequency detail
+      let freq2 = 8.0;
+      let amp2  = 0.15;
+      let layer2 = amp2 * sin(p.x * freq2 + t * 2.0) *
+                            sin(p.y * freq2 + t * 2.0) *
+                            sin(p.z * freq2 - t * 2.0);
+    
+      // High-frequency smaller details (fine texture)
+      let freq3 = 20.0;
+      let amp3  = 0.07;
+      let layer3 = amp3 * sin(p.x * freq3 - t * 3.0) *
+                            sin(p.y * freq3 + t * 3.0);
+    
+      // Mouse Interaction: Influence area around mouse position
+      // Convert mouse position to 3D space influence
+      let influenceRadius = 0.5;
+      let influenceStrength = 0.4;
+      
+      // Project mouse position onto the organism's plane (z = 0)
+      // *** Updated Line Below ***
+      let mouse3D = vec3<f32>(mouse.x * 2.0 - 1.0, mouse.y * 2.0 - 1.0, 0.0);
+      let distanceToMouse = distance(p.xy, mouse3D.xy);
+      
+      // Apply influence based on proximity to mouse
+      let mouseInfluence = mix(0.0, influenceStrength, smoothstep(influenceRadius, 0.0, distanceToMouse));
+    
+      // Add mouse influence as an additional layer
+      let layerMouse = mouseInfluence * sin(p.x * 15.0 + t * 5.0) * sin(p.y * 15.0 + t * 5.0);
+    
+      return sphereDist + layer1 + layer2 + layer3 + layerMouse;
+    }
+    
+    // Approximate normal from SDF
+    fn estimateNormal(p: vec3<f32>, t: f32, mouse: vec2<f32>) -> vec3<f32> {
+      let eps = 0.001;
+      let d = organismSDF(p, t, mouse);
+      let nx = organismSDF(vec3<f32>(p.x + eps, p.y, p.z), t, mouse) - d;
+      let ny = organismSDF(vec3<f32>(p.x, p.y + eps, p.z), t, mouse) - d;
+      let nz = organismSDF(vec3<f32>(p.x, p.y, p.z + eps), t, mouse) - d;
+      return normalize(vec3<f32>(nx, ny, nz));
+    }
+    
+    // Organic color function
+    fn organismColor(normal: vec3<f32>, light1: vec3<f32>, light2: vec3<f32>) -> vec3<f32> {
+      // Basic diffuse from two lights
+      let diff1 = clamp(dot(normal, light1), 0.0, 1.0);
+      let diff2 = clamp(dot(normal, light2), 0.0, 1.0);
+      let diffuse = diff1 + diff2;
+    
+      // A simple mix of two colors for an organic look
+      let baseColor = vec3<f32>(0.4, 0.6, 0.2);   // Greenish
+      let secondary = vec3<f32>(0.7, 0.3, 0.2);   // Warm earthy tone
+    
+      return mix(baseColor, secondary, diffuse);
+    }
+    
+    @fragment
+    fn main(in: FragmentInput) -> @location(0) vec4<f32> {
+      let time = uniforms.time;
+      let aspect = uniforms.aspectRatio;
+      let mouse = uniforms.mousePos;
+    
+      // Ray setup: Eye at (0,0,2.5), looking towards (0,0,0)
+      let uv = in.fragUV * 2.0 - vec2<f32>(1.0, 1.0);
+      let uvCorrected = vec2<f32>(uv.x * aspect, uv.y);
+      let rayDir = normalize(vec3<f32>(uvCorrected, -1.5));
+      let rayOrigin = vec3<f32>(0.0, 0.0, 2.5);
+    
+      // Raymarch parameters
+      var totalDist = 0.0;
+      let maxSteps = 128;
+      let maxDist = 10.0;
+      let surfaceThreshold = 0.0005;
+    
+      var hitPos = rayOrigin;
+      var hit = false;
+      
+      for (var i = 0; i < maxSteps; i = i + 1) {
+          hitPos = rayOrigin + rayDir * totalDist;
+          let distToSurface = organismSDF(hitPos, time * 0.8, mouse);
+          if (distToSurface < surfaceThreshold) {
+              hit = true;
+              break;
+          }
+          totalDist = totalDist + distToSurface;
+          if (totalDist > maxDist) {
+              break;
+          }
+      }
+    
+      if (!hit) {
+        // Background: fade from dark blue to black
+        let bg = mix(vec3<f32>(0.0, 0.0, 0.05), vec3<f32>(0.0, 0.0, 0.0), in.fragUV.y);
+        return vec4<f32>(bg, 1.0);
+      }
+    
+      // Surface shading
+      let normal = estimateNormal(hitPos, time * 0.8, mouse);
+      let lightDir1 = normalize(vec3<f32>(0.0, 1.0, 0.5));
+      let lightDir2 = normalize(vec3<f32>(-1.0, 0.5, 0.75));
+    
+      let color = organismColor(normal, lightDir1, lightDir2);
+      
+      return vec4<f32>(color, 1.0);
+    }
+    `;
+
+        // WebGL Shaders (GLSL)
+        const vertexShaderGLSL = `#version 300 es
+    in vec2 a_position;
+    out vec2 fragUV;
+    
+    void main() {
+      // Full-screen triangle
+      const vec2 positions[3] = vec2[3](
+        vec2(-1.0, -1.0),
+        vec2( 3.0, -1.0),
+        vec2(-1.0,  3.0)
+      );
+      
+      gl_Position = vec4(positions[gl_VertexID], 0.0, 1.0);
+      fragUV = (positions[gl_VertexID] + vec2(1.0, 1.0)) * 0.5;
+    }
+    `;
+
+        const fragmentShaderGLSL = `#version 300 es
+    precision highp float;
+    
+    in vec2 fragUV;
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    uniform vec2 u_mouse;
+    
+    out vec4 outColor;
+
+    // SDF function for living organism
+    
+    // Living Organism SDF with Mouse Interaction
+    float organismSDF(vec3 p, float t, vec2 mouse) {
+      // Base sphere
+      float sphereDist = length(p) - 1.0;
+    
+      // Low-frequency large deformations
+      float freq1 = 3.0;
+      float amp1  = 0.3;
+      float layer1 = amp1 * sin(p.x * freq1 + t) * sin(p.y * freq1 - t);
+    
+      // Medium-frequency detail
+      float freq2 = 8.0;
+      float amp2  = 0.15;
+      float layer2 = amp2 * sin(p.x * freq2 + t * 2.0) *
+                            sin(p.y * freq2 + t * 2.0) *
+                            sin(p.z * freq2 - t * 2.0);
+    
+      // High-frequency smaller details (fine texture)
+      float freq3 = 20.0;
+      float amp3  = 0.07;
+      float layer3 = amp3 * sin(p.x * freq3 - t * 3.0) *
+                            sin(p.y * freq3 + t * 3.0);
+    
+      // Mouse Interaction: Influence area around mouse position
+      float influenceRadius = 0.5;
+      float influenceStrength = 0.4;
+      
+      // Convert mouse position from screen to [-1,1] range
+      vec2 mouseN = mouse * 2.0 - vec2(1.0, 1.0);
+      
+      // Apply influence in the SDF based on mouse proximity
+      float distanceToMouse = distance(p.xy, mouseN.xy);
+      float mouseInfluence = mix(0.0, influenceStrength, smoothstep(influenceRadius, 0.0, distanceToMouse));
+    
+      // Add mouse influence as an additional layer
+      float layerMouse = mouseInfluence * sin(p.x * 15.0 + t * 5.0) * sin(p.y * 15.0 + t * 5.0);
+    
+      return sphereDist + layer1 + layer2 + layer3 + layerMouse;
+    }
+    
+    // Approximate normal
+    vec3 estimateNormal(vec3 p, float t, vec2 mouse) {
+      float eps = 0.001;
+      float d = organismSDF(p, t, mouse);
+      float nx = organismSDF(vec3(p.x + eps, p.y, p.z), t, mouse) - d;
+      float ny = organismSDF(vec3(p.x, p.y + eps, p.z), t, mouse) - d;
+      float nz = organismSDF(vec3(p.x, p.y, p.z + eps), t, mouse) - d;
+      return normalize(vec3(nx, ny, nz));
+    }
+    
+    // Organic color function
+    vec3 organismColor(vec3 normal, vec3 light1, vec3 light2) {
+      float diff1 = clamp(dot(normal, light1), 0.0, 1.0);
+      float diff2 = clamp(dot(normal, light2), 0.0, 1.0);
+      float diffuse = diff1 + diff2;
+    
+      // Blending two colors for an organic look
+      vec3 baseColor = vec3(0.4, 0.6, 0.2); // Greenish
+      vec3 secondary = vec3(0.7, 0.3, 0.2); // Warm earthy tone
+    
+      return mix(baseColor, secondary, diffuse);
+    }
+    
+    void main() {
+      float time = u_time;
+      float aspect = u_resolution.x / u_resolution.y;
+      vec2 mouse = u_mouse;
+    
+      // Ray setup: Eye at (0,0,2.5), looking towards (0,0,0)
+      vec2 uv = fragUV * 2.0 - vec2(1.0, 1.0);
+      vec2 uvCorrected = vec2(uv.x * aspect, uv.y);
+      vec3 rayDir = normalize(vec3(uvCorrected, -1.5));
+      vec3 rayOrigin = vec3(0.0, 0.0, 2.5);
+    
+      // Raymarch parameters
+      float totalDist = 0.0;
+      int maxSteps = 128;
+      float maxDist = 10.0;
+      float surfaceThreshold = 0.0005;
+    
+      vec3 hitPos = rayOrigin;
+      bool hit = false;
+      
+      for(int i = 0; i < maxSteps; i++) {
+          hitPos = rayOrigin + rayDir * totalDist;
+          float distToSurface = organismSDF(hitPos, time * 0.8, mouse);
+          if(distToSurface < surfaceThreshold){
+              hit = true;
+              break;
+          }
+          totalDist += distToSurface;
+          if(totalDist > maxDist){
+              break;
+          }
+      }
+    
+      if(!hit){
+        // Background: fade from dark blue to black
+        vec3 bg = mix(vec3(0.0, 0.0, 0.05), vec3(0.0, 0.0, 0.0), fragUV.y);
+        outColor = vec4(bg, 1.0);
+        return;
+      }
+    
+      // Surface shading
+      vec3 normal = estimateNormal(hitPos, time * 0.8, mouse);
+      vec3 lightDir1 = normalize(vec3(0.0, 1.0, 0.5));
+      vec3 lightDir2 = normalize(vec3(-1.0, 0.5, 0.75));
+    
+      vec3 color = organismColor(normal, lightDir1, lightDir2);
+      outColor = vec4(color, 1.0);
+    }
+    `;
+
+        /******************************************************************************
+         * WebGL Shaders (GLSL)
+         *****************************************************************************/
+        const organismShaderGLSL = `
+      // Base sphere
+      float sphereDist = length(p) - 1.0;
+    
+      // Low-frequency large deformations
+      float freq1 = 3.0;
+      float amp1  = 0.3;
+      float layer1 = amp1 * sin(p.x * freq1 + t) * sin(p.y * freq1 - t);
+    
+      // Medium-frequency detail
+      float freq2 = 8.0;
+      float amp2  = 0.15;
+      float layer2 = amp2 * sin(p.x * freq2 + t * 2.0) *
+                            sin(p.y * freq2 + t * 2.0) *
+                            sin(p.z * freq2 - t * 2.0);
+    
+      // High-frequency smaller details
+      float freq3 = 20.0;
+      float amp3  = 0.07;
+      float layer3 = amp3 * sin(p.x * freq3 - t * 3.0) *
+                            sin(p.y * freq3 + t * 3.0);
+    
+      // Mouse Interaction: Influence area around mouse position
+      float influenceRadius = 0.5;
+      float influenceStrength = 0.4;
+      
+      // Convert mouse position from screen to [-1,1] range
+      vec2 mouseN = mouse * 2.0 - vec2(1.0, 1.0);
+      
+      // Apply influence in the SDF based on mouse proximity
+      float distanceToMouse = distance(p.xy, mouseN.xy);
+      float mouseInfluence = mix(0.0, influenceStrength, smoothstep(influenceRadius, 0.0, distanceToMouse));
+    
+      // Add mouse influence as an additional layer
+      float layerMouse = mouseInfluence * sin(p.x * 15.0 + t * 5.0) * sin(p.y * 15.0 + t * 5.0);
+    
+      return sphereDist + layer1 + layer2 + layer3 + layerMouse;
+    }
+    
+    // Approximate normal
+    vec3 estimateNormal(vec3 p, float t, vec2 mouse) {
+      float eps = 0.001;
+      float d = organismSDF(p, t, mouse);
+      float nx = organismSDF(vec3(p.x + eps, p.y, p.z), t, mouse) - d;
+      float ny = organismSDF(vec3(p.x, p.y + eps, p.z), t, mouse) - d;
+      float nz = organismSDF(vec3(p.x, p.y, p.z + eps), t, mouse) - d;
+      return normalize(vec3(nx, ny, nz));
+    }
+    
+    // Organic color function
+    vec3 organismColor(vec3 normal, vec3 light1, vec3 light2) {
+      float diff1 = clamp(dot(normal, light1), 0.0, 1.0);
+      float diff2 = clamp(dot(normal, light2), 0.0, 1.0);
+      float diffuse = diff1 + diff2;
+    
+      // Blending two colors for an organic look
+      vec3 baseColor = vec3(0.4, 0.6, 0.2); // Greenish
+      vec3 secondary = vec3(0.7, 0.3, 0.2); // Warm earthy tone
+    
+      return mix(baseColor, secondary, diffuse);
+    }
+    
+    void main() {
+      float time = u_time;
+      float aspect = u_resolution.x / u_resolution.y;
+      vec2 mouse = u_mouse;
+    
+      // Ray setup: Eye at (0,0,2.5), looking towards (0,0,0)
+      vec2 uv = fragUV * 2.0 - vec2(1.0, 1.0);
+      vec2 uvCorrected = vec2(uv.x * aspect, uv.y);
+      vec3 rayDir = normalize(vec3(uvCorrected, -1.5));
+      vec3 rayOrigin = vec3(0.0, 0.0, 2.5);
+    
+      // Raymarch parameters
+      float totalDist = 0.0;
+      int maxSteps = 128;
+      float maxDist = 10.0;
+      float surfaceThreshold = 0.0005;
+    
+      vec3 hitPos = rayOrigin;
+      bool hit = false;
+      
+      for(int i = 0; i < maxSteps; i++) {
+          hitPos = rayOrigin + rayDir * totalDist;
+          float distToSurface = organismSDF(hitPos, time * 0.8, mouse);
+          if(distToSurface < surfaceThreshold){
+              hit = true;
+              break;
+          }
+          totalDist += distToSurface;
+          if(totalDist > maxDist){
+              break;
+          }
+      }
+    
+      if(!hit){
+        // Background: fade from dark blue to black
+        vec3 bg = mix(vec3(0.0, 0.0, 0.05), vec3(0.0, 0.0, 0.0), fragUV.y);
+        outColor = vec4(bg, 1.0);
+        return;
+      }
+    
+      // Surface shading
+      vec3 normal = estimateNormal(hitPos, time * 0.8, mouse);
+      vec3 lightDir1 = normalize(vec3(0.0, 1.0, 0.5));
+      vec3 lightDir2 = normalize(vec3(-1.0, 0.5, 0.75));
+    
+      vec3 color = organismColor(normal, lightDir1, lightDir2);
+      outColor = vec4(color, 1.0);
+    }
+    `;
+
+        /******************************************************************************
+         * WebGL Shaders (GLSL)
+         *****************************************************************************/
+        // Note: WebGL shaders have been updated to include mouse interaction
+        // This includes additional uniform `u_mouse` and modifications to SDF and shading
+        // as shown in the fragmentShaderGLSL above
+
+        /******************************************************************************
+         * WebGPU Initialization
+         *****************************************************************************/
+        async function initWebGPU() {
+            console.log("Initializing WebGPU...");
+            // Wait until the DOM is fully loaded
+            // Already ensured by wrapping in DOMContentLoaded below
+            // However, since we're using window.addEventListener('DOMContentLoaded'), no need to wait here
+
+            // Get the canvas element
+            const canvas = document.getElementById('gpuCanvas');
+            if (!canvas) {
+                console.error("Canvas element with id 'gpuCanvas' not found.");
+                alert("Canvas element with id 'gpuCanvas' not found.");
+                return;
+            }
+
+            // Initialize mouse position
+            let mouse = { x: 0.0, y: 0.0 };
+
+            // Add mouse move listener
+            canvas.addEventListener('mousemove', (event) => {
+                const rect = canvas.getBoundingClientRect();
+                mouse.x = (event.clientX - rect.left) / rect.width;
+                // Fix: Mirror the Y coordinate like in WebGL
+                mouse.y = 1.0 - (event.clientY - rect.top) / rect.height;  // Flip Y coordinate
+            });
+
+            // Check if WebGPU is supported
+            if (!navigator.gpu) {
+                console.warn("WebGPU not supported. Falling back to WebGL.");
+                initWebGL();
+                return;
+            }
+
+            // Request adapter and device
+            const adapter = await navigator.gpu.requestAdapter();
+            if (!adapter) {
+                console.error("Failed to get GPU adapter. Falling back to WebGL.");
+                initWebGL();
+                return;
+            }
+
+            const device = await adapter.requestDevice();
+            if (!device) {
+                console.error("Failed to get GPU device. Falling back to WebGL.");
+                initWebGL();
+                return;
+            }
+
+            // Get WebGPU context
+            const context = canvas.getContext('webgpu');
+            if (!context) {
+                console.error("WebGPU context not available. Falling back to WebGL.");
+                initWebGL();
+                return;
+            }
+
+            // Determine supported canvas formats
+            let supportedFormats = [];
+            if (typeof navigator.gpu.getPreferredCanvasFormats === 'function') {
+                supportedFormats = await navigator.gpu.getPreferredCanvasFormats();
+            } else if (typeof navigator.gpu.getPreferredCanvasFormat === 'function') {
+                const format = navigator.gpu.getPreferredCanvasFormat();
+                supportedFormats = [format];
+            } else {
+                console.error("No preferred canvas format methods found. Falling back to WebGL.");
+                initWebGL();
+                return;
+            }
+
+            // Select the first supported format
+            const canvasFormat = supportedFormats[0];
+            console.log(`Using WebGPU canvas format: ${canvasFormat}`);
+
+            // Configure the WebGPU context
+            context.configure({
+                device: device,
+                format: canvasFormat,
+                alphaMode: 'opaque',
+            });
+
+            // Create uniform buffer
+            const uniformBufferSize = 32; // 8 floats (aligned to 16-byte boundary): time, aspectRatio, mouse.x, mouse.y, dummy, padding
+            const uniformBuffer = device.createBuffer({
+                size: uniformBufferSize,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            });
+
+            // Create bind group layout
+            const bindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    {
+                        binding: 0,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        buffer: { type: 'uniform' },
+                    },
+                ],
+            });
+
+            // Create bind group
+            const bindGroup = device.createBindGroup({
+                layout: bindGroupLayout,
+                entries: [
+                    {
+                        binding: 0,
+                        resource: { buffer: uniformBuffer },
+                    },
+                ],
+            });
+
+            // Create pipeline layout
+            const pipelineLayout = device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout],
+            });
+
+            // Create shader modules
+            const vertexModule = device.createShaderModule({ code: vertexShaderWGSL });
+            const fragmentModule = device.createShaderModule({ code: fragmentShaderWGSL });
+
+            // Create render pipeline
+            const pipeline = device.createRenderPipeline({
+                layout: pipelineLayout,
+                vertex: {
+                    module: vertexModule,
+                    entryPoint: 'main',
+                },
+                fragment: {
+                    module: fragmentModule,
+                    entryPoint: 'main',
+                    targets: [
+                        {
+                            format: canvasFormat,
+                            blend: {
+                                color: {
+                                    srcFactor: 'src-alpha',
+                                    dstFactor: 'one-minus-src-alpha',
+                                    operation: 'add',
+                                },
+                                alpha: {
+                                    srcFactor: 'one',
+                                    dstFactor: 'one-minus-src-alpha',
+                                    operation: 'add',
+                                },
+                            },
+                        },
+                    ],
+                },
+                primitive: {
+                    topology: 'triangle-list',
+                },
+            });
+
+            // Animation loop
+            let startTime = performance.now();
+
+            function frame() {
+                const currentTime = performance.now();
+                const elapsed = (currentTime - startTime) * 0.001; // seconds
+
+                // Update uniforms: time, aspectRatio, mouse.x, mouse.y
+                const aspectRatio = canvas.width / canvas.height;
+                const data = new Float32Array([
+                    elapsed,       // time
+                    aspectRatio,   // aspect ratio
+                    mouse.x,       // mouse x
+                    mouse.y,       // mouse y
+                    0.0            // dummy
+                ]);
+                device.queue.writeBuffer(uniformBuffer, 0, data.buffer, data.byteOffset, data.byteLength);
+
+                // Encode commands
+                const commandEncoder = device.createCommandEncoder();
+                const textureView = context.getCurrentTexture().createView();
+
+                const renderPass = commandEncoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: textureView,
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    }],
+                });
+
+                renderPass.setPipeline(pipeline);
+                renderPass.setBindGroup(0, bindGroup);
+                renderPass.draw(3, 1, 0, 0);
+                renderPass.end();
+
+                device.queue.submit([commandEncoder.finish()]);
+
+                requestAnimationFrame(frame);
+            }
+
+            requestAnimationFrame(frame);
+        }
+
+        /******************************************************************************
+         * WebGL Initialization (Fallback)
+         *****************************************************************************/
+        function initWebGL() {
+            console.log("Initializing WebGL...");
+            const canvas = document.getElementById('gpuCanvas');
+            if (!canvas) {
+                console.error("Canvas element with id 'gpuCanvas' not found.");
+                alert("Canvas element with id 'gpuCanvas' not found.");
+                return;
+            }
+
+            const gl = canvas.getContext('webgl2');
+            if (!gl) {
+                console.error("WebGL2 not supported. Cannot render the visualization.");
+                alert("WebGL2 not supported by your browser.");
+                return;
+            }
+
+            // Check for floating point textures support
+            const floatTexSupported = gl.getExtension('EXT_color_buffer_float');
+            if (!floatTexSupported) {
+                console.warn("Floating point textures not supported. Colors may appear less vibrant.");
+            } else {
+                console.log("Floating point textures supported.");
+            }
+
+            // Compile shaders
+            function compileShader(source, type) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error("Shader compilation failed:", gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                    return null;
+                }
+                return shader;
+            }
+
+            const vert = compileShader(vertexShaderGLSL, gl.VERTEX_SHADER);
+            const frag = compileShader(fragmentShaderGLSL, gl.FRAGMENT_SHADER);
+            if (!vert || !frag) {
+                console.error("Failed to compile WebGL shaders.");
+                return;
+            }
+
+            // Link program
+            function createProgram(vs, fs) {
+                const program = gl.createProgram();
+                gl.attachShader(program, vs);
+                gl.attachShader(program, fs);
+                gl.linkProgram(program);
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    console.error("Program linking failed:", gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                    return null;
+                }
+                return program;
+            }
+
+            const program = createProgram(vert, frag);
+            if (!program) {
+                console.error("Failed to link WebGL program.");
+                return;
+            }
+
+            gl.useProgram(program);
+
+            // Get uniform locations
+            const u_timeLoc = gl.getUniformLocation(program, 'u_time');
+            const u_resolutionLoc = gl.getUniformLocation(program, 'u_resolution');
+            const u_mouseLoc = gl.getUniformLocation(program, 'u_mouse');
+
+            // Set up viewport
+            gl.viewport(0, 0, canvas.width, canvas.height);
+
+            // Initialize mouse position
+            let mouse = { x: 0.0, y: 0.0 };
+
+            // Add mouse move listener
+            canvas.addEventListener('mousemove', (event) => {
+                const rect = canvas.getBoundingClientRect();
+                mouse.x = (event.clientX - rect.left) / rect.width;
+                mouse.y = 1.0 - (event.clientY - rect.top) / rect.height; // Flip y for WebGL
+            });
+
+            // Animation loop
+            let startTime = performance.now();
+            function render() {
+                const currentTime = performance.now();
+                const elapsed = (currentTime - startTime) * 0.001; // seconds
+
+                // Set uniforms: time, resolution, mouse position
+                gl.uniform1f(u_timeLoc, elapsed);
+                gl.uniform2f(u_resolutionLoc, canvas.width, canvas.height);
+                gl.uniform2f(u_mouseLoc, mouse.x, mouse.y);
+
+                // Clear and draw
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+                requestAnimationFrame(render);
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        /******************************************************************************
+         * Initialize Rendering on DOMContentLoaded
+         *****************************************************************************/
+        window.addEventListener('DOMContentLoaded', () => {
+            initWebGPU();
+        });
+    </script>
+</body>
+
+</html>
