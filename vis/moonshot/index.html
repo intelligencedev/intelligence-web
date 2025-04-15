@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebGL 2.0 Moon Visualization</title>
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; background: #000; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #error { color: #f44; position: absolute; top: 1em; left: 1em; font-family: sans-serif; background: #fff8; padding: 0.5em 1em; border-radius: 6px; }
+  </style>
+</head>
+<body>
+<canvas id="glcanvas"></canvas>
+<div id="error" style="display:none;"></div>
+<script type="text/javascript">
+const canvas = document.getElementById('glcanvas');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+function showError(msg) {
+  document.getElementById('error').style.display = '';
+  document.getElementById('error').innerText = msg;
+  throw new Error(msg);
+}
+
+// === 1. Get WebGL 2.0 context ===
+const gl = canvas.getContext('webgl2');
+if (!gl) showError('WebGL 2.0 is not supported in this browser.');
+
+// === 2. Shaders (Moon) ===
+const vertSrc = `#version 300 es
+precision highp float;
+in vec3 aPosition;
+in vec3 aNormal;
+in vec2 aUV;
+
+uniform mat4 uModel;
+uniform mat4 uView;
+uniform mat4 uProj;
+uniform sampler2D uDisplace;
+uniform float uDispScale;
+
+out vec3 vNormal;
+out vec2 vUV;
+out vec3 vPosition;
+
+void main() {
+    float disp = texture(uDisplace, aUV).r;
+    vec3 displaced = aPosition + aNormal * ((disp - 0.5) * 2.0 * uDispScale);
+    vPosition = (uModel * vec4(displaced, 1.0)).xyz;
+    vNormal = mat3(uModel) * aNormal;
+    vUV = aUV;
+    gl_Position = uProj * uView * uModel * vec4(displaced, 1.0);
+}
+`;
+
+const fragSrc = `#version 300 es
+precision highp float;
+in vec3 vNormal;
+in vec2 vUV;
+in vec3 vPosition;
+
+uniform sampler2D uTexture;
+uniform sampler2D uDisplace;
+uniform float uBumpScale; // added uniform for bump mapping
+uniform vec3 uLightDir;
+uniform vec3 uViewPos;
+
+out vec4 outColor;
+
+void main() {
+    vec3 texColor = texture(uTexture, vUV).rgb;
+    
+    // Bump mapping - compute perturbed normal using the displacement map
+    vec2 texelSize = 1.0 / vec2(textureSize(uDisplace, 0));
+    float center = texture(uDisplace, vUV).r;
+    float left = texture(uDisplace, vUV - vec2(texelSize.x, 0.0)).r;
+    float right = texture(uDisplace, vUV + vec2(texelSize.x, 0.0)).r;
+    float top = texture(uDisplace, vUV + vec2(0.0, texelSize.y)).r;
+    float bottom = texture(uDisplace, vUV - vec2(0.0, texelSize.y)).r;
+    
+    vec3 normal = normalize(vNormal);
+    vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), normal));
+    vec3 bitangent = normalize(cross(normal, tangent));
+    
+    // Use uBumpScale for bump intensity
+    float bumpScale = uBumpScale;
+    vec3 bumpNormal = normalize(normal + 
+                         tangent * (left - right) * bumpScale + 
+                         bitangent * (bottom - top) * bumpScale);
+    
+    vec3 N = normalize(bumpNormal);
+    vec3 L = normalize(uLightDir);
+    vec3 V = normalize(uViewPos - vPosition);
+    vec3 R = reflect(-L, N);
+
+    float diff = max(dot(N, L), 0.0);
+    float spec = pow(max(dot(R, V), 0.0), 32.0);
+
+    vec3 ambient = 0.18 * texColor;
+    vec3 diffuse = 0.82 * texColor * diff;
+    vec3 specular = vec3(0.25) * spec;
+
+    outColor = vec4(ambient + diffuse + specular, 1.0);
+}
+`;
+
+// === 2b. Postprocessing (Cinematic) Shaders ===
+const postVertSrc = `#version 300 es
+precision highp float;
+layout(location=0) in vec2 aPosition;
+out vec2 vUV;
+void main() {
+    vUV = (aPosition+1.0)*0.5;
+    gl_Position = vec4(aPosition,0,1);
+}
+`;
+
+// Simple film grain + vignette + chromatic aberration + scanlines
+const postFragSrc = `#version 300 es
+precision highp float;
+in vec2 vUV;
+out vec4 outColor;
+uniform sampler2D uScene;
+uniform float uTime;
+uniform vec2 uResolution;
+
+float rand(vec2 co) {
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
+void main() {
+    vec2 uv = vUV;
+    vec2 res = uResolution;
+
+    // Chromatic aberration
+    float aberration = 0.0015 + 0.001 * sin(uTime*0.5);
+    vec3 color;
+    color.r = texture(uScene, uv + vec2(aberration,0.0)).r;
+    color.g = texture(uScene, uv).g;
+    color.b = texture(uScene, uv - vec2(aberration,0.0)).b;
+
+    // Film grain (animated)
+    float grain = rand(uv * res.xy + uTime*60.0) * 0.08 - 0.04;
+    color += grain;
+
+    // Vignette
+    float d = distance(uv, vec2(0.5));
+    float vignette = smoothstep(0.80, 0.35, d);
+    color *= vignette;
+
+    // Scanlines
+    float scan = 0.97 + 0.03*sin(uv.y*res.y*2.0 + uTime*30.0);
+    color *= scan;
+
+    // Flicker
+    color *= 0.98 + 0.02*sin(uTime*25.0);
+
+    outColor = vec4(clamp(color,0.0,1.0),1.0);
+}
+`;
+
+// === 3. Shader Compilation ===
+function compileShader(src, type) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, src);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    showError('Shader error: ' + gl.getShaderInfoLog(shader));
+  }
+  return shader;
+}
+
+function createProgram(vsSrc, fsSrc) {
+  const vs = compileShader(vsSrc, gl.VERTEX_SHADER);
+  const fs = compileShader(fsSrc, gl.FRAGMENT_SHADER);
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    showError('Program link error: ' + gl.getProgramInfoLog(prog));
+  }
+  return prog;
+}
+
+const program = createProgram(vertSrc, fragSrc);
+const postProgram = createProgram(postVertSrc, postFragSrc);
+
+// === 4. Moon Sphere Geometry Generation ===
+function createSphere(resLat, resLon) {
+  const positions = [], normals = [], uvs = [], indices = [];
+  for (let lat = 0; lat <= resLat; ++lat) {
+    const theta = lat * Math.PI / resLat;
+    const sinTheta = Math.sin(theta), cosTheta = Math.cos(theta);
+    for (let lon = 0; lon <= resLon; ++lon) {
+      const phi = lon * 2 * Math.PI / resLon;
+      const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi);
+
+      const x = cosPhi * sinTheta;
+      const y = cosTheta;
+      const z = sinPhi * sinTheta;
+
+      positions.push(x, y, z);
+      normals.push(x, y, z);
+      uvs.push(lon / resLon, 1 - lat / resLat);
+    }
+  }
+  for (let lat = 0; lat < resLat; ++lat) {
+    for (let lon = 0; lon < resLon; ++lon) {
+      const a = lat * (resLon + 1) + lon;
+      const b = a + resLon + 1;
+
+      indices.push(a, b, a + 1);
+      indices.push(b, b + 1, a + 1);
+    }
+  }
+  return {
+    positions: new Float32Array(positions),
+    normals:   new Float32Array(normals),
+    uvs:       new Float32Array(uvs),
+    indices:   new Uint16Array(indices)
+  };
+}
+const sphere = createSphere(64, 64);
+
+// === 5. Buffer Setup ===
+function createBuffer(data, attribLoc, size) {
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(attribLoc);
+  gl.vertexAttribPointer(attribLoc, size, gl.FLOAT, false, 0, 0);
+  return buf;
+}
+gl.useProgram(program);
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+
+const posLoc = gl.getAttribLocation(program, 'aPosition');
+const normLoc = gl.getAttribLocation(program, 'aNormal');
+const uvLoc = gl.getAttribLocation(program, 'aUV');
+
+createBuffer(sphere.positions, posLoc, 3);
+createBuffer(sphere.normals, normLoc, 3);
+createBuffer(sphere.uvs, uvLoc, 2);
+
+const ibo = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphere.indices, gl.STATIC_DRAW);
+
+// === 5b. Postprocessing fullscreen quad ===
+const quadVAO = gl.createVertexArray();
+const quadVBO = gl.createBuffer();
+gl.bindVertexArray(quadVAO);
+gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
+// Fullscreen quad covering [-1,-1] to [1,1]
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+  -1,-1,  1,-1,  -1,1,  1,1
+]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+// === 6. Load Textures ===
+function loadTexture(src, texUnit, format, onload) {
+  const tex = gl.createTexture();
+  gl.activeTexture(texUnit);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, format, 1, 1, 0, format, gl.UNSIGNED_BYTE, new Uint8Array([128,128,128,255]));
+  const img = new window.Image();
+  img.crossOrigin = "anonymous";
+  img.src = src;
+  img.onload = function() {
+    gl.activeTexture(texUnit);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, format, format, gl.UNSIGNED_BYTE, img);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    if (onload) onload();
+  };
+  img.onerror = () => showError("Could not load image: " + src);
+  return tex;
+}
+
+// Use local moon.png and moon_displace.png (must be present in same directory)
+const texMoon = loadTexture('moon.png', gl.TEXTURE0, gl.RGB);
+const texDisplace = loadTexture('moon_displace.png', gl.TEXTURE1, gl.RED);
+
+// === 6b. Postprocessing FBO setup ===
+let postFBO = null, postColor = null, postDepth = null;
+function createPostprocessingFBO(width, height) {
+  // Delete old FBO if any
+  if (postFBO) {
+    gl.deleteFramebuffer(postFBO);
+    gl.deleteTexture(postColor);
+    gl.deleteRenderbuffer(postDepth);
+  }
+  // Color texture
+  postColor = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, postColor);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  // Depth
+  postDepth = gl.createRenderbuffer();
+  gl.bindRenderbuffer(gl.RENDERBUFFER, postDepth);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+  // FBO
+  postFBO = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, postFBO);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, postColor, 0);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, postDepth);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE)
+    showError('Postprocessing framebuffer incomplete!');
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+createPostprocessingFBO(canvas.width, canvas.height);
+
+// === 7. Uniform Locations ===
+const uModelLoc = gl.getUniformLocation(program, 'uModel');
+const uViewLoc = gl.getUniformLocation(program, 'uView');
+const uProjLoc = gl.getUniformLocation(program, 'uProj');
+const uTextureLoc = gl.getUniformLocation(program, 'uTexture');
+const uDisplaceLoc = gl.getUniformLocation(program, 'uDisplace');
+const uDispScaleLoc = gl.getUniformLocation(program, 'uDispScale');
+const uLightDirLoc = gl.getUniformLocation(program, 'uLightDir');
+const uViewPosLoc = gl.getUniformLocation(program, 'uViewPos');
+const uBumpScaleLoc = gl.getUniformLocation(program, 'uBumpScale'); // added uniform location
+
+// Postprocess uniforms
+const uSceneLoc = gl.getUniformLocation(postProgram, 'uScene');
+const uTimeLoc = gl.getUniformLocation(postProgram, 'uTime');
+const uResLoc = gl.getUniformLocation(postProgram, 'uResolution');
+
+// === 8. Matrix Utilities ===
+function perspective(out, fovy, aspect, near, far) {
+  const f = 1.0 / Math.tan(fovy / 2), nf = 1 / (near - far);
+  out[0]=f/aspect;out[1]=0;out[2]=0;out[3]=0;
+  out[4]=0;out[5]=f;out[6]=0;out[7]=0;
+  out[8]=0;out[9]=0;out[10]=(far+near)*nf;out[11]=-1;
+  out[12]=0;out[13]=0;out[14]=2*far*near*nf;out[15]=0;
+}
+function lookAt(out, eye, center, up) {
+  let x0, x1, x2, y0, y1, y2, z0, z1, z2, len, eyex=eye[0],eyey=eye[1],eyez=eye[2],upx=up[0],upy=up[1],upz=up[2],centerx=center[0],centery=center[1],centerz=center[2];
+  if (Math.abs(eyex-centerx)<0.000001 && Math.abs(eyey-centery)<0.000001 && Math.abs(eyez-centerz)<0.000001) {return identity(out);}
+  z0=eyex-centerx;z1=eyey-centery;z2=eyez-centerz;
+  len=1/Math.hypot(z0,z1,z2);z0*=len;z1*=len;z2*=len;
+  x0=upy*z2-upz*z1;x1=upz*z0-upx*z2;x2=upx*z1-upy*z0;
+  len=Math.hypot(x0,x1,x2);if(!len){x0=0;x1=0;x2=0;}else{len=1/len;x0*=len;x1*=len;x2*=len;}
+  y0=z1*x2-z2*x1;y1=z2*x0-z0*x2;y2=z0*x1-z1*x0;
+  len=Math.hypot(y0,y1,y2);if(!len){y0=0;y1=0;y2=0;}else{len=1/len;y0*=len;y1*=len;y2*=len;}
+  out[0]=x0;out[1]=y0;out[2]=z0;out[3]=0;
+  out[4]=x1;out[5]=y1;out[6]=z1;out[7]=0;
+  out[8]=x2;out[9]=y2;out[10]=z2;out[11]=0;
+  out[12]=-(x0*eyex+x1*eyey+x2*eyez);
+  out[13]=-(y0*eyex+y1*eyey+y2*eyez);
+  out[14]=-(z0*eyex+z1*eyey+z2*eyez);
+  out[15]=1;
+}
+function identity(out) {
+  out[0]=1;out[1]=0;out[2]=0;out[3]=0;
+  out[4]=0;out[5]=1;out[6]=0;out[7]=0;
+  out[8]=0;out[9]=0;out[10]=1;out[11]=0;
+  out[12]=0;out[13]=0;out[14]=0;out[15]=1;
+}
+function rotateY(out, a, rad) {
+  const s=Math.sin(rad),c=Math.cos(rad);
+  out[0]=c;out[1]=0;out[2]=-s;out[3]=0;
+  out[4]=0;out[5]=1;out[6]=0;out[7]=0;
+  out[8]=s;out[9]=0;out[10]=c;out[11]=0;
+  out[12]=0;out[13]=0;out[14]=0;out[15]=1;
+}
+function multiply(out, a, b) {
+  const o = out, m = a, n = b;
+  let i, j, k, sum;
+  for (i=0; i<4; ++i) for (j=0; j<4; ++j) {
+    sum=0;
+    for (k=0; k<4; ++k) sum += m[k*4+j]*n[i*4+k];
+    o[i*4+j]=sum;
+  }
+}
+
+// === 9. Render Loop (with cinematic camera effects) ===
+let camTime = 0;
+function render(now) {
+  now *= 0.001;
+  camTime = now;
+
+  // 1. Draw moon scene to offscreen FBO
+  gl.bindFramebuffer(gl.FRAMEBUFFER, postFBO);
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.clearColor(0,0,0,1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+
+  // Cinematic camera: slight sway, zoom, and shake
+  // Sway
+  let sway = Math.sin(now*0.18)*0.11;
+  // Subtle zoom in/out
+  let zoom = 3.2 + 0.13*Math.sin(now*0.09);
+  // Camera shake (handheld effect)
+  let shakeX = Math.sin(now*7.2)*0.012 + Math.sin(now*13.7)*0.009;
+  let shakeY = Math.cos(now*8.4)*0.009 + Math.cos(now*11.3)*0.007;
+
+  // Camera and matrices
+  const aspect = canvas.width / canvas.height;
+  const proj = new Float32Array(16);
+  const view = new Float32Array(16);
+  const model = new Float32Array(16);
+  perspective(proj, Math.PI/2.4 + 0.05*Math.sin(now*0.14), aspect, 0.1, 100);
+
+  // Camera lookat with shake and sway
+  lookAt(
+    view,
+    [shakeX, shakeY, zoom],
+    [sway, 0, 0],
+    [0,1,0]
+  );
+  rotateY(model, model, now * 0.22 + sway*0.18);
+
+  gl.useProgram(program);
+  gl.bindVertexArray(vao);
+
+  gl.uniformMatrix4fv(uProjLoc, false, proj);
+  gl.uniformMatrix4fv(uViewLoc, false, view);
+  gl.uniformMatrix4fv(uModelLoc, false, model);
+  gl.uniform3fv(uLightDirLoc, [0.6, 1.0, 0.7]);
+  gl.uniform3fv(uViewPosLoc, [shakeX, shakeY, zoom]);
+  gl.uniform1i(uTextureLoc, 0);
+  gl.uniform1i(uDisplaceLoc, 1);
+  gl.uniform1f(uDispScaleLoc, 0.09);
+  gl.uniform1f(uBumpScaleLoc, 1.5); // set bump mapping intensity
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texMoon);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, texDisplace);
+
+  gl.drawElements(gl.TRIANGLES, sphere.indices.length, gl.UNSIGNED_SHORT, 0);
+
+  // 2. Postprocessing pass: draw FBO color to screen with effects
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.disable(gl.DEPTH_TEST);
+
+  gl.useProgram(postProgram);
+  gl.bindVertexArray(quadVAO);
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, postColor);
+  gl.uniform1i(uSceneLoc, 2);
+  gl.uniform1f(uTimeLoc, now);
+  gl.uniform2f(uResLoc, canvas.width, canvas.height);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+// === 10. Responsive Resize ===
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  createPostprocessingFBO(canvas.width, canvas.height);
+});
+</script>
+</body>
+</html>

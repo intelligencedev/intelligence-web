@@ -164,17 +164,21 @@
     }
     
     // Organic color function
-    fn organismColor(normal: vec3<f32>, light1: vec3<f32>, light2: vec3<f32>) -> vec3<f32> {
-      // Basic diffuse from two lights
-      let diff1 = clamp(dot(normal, light1), 0.0, 1.0);
-      let diff2 = clamp(dot(normal, light2), 0.0, 1.0);
-      let diffuse = diff1 + diff2;
-    
-      // A simple mix of two colors for an organic look
-      let baseColor = vec3<f32>(0.4, 0.6, 0.2);   // Greenish
-      let secondary = vec3<f32>(0.7, 0.3, 0.2);   // Warm earthy tone
-    
-      return mix(baseColor, secondary, diffuse);
+    fn organismColor(normal: vec3<f32>, light1: vec3<f32>, light2: vec3<f32>) -> vec4<f32> {
+        let diff1 = clamp(dot(normal, light1), 0.0, 1.0);
+        let diff2 = clamp(dot(normal, light2), 0.0, 1.0);
+        let diffuse = diff1 + diff2;
+
+        // Ethereal colors
+        let baseColor = vec3<f32>(0.2, 0.4, 0.8);   // Ethereal blue
+        let glowColor = vec3<f32>(0.6, 0.8, 1.0);   // Bright ethereal glow
+        let color = mix(baseColor, glowColor, diffuse);
+
+        // Radial gradient for transparency
+        let distFromCenter = length(normal.xy);
+        let alpha = smoothstep(1.0, 0.2, distFromCenter);
+        
+        return vec4<f32>(color, alpha * 0.7); // Overall translucency
     }
     
     @fragment
@@ -309,16 +313,21 @@
     }
     
     // Organic color function
-    vec3 organismColor(vec3 normal, vec3 light1, vec3 light2) {
-      float diff1 = clamp(dot(normal, light1), 0.0, 1.0);
-      float diff2 = clamp(dot(normal, light2), 0.0, 1.0);
-      float diffuse = diff1 + diff2;
-    
-      // Blending two colors for an organic look
-      vec3 baseColor = vec3(0.4, 0.6, 0.2); // Greenish
-      vec3 secondary = vec3(0.7, 0.3, 0.2); // Warm earthy tone
-    
-      return mix(baseColor, secondary, diffuse);
+    vec4 organismColor(vec3 normal, vec3 light1, vec3 light2) {
+        float diff1 = clamp(dot(normal, light1), 0.0, 1.0);
+        float diff2 = clamp(dot(normal, light2), 0.0, 1.0);
+        float diffuse = diff1 + diff2;
+
+        // Ethereal colors
+        vec3 baseColor = vec3(0.2, 0.4, 0.8);   // Ethereal blue
+        vec3 glowColor = vec3(0.6, 0.8, 1.0);   // Bright ethereal glow
+        vec3 color = mix(baseColor, glowColor, diffuse);
+
+        // Radial gradient for transparency
+        float distFromCenter = length(normal.xy);
+        float alpha = smoothstep(1.0, 0.2, distFromCenter);
+        
+        return vec4(color, alpha * 0.7); // Overall translucency
     }
     
     void main() {
@@ -621,26 +630,24 @@
                     entryPoint: 'main',
                 },
                 fragment: {
-                    module: fragmentModule,
-                    entryPoint: 'main',
-                    targets: [
-                        {
-                            format: canvasFormat,
-                            blend: {
-                                color: {
-                                    srcFactor: 'src-alpha',
-                                    dstFactor: 'one-minus-src-alpha',
-                                    operation: 'add',
-                                },
-                                alpha: {
-                                    srcFactor: 'one',
-                                    dstFactor: 'one-minus-src-alpha',
-                                    operation: 'add',
-                                },
-                            },
+                module: fragmentModule,
+                entryPoint: 'main',
+                targets: [{
+                    format: canvasFormat,
+                    blend: {
+                        color: {
+                            srcFactor: 'src-alpha',
+                            dstFactor: 'one-minus-src-alpha',
+                            operation: 'add'
                         },
-                    ],
-                },
+                        alpha: {
+                            srcFactor: 'one',
+                            dstFactor: 'one-minus-src-alpha',
+                            operation: 'add'
+                        }
+                    }
+                }]
+            },
                 primitive: {
                     topology: 'triangle-list',
                 },
@@ -788,8 +795,12 @@
                 gl.uniform2f(u_resolutionLoc, canvas.width, canvas.height);
                 gl.uniform2f(u_mouseLoc, mouse.x, mouse.y);
 
-                // Clear and draw
-                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                // Enable blending
+                gl.enable(gl.BLEND);
+                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                
+                // Set clear color with transparency
+                gl.clearColor(0.0, 0.0, 0.0, 0.0);
                 gl.clear(gl.COLOR_BUFFER_BIT);
 
                 gl.drawArrays(gl.TRIANGLES, 0, 3);
