@@ -62,7 +62,7 @@ in vec3 vPosition;
 
 uniform sampler2D uTexture;
 uniform sampler2D uDisplace;
-uniform float uBumpScale; // added uniform for bump mapping
+uniform float uBumpScale;
 uniform vec3 uLightDir;
 uniform vec3 uViewPos;
 
@@ -89,6 +89,7 @@ void main() {
                          tangent * (left - right) * bumpScale + 
                          bitangent * (bottom - top) * bumpScale);
     
+    // Improved physically inspired lighting for the moon.
     vec3 N = normalize(bumpNormal);
     vec3 L = normalize(uLightDir);
     vec3 V = normalize(uViewPos - vPosition);
@@ -97,11 +98,13 @@ void main() {
     float diff = max(dot(N, L), 0.0);
     float spec = pow(max(dot(R, V), 0.0), 32.0);
 
-    vec3 ambient = 0.18 * texColor;
-    vec3 diffuse = 0.82 * texColor * diff;
-    vec3 specular = vec3(0.25) * spec;
-
-    outColor = vec4(ambient + diffuse + specular, 1.0);
+    // Adjusted components:
+    vec3 ambient = 0.12 * texColor;
+    vec3 diffuse = texColor * diff;
+    vec3 specular = texColor * spec;
+    // HDR multiplier for intense bright light
+    vec3 hdrColor = (ambient + diffuse + specular) * 3.0;
+    outColor = vec4(hdrColor, 1.0);
 }
 `;
 
@@ -124,6 +127,11 @@ out vec4 outColor;
 uniform sampler2D uScene;
 uniform float uTime;
 uniform vec2 uResolution;
+
+// New: Reinhard tone mapping function for HDR
+vec3 toneMap(vec3 color) {
+    return color / (color + vec3(1.0));
+}
 
 float rand(vec2 co) {
     return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
@@ -156,7 +164,9 @@ void main() {
     // Flicker
     color *= 0.98 + 0.02*sin(uTime*25.0);
 
-    outColor = vec4(clamp(color,0.0,1.0),1.0);
+    // Apply tone mapping for HDR contrast
+    vec3 mappedColor = toneMap(color);
+    outColor = vec4(clamp(mappedColor, 0.0, 1.0), 1.0);
 }
 `;
 
