@@ -2,32 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>WebGL 2.0 Moon Visualization</title>
+  <title>WebGL 2.0 Moon Visualization with Cloud Shader</title>
   <style>
     html, body { margin: 0; padding: 0; overflow: hidden; background: #000; }
     canvas { display: block; width: 100vw; height: 100vh; }
-    #error { color: #f44; position: absolute; top: 1em; left: 1em; font-family: sans-serif; background: #fff8; padding: 0.5em 1em; border-radius: 6px; }
+    #error {
+      color: #f44;
+      position: absolute;
+      top: 1em; left: 1em;
+      font-family: sans-serif;
+      background: #fff8;
+      padding: 0.5em 1em;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
 <canvas id="glcanvas"></canvas>
 <div id="error" style="display:none;"></div>
 <script type="text/javascript">
+"use strict";
+
 const canvas = document.getElementById('glcanvas');
-canvas.width = window.innerWidth;
+canvas.width  = window.innerWidth;
 canvas.height = window.innerHeight;
 
 function showError(msg) {
-  document.getElementById('error').style.display = '';
-  document.getElementById('error').innerText = msg;
+  const e = document.getElementById('error');
+  e.style.display = '';
+  e.innerText = msg;
   throw new Error(msg);
 }
 
-// === 1. Get WebGL 2.0 context ===
 const gl = canvas.getContext('webgl2');
 if (!gl) showError('WebGL 2.0 is not supported in this browser.');
 
-// === 2. Shaders (Moon) ===
+// -----------------------------------------------------------
+// 1. Moon Shaders
+// -----------------------------------------------------------
 const vertSrc = `#version 300 es
 precision highp float;
 in vec3 aPosition;
@@ -48,8 +60,8 @@ void main() {
     float disp = texture(uDisplace, aUV).r;
     vec3 displaced = aPosition + aNormal * ((disp - 0.5) * 2.0 * uDispScale);
     vPosition = (uModel * vec4(displaced, 1.0)).xyz;
-    vNormal = mat3(uModel) * aNormal;
-    vUV = aUV;
+    vNormal   = mat3(uModel) * aNormal;
+    vUV       = aUV;
     gl_Position = uProj * uView * uModel * vec4(displaced, 1.0);
 }
 `;
@@ -71,25 +83,24 @@ out vec4 outColor;
 void main() {
     vec3 texColor = texture(uTexture, vUV).rgb;
     
-    // Bump mapping - compute perturbed normal using the displacement map
+    // Bump mapping (compute perturbed normal)
     vec2 texelSize = 1.0 / vec2(textureSize(uDisplace, 0));
     float center = texture(uDisplace, vUV).r;
-    float left = texture(uDisplace, vUV - vec2(texelSize.x, 0.0)).r;
-    float right = texture(uDisplace, vUV + vec2(texelSize.x, 0.0)).r;
-    float top = texture(uDisplace, vUV + vec2(0.0, texelSize.y)).r;
+    float left   = texture(uDisplace, vUV - vec2(texelSize.x, 0.0)).r;
+    float right  = texture(uDisplace, vUV + vec2(texelSize.x, 0.0)).r;
+    float top    = texture(uDisplace, vUV + vec2(0.0, texelSize.y)).r;
     float bottom = texture(uDisplace, vUV - vec2(0.0, texelSize.y)).r;
     
-    vec3 normal = normalize(vNormal);
-    vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), normal));
+    vec3 normal    = normalize(vNormal);
+    vec3 tangent   = normalize(cross(vec3(0.0,1.0,0.0), normal));
     vec3 bitangent = normalize(cross(normal, tangent));
     
-    // Use uBumpScale for bump intensity
-    float bumpScale = uBumpScale;
-    vec3 bumpNormal = normalize(normal + 
-                         tangent * (left - right) * bumpScale + 
-                         bitangent * (bottom - top) * bumpScale);
+    vec3 bumpNormal = normalize(
+         normal
+       + tangent   * (left - right)   * uBumpScale
+       + bitangent * (bottom - top)   * uBumpScale
+    );
     
-    // Improved physically inspired lighting for the moon.
     vec3 N = normalize(bumpNormal);
     vec3 L = normalize(uLightDir);
     vec3 V = normalize(uViewPos - vPosition);
@@ -97,29 +108,29 @@ void main() {
 
     float diff = max(dot(N, L), 0.0);
     float spec = pow(max(dot(R, V), 0.0), 32.0);
-
-    // Adjusted components:
-    vec3 ambient = 0.12 * texColor;
-    vec3 diffuse = texColor * diff;
+    
+    vec3 ambient  = 0.12 * texColor;
+    vec3 diffuse  = texColor * diff;
     vec3 specular = texColor * spec;
-    // HDR multiplier for intense bright light
     vec3 hdrColor = (ambient + diffuse + specular) * 3.0;
+    
     outColor = vec4(hdrColor, 1.0);
 }
 `;
 
-// === 2b. Postprocessing (Cinematic) Shaders ===
+// -----------------------------------------------------------
+// 2. Postprocessing Shaders (if needed later)
+// -----------------------------------------------------------
 const postVertSrc = `#version 300 es
 precision highp float;
 layout(location=0) in vec2 aPosition;
 out vec2 vUV;
 void main() {
-    vUV = (aPosition+1.0)*0.5;
-    gl_Position = vec4(aPosition,0,1);
+  vUV = (aPosition + 1.0) * 0.5;
+  gl_Position = vec4(aPosition, 0.0, 1.0);
 }
 `;
 
-// Simple film grain + vignette + chromatic aberration + scanlines
 const postFragSrc = `#version 300 es
 precision highp float;
 in vec2 vUV;
@@ -128,55 +139,196 @@ uniform sampler2D uScene;
 uniform float uTime;
 uniform vec2 uResolution;
 
-// New: Reinhard tone mapping function for HDR
 vec3 toneMap(vec3 color) {
-    return color / (color + vec3(1.0));
+  return color / (color + vec3(1.0));
 }
 
 float rand(vec2 co) {
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+  return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
 }
 
 void main() {
-    vec2 uv = vUV;
-    vec2 res = uResolution;
-
-    // Chromatic aberration
-    float aberration = 0.0015 + 0.001 * sin(uTime*0.5);
-    vec3 color;
-    color.r = texture(uScene, uv + vec2(aberration,0.0)).r;
-    color.g = texture(uScene, uv).g;
-    color.b = texture(uScene, uv - vec2(aberration,0.0)).b;
-
-    // Film grain (animated)
-    float grain = rand(uv * res.xy + uTime*60.0) * 0.08 - 0.04;
-    color += grain;
-
-    // Vignette
-    float d = distance(uv, vec2(0.5));
-    float vignette = smoothstep(0.80, 0.35, d);
-    color *= vignette;
-
-    // Scanlines
-    float scan = 0.97 + 0.03*sin(uv.y*res.y*2.0 + uTime*30.0);
-    color *= scan;
-
-    // Flicker
-    color *= 0.98 + 0.02*sin(uTime*25.0);
-
-    // Apply tone mapping for HDR contrast
-    vec3 mappedColor = toneMap(color);
-    outColor = vec4(clamp(mappedColor, 0.0, 1.0), 1.0);
+  vec2 uv = vUV;
+  vec2 res = uResolution;
+  
+  float aberration = 0.0015 + 0.001 * sin(uTime * 0.5);
+  vec3 color;
+  color.r = texture(uScene, uv + vec2(aberration, 0.0)).r;
+  color.g = texture(uScene, uv).g;
+  color.b = texture(uScene, uv - vec2(aberration, 0.0)).b;
+  
+  float grain = rand(uv * res.xy + uTime*60.0) * 0.08 - 0.04;
+  color += grain;
+  
+  float d = distance(uv, vec2(0.5));
+  float vignette = smoothstep(0.80, 0.35, d);
+  color *= vignette;
+  
+  float scan = 0.97 + 0.03 * sin(uv.y * res.y * 2.0 + uTime * 30.0);
+  color *= scan;
+  
+  color *= (0.98 + 0.02 * sin(uTime * 25.0));
+  
+  vec3 mappedColor = toneMap(color);
+  outColor = vec4(clamp(mappedColor, 0.0, 1.0), 1.0);
 }
 `;
 
-// === 3. Shader Compilation ===
+// -----------------------------------------------------------
+// 3. Swirl (Cloud) Shader – background with gradient sky
+// -----------------------------------------------------------
+const swirlVertSrc = `#version 300 es
+precision mediump float;
+layout(location=0) in vec2 a_Position;
+void main() {
+  gl_Position = vec4(a_Position, 0.0, 1.0);
+}
+`;
+
+const swirlFragSrc = `#version 300 es
+precision mediump float;
+out vec4 outColor;
+uniform vec2 u_resolution;
+uniform float u_time;
+
+// -------- 3D noise functions (from the provided JSON) -----------
+float hash13(vec3 p) {
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float noise3D(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    float n000 = hash13(i);
+    float n100 = hash13(i + vec3(1.0, 0.0, 0.0));
+    float n010 = hash13(i + vec3(0.0, 1.0, 0.0));
+    float n110 = hash13(i + vec3(1.0, 1.0, 0.0));
+    float n001 = hash13(i + vec3(0.0, 0.0, 1.0));
+    float n101 = hash13(i + vec3(1.0, 0.0, 1.0));
+    float n011 = hash13(i + vec3(0.0, 1.0, 1.0));
+    float n111 = hash13(i + vec3(1.0, 1.0, 1.0));
+    vec3 u = f * f * (3.0 - 2.0 * f);
+    return mix(
+        mix(mix(n000, n100, u.x), mix(n010, n110, u.x), u.y),
+        mix(mix(n001, n101, u.x), mix(n011, n111, u.x), u.y),
+        u.z
+    );
+}
+float fbm3D(vec3 p) {
+    float v = 0.0;
+    float a = 0.5;
+    for(int i = 0; i < 5; i++) {
+        v += a * noise3D(p);
+        p *= 2.0;
+        a *= 0.5;
+    }
+    return v;
+}
+// -------- Signed Distance and Raymarching functions -----------
+float sdSphere(vec3 p, float r) {
+    return length(p) - r;
+}
+float mapScene(vec3 p) {
+    float eventHorizon = 0.25;
+    return sdSphere(p, eventHorizon);
+}
+#define MAX_STEPS 80
+#define MAX_DIST 30.0
+#define SURF_DIST 0.001
+float rayMarch(vec3 ro, vec3 rd) {
+    float dO = 0.0;
+    for (int i = 0; i < MAX_STEPS; i++) {
+      vec3 p = ro + rd * dO;
+      float dS = mapScene(p);
+      if (dS < SURF_DIST) return dO;
+      dO += dS;
+      if (dO > MAX_DIST) break;
+    }
+    return -1.0;
+}
+vec4 galaxyVolume(vec3 ro, vec3 rd) {
+    float t = 0.0;
+    float stepSize = 0.07;
+    vec4 accColor = vec4(0.0);
+    for (int i = 0; i < 80; i++) {
+      vec3 pos = ro + rd * t;
+      float radius = length(pos);
+      // Single-arm spiral warp:
+      float angle = atan(pos.y, pos.x);
+      float PHI = 1.61803398875;
+      float swirlAngle = angle - log(radius + 0.05) / log(PHI) + 0.2 * u_time;
+      vec2 swirlPos = vec2(cos(swirlAngle), sin(swirlAngle)) * radius * 2.0;
+      float swirlNoise = fbm3D(vec3(swirlPos, 0.3 * u_time));
+      float fade = exp(-radius * 1.2);
+      float density = swirlNoise * fade;
+      vec3 gasColor = mix(vec3(0.05, 0.07, 0.12), vec3(1.0, 0.9, 0.8), density);
+      float alphaGas = 0.25 * density;
+      float eventHorizon = 0.25;
+      float coronaWidth = 0.07;
+      float inCorona = smoothstep(eventHorizon, eventHorizon + coronaWidth, radius)
+                         - smoothstep(eventHorizon + coronaWidth, eventHorizon + coronaWidth + 0.05, radius);
+      float flame = fbm3D(pos * 14.0 - vec3(0.0, 0.0, 2.0*u_time));
+      flame = clamp((flame - 0.5) * 2.0, 0.0, 1.0);
+      float coronaDensity = inCorona * flame;
+      vec3 coronaColor = vec3(1.0, 0.75, 0.3);
+      float alphaCorona = 0.5 * coronaDensity;
+      vec3 combinedColor = mix(gasColor, coronaColor, coronaDensity);
+      float combinedAlpha = alphaGas + alphaCorona * (1.0 - alphaGas);
+      accColor.rgb = mix(accColor.rgb, combinedColor, combinedAlpha);
+      accColor.a = clamp(accColor.a + combinedAlpha * (1.0 - accColor.a), 0.0, 1.0);
+      t += stepSize;
+      if(t > MAX_DIST || accColor.a > 0.99) break;
+    }
+    return accColor;
+}
+
+void main() {
+    // Compute a gradient sky (blue at bottom to black at top)
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    float v = uv.y;
+    vec3 skyBottom = vec3(0.18, 0.32, 0.55);
+    vec3 skyTop    = vec3(0.0, 0.0, 0.0);
+    vec3 skyColor  = mix(skyBottom, skyTop, v);
+    
+    // Use a modified UV for raymarching
+    vec2 swirlUV = (2.0 * gl_FragCoord.xy - u_resolution.xy) / u_resolution.y;
+    vec3 ro = vec3(0.0, 0.0, 2.5);
+    vec3 lookAt = vec3(0.0, 0.0, 0.0);
+    vec3 forward = normalize(lookAt - ro);
+    vec3 right = normalize(cross(vec3(0.0,1.0,0.0), forward));
+    vec3 up = cross(forward, right);
+    float fov = 1.5;
+    vec3 rd = normalize(forward + swirlUV.x * right * fov + swirlUV.y * up * fov);
+    float distToBH = rayMarch(ro, rd);
+    vec4 volColor = galaxyVolume(ro, rd);
+    vec3 cloudColor = volColor.rgb;
+    if(distToBH > 0.0) {
+       cloudColor = vec3(0.0);
+    }
+    // Optionally add stars where the cloud density is low
+    if(volColor.a < 0.9) {
+       float starLayer = fbm3D(vec3(swirlUV * 20.0 + 0.1*u_time, 0.0));
+       float starThresh = smoothstep(0.88, 0.9, starLayer);
+       vec3 starColor = mix(vec3(0.0), vec3(0.9, 0.95, 1.0), starThresh);
+       cloudColor = mix(cloudColor, starColor, 0.4*(1.0 - volColor.a));
+    }
+    // Blend the cloud (swirl) color with the gradient sky.
+    // Here we use a fixed blend factor (0.6*volColor.a) so some sky is always visible.
+    vec3 finalColor = mix(skyColor, cloudColor, 0.6 * volColor.a);
+    outColor = vec4(finalColor, 1.0);
+}
+`;
+
+// -----------------------------------------------------------
+// 4. Shader Compilation
+// -----------------------------------------------------------
 function compileShader(src, type) {
   const shader = gl.createShader(type);
   gl.shaderSource(shader, src);
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    showError('Shader error: ' + gl.getShaderInfoLog(shader));
+    showError("Shader error: " + gl.getShaderInfoLog(shader));
   }
   return shader;
 }
@@ -189,52 +341,55 @@ function createProgram(vsSrc, fsSrc) {
   gl.attachShader(prog, fs);
   gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-    showError('Program link error: ' + gl.getProgramInfoLog(prog));
+    showError("Program link error: " + gl.getProgramInfoLog(prog));
   }
   return prog;
 }
 
-const program = createProgram(vertSrc, fragSrc);
-const postProgram = createProgram(postVertSrc, postFragSrc);
+const moonProgram = createProgram(vertSrc, fragSrc);
+const swirlProgram = createProgram(swirlVertSrc, swirlFragSrc);
 
-// === 4. Moon Sphere Geometry Generation ===
+// -----------------------------------------------------------
+// 5. Geometry: Create a sphere for the moon
+// -----------------------------------------------------------
 function createSphere(resLat, resLon) {
   const positions = [], normals = [], uvs = [], indices = [];
-  for (let lat = 0; lat <= resLat; ++lat) {
+  for (let lat = 0; lat <= resLat; lat++) {
     const theta = lat * Math.PI / resLat;
-    const sinTheta = Math.sin(theta), cosTheta = Math.cos(theta);
-    for (let lon = 0; lon <= resLon; ++lon) {
+    const sinTheta = Math.sin(theta);
+    const cosTheta = Math.cos(theta);
+    for (let lon = 0; lon <= resLon; lon++) {
       const phi = lon * 2 * Math.PI / resLon;
-      const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi);
-
+      const sinPhi = Math.sin(phi);
+      const cosPhi = Math.cos(phi);
       const x = cosPhi * sinTheta;
       const y = cosTheta;
       const z = sinPhi * sinTheta;
-
       positions.push(x, y, z);
       normals.push(x, y, z);
       uvs.push(lon / resLon, 1 - lat / resLat);
     }
   }
-  for (let lat = 0; lat < resLat; ++lat) {
-    for (let lon = 0; lon < resLon; ++lon) {
+  for (let lat = 0; lat < resLat; lat++) {
+    for (let lon = 0; lon < resLon; lon++) {
       const a = lat * (resLon + 1) + lon;
       const b = a + resLon + 1;
-
       indices.push(a, b, a + 1);
       indices.push(b, b + 1, a + 1);
     }
   }
   return {
     positions: new Float32Array(positions),
-    normals:   new Float32Array(normals),
-    uvs:       new Float32Array(uvs),
-    indices:   new Uint16Array(indices)
+    normals: new Float32Array(normals),
+    uvs: new Float32Array(uvs),
+    indices: new Uint16Array(indices)
   };
 }
 const sphere = createSphere(64, 64);
 
-// === 5. Buffer Setup ===
+// -----------------------------------------------------------
+// 6. Buffer Setup for Moon Geometry
+// -----------------------------------------------------------
 function createBuffer(data, attribLoc, size) {
   const buf = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -243,13 +398,14 @@ function createBuffer(data, attribLoc, size) {
   gl.vertexAttribPointer(attribLoc, size, gl.FLOAT, false, 0, 0);
   return buf;
 }
-gl.useProgram(program);
+
+gl.useProgram(moonProgram);
 const vao = gl.createVertexArray();
 gl.bindVertexArray(vao);
 
-const posLoc = gl.getAttribLocation(program, 'aPosition');
-const normLoc = gl.getAttribLocation(program, 'aNormal');
-const uvLoc = gl.getAttribLocation(program, 'aUV');
+const posLoc = gl.getAttribLocation(moonProgram, "aPosition");
+const normLoc = gl.getAttribLocation(moonProgram, "aNormal");
+const uvLoc   = gl.getAttribLocation(moonProgram, "aUV");
 
 createBuffer(sphere.positions, posLoc, 3);
 createBuffer(sphere.normals, normLoc, 3);
@@ -259,25 +415,36 @@ const ibo = gl.createBuffer();
 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphere.indices, gl.STATIC_DRAW);
 
-// === 5b. Postprocessing fullscreen quad ===
-const quadVAO = gl.createVertexArray();
-const quadVBO = gl.createBuffer();
-gl.bindVertexArray(quadVAO);
-gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
-// Fullscreen quad covering [-1,-1] to [1,1]
+// -----------------------------------------------------------
+// 7. Fullscreen Quad for Swirl Pass
+// -----------------------------------------------------------
+const swirlVAO = gl.createVertexArray();
+const swirlVBO = gl.createBuffer();
+gl.bindVertexArray(swirlVAO);
+gl.bindBuffer(gl.ARRAY_BUFFER, swirlVBO);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-  -1,-1,  1,-1,  -1,1,  1,1
+   -1, -1,
+    1, -1,
+   -1,  1,
+    1,  1
 ]), gl.STATIC_DRAW);
 gl.enableVertexAttribArray(0);
 gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
-// === 6. Load Textures ===
+// -----------------------------------------------------------
+// 8. Load Textures for the Moon
+// -----------------------------------------------------------
 function loadTexture(src, texUnit, format, onload) {
   const tex = gl.createTexture();
   gl.activeTexture(texUnit);
   gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, format, 1, 1, 0, format, gl.UNSIGNED_BYTE, new Uint8Array([128,128,128,255]));
-  const img = new window.Image();
+  gl.texImage2D(
+    gl.TEXTURE_2D, 0, format,
+    1, 1, 0,
+    format, gl.UNSIGNED_BYTE,
+    new Uint8Array([128,128,128,255])
+  );
+  const img = new Image();
   img.crossOrigin = "anonymous";
   img.src = src;
   img.onload = function() {
@@ -292,187 +459,141 @@ function loadTexture(src, texUnit, format, onload) {
   img.onerror = () => showError("Could not load image: " + src);
   return tex;
 }
-
-// Use local moon.png and moon_displace.png (must be present in same directory)
-const texMoon = loadTexture('moon.png', gl.TEXTURE0, gl.RGB);
+const texMoon     = loadTexture('moon.png', gl.TEXTURE0, gl.RGB);
 const texDisplace = loadTexture('moon_displace.png', gl.TEXTURE1, gl.RED);
 
-// === 6b. Postprocessing FBO setup ===
-let postFBO = null, postColor = null, postDepth = null;
-function createPostprocessingFBO(width, height) {
-  // Delete old FBO if any
-  if (postFBO) {
-    gl.deleteFramebuffer(postFBO);
-    gl.deleteTexture(postColor);
-    gl.deleteRenderbuffer(postDepth);
-  }
-  // Color texture
-  postColor = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, postColor);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  // Depth
-  postDepth = gl.createRenderbuffer();
-  gl.bindRenderbuffer(gl.RENDERBUFFER, postDepth);
-  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
-  // FBO
-  postFBO = gl.createFramebuffer();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, postFBO);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, postColor, 0);
-  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, postDepth);
-  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE)
-    showError('Postprocessing framebuffer incomplete!');
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-}
-createPostprocessingFBO(canvas.width, canvas.height);
+// -----------------------------------------------------------
+// 9. Uniform Locations (Moon and Swirl)
+/// – Moon uniforms
+const uModelLoc     = gl.getUniformLocation(moonProgram, "uModel");
+const uViewLoc      = gl.getUniformLocation(moonProgram, "uView");
+const uProjLoc      = gl.getUniformLocation(moonProgram, "uProj");
+const uTextureLoc   = gl.getUniformLocation(moonProgram, "uTexture");
+const uDisplaceLoc  = gl.getUniformLocation(moonProgram, "uDisplace");
+const uDispScaleLoc = gl.getUniformLocation(moonProgram, "uDispScale");
+const uLightDirLoc  = gl.getUniformLocation(moonProgram, "uLightDir");
+const uViewPosLoc   = gl.getUniformLocation(moonProgram, "uViewPos");
+const uBumpScaleLoc = gl.getUniformLocation(moonProgram, "uBumpScale");
 
-// === 7. Uniform Locations ===
-const uModelLoc = gl.getUniformLocation(program, 'uModel');
-const uViewLoc = gl.getUniformLocation(program, 'uView');
-const uProjLoc = gl.getUniformLocation(program, 'uProj');
-const uTextureLoc = gl.getUniformLocation(program, 'uTexture');
-const uDisplaceLoc = gl.getUniformLocation(program, 'uDisplace');
-const uDispScaleLoc = gl.getUniformLocation(program, 'uDispScale');
-const uLightDirLoc = gl.getUniformLocation(program, 'uLightDir');
-const uViewPosLoc = gl.getUniformLocation(program, 'uViewPos');
-const uBumpScaleLoc = gl.getUniformLocation(program, 'uBumpScale'); // added uniform location
+/// – Swirl uniforms
+const uSwirlResLoc  = gl.getUniformLocation(swirlProgram, "u_resolution");
+const uSwirlTimeLoc = gl.getUniformLocation(swirlProgram, "u_time");
 
-// Postprocess uniforms
-const uSceneLoc = gl.getUniformLocation(postProgram, 'uScene');
-const uTimeLoc = gl.getUniformLocation(postProgram, 'uTime');
-const uResLoc = gl.getUniformLocation(postProgram, 'uResolution');
-
-// === 8. Matrix Utilities ===
+// -----------------------------------------------------------
+// 10. Matrix Utilities
+// -----------------------------------------------------------
 function perspective(out, fovy, aspect, near, far) {
-  const f = 1.0 / Math.tan(fovy / 2), nf = 1 / (near - far);
-  out[0]=f/aspect;out[1]=0;out[2]=0;out[3]=0;
-  out[4]=0;out[5]=f;out[6]=0;out[7]=0;
-  out[8]=0;out[9]=0;out[10]=(far+near)*nf;out[11]=-1;
-  out[12]=0;out[13]=0;out[14]=2*far*near*nf;out[15]=0;
+  const f = 1.0 / Math.tan(fovy/2);
+  const nf = 1/(near-far);
+  out[0] = f/aspect; out[1] = 0;       out[2] = 0;            out[3] = 0;
+  out[4] = 0;        out[5] = f;       out[6] = 0;            out[7] = 0;
+  out[8] = 0;        out[9] = 0;       out[10] = (far+near)*nf; out[11] = -1;
+  out[12] = 0;       out[13] = 0;      out[14] = 2*far*near*nf; out[15] = 0;
 }
 function lookAt(out, eye, center, up) {
-  let x0, x1, x2, y0, y1, y2, z0, z1, z2, len, eyex=eye[0],eyey=eye[1],eyez=eye[2],upx=up[0],upy=up[1],upz=up[2],centerx=center[0],centery=center[1],centerz=center[2];
-  if (Math.abs(eyex-centerx)<0.000001 && Math.abs(eyey-centery)<0.000001 && Math.abs(eyez-centerz)<0.000001) {return identity(out);}
-  z0=eyex-centerx;z1=eyey-centery;z2=eyez-centerz;
-  len=1/Math.hypot(z0,z1,z2);z0*=len;z1*=len;z2*=len;
-  x0=upy*z2-upz*z1;x1=upz*z0-upx*z2;x2=upx*z1-upy*z0;
-  len=Math.hypot(x0,x1,x2);if(!len){x0=0;x1=0;x2=0;}else{len=1/len;x0*=len;x1*=len;x2*=len;}
-  y0=z1*x2-z2*x1;y1=z2*x0-z0*x2;y2=z0*x1-z1*x0;
-  len=Math.hypot(y0,y1,y2);if(!len){y0=0;y1=0;y2=0;}else{len=1/len;y0*=len;y1*=len;y2*=len;}
-  out[0]=x0;out[1]=y0;out[2]=z0;out[3]=0;
-  out[4]=x1;out[5]=y1;out[6]=z1;out[7]=0;
-  out[8]=x2;out[9]=y2;out[10]=z2;out[11]=0;
-  out[12]=-(x0*eyex+x1*eyey+x2*eyez);
-  out[13]=-(y0*eyex+y1*eyey+y2*eyez);
-  out[14]=-(z0*eyex+z1*eyey+z2*eyez);
-  out[15]=1;
+  let x0, x1, x2, y0, y1, y2, z0, z1, z2, len;
+  const eyex = eye[0], eyey = eye[1], eyez = eye[2];
+  const cx = center[0], cy = center[1], cz = center[2];
+  let upx = up[0], upy = up[1], upz = up[2];
+  z0 = eyex - cx; z1 = eyey - cy; z2 = eyez - cz;
+  len = Math.hypot(z0, z1, z2);
+  if (len === 0) { z2 = 1; }
+  else { z0 /= len; z1 /= len; z2 /= len; }
+  x0 = upy * z2 - upz * z1;
+  x1 = upz * z0 - upx * z2;
+  x2 = upx * z1 - upy * z0;
+  len = Math.hypot(x0, x1, x2);
+  if (len === 0) {
+    x0 = 0; x1 = 0; x2 = 0;
+  } else {
+    x0 /= len; x1 /= len; x2 /= len;
+  }
+  y0 = z1 * x2 - z2 * x1;
+  y1 = z2 * x0 - z0 * x2;
+  y2 = z0 * x1 - z1 * x0;
+  out[0] = x0; out[1] = y0; out[2] = z0; out[3] = 0;
+  out[4] = x1; out[5] = y1; out[6] = z1; out[7] = 0;
+  out[8] = x2; out[9] = y2; out[10] = z2; out[11] = 0;
+  out[12] = -(x0 * eyex + x1 * eyey + x2 * eyez);
+  out[13] = -(y0 * eyex + y1 * eyey + y2 * eyez);
+  out[14] = -(z0 * eyex + z1 * eyey + z2 * eyez);
+  out[15] = 1;
 }
 function identity(out) {
-  out[0]=1;out[1]=0;out[2]=0;out[3]=0;
-  out[4]=0;out[5]=1;out[6]=0;out[7]=0;
-  out[8]=0;out[9]=0;out[10]=1;out[11]=0;
-  out[12]=0;out[13]=0;out[14]=0;out[15]=1;
+  out[0] = 1; out[1] = 0; out[2] = 0; out[3] = 0;
+  out[4] = 0; out[5] = 1; out[6] = 0; out[7] = 0;
+  out[8] = 0; out[9] = 0; out[10] = 1; out[11] = 0;
+  out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1;
 }
 function rotateY(out, a, rad) {
-  const s=Math.sin(rad),c=Math.cos(rad);
-  out[0]=c;out[1]=0;out[2]=-s;out[3]=0;
-  out[4]=0;out[5]=1;out[6]=0;out[7]=0;
-  out[8]=s;out[9]=0;out[10]=c;out[11]=0;
-  out[12]=0;out[13]=0;out[14]=0;out[15]=1;
-}
-function multiply(out, a, b) {
-  const o = out, m = a, n = b;
-  let i, j, k, sum;
-  for (i=0; i<4; ++i) for (j=0; j<4; ++j) {
-    sum=0;
-    for (k=0; k<4; ++k) sum += m[k*4+j]*n[i*4+k];
-    o[i*4+j]=sum;
-  }
+  const s = Math.sin(rad), c = Math.cos(rad);
+  out[0] = c; out[1] = 0; out[2] = -s; out[3] = 0;
+  out[4] = 0; out[5] = 1; out[6] = 0;  out[7] = 0;
+  out[8] = s; out[9] = 0; out[10] = c; out[11] = 0;
+  out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1;
 }
 
-// === 9. Render Loop (with cinematic camera effects) ===
-let camTime = 0;
-function render(now) {
-  now *= 0.001;
-  camTime = now;
-
-  // 1. Draw moon scene to offscreen FBO
-  gl.bindFramebuffer(gl.FRAMEBUFFER, postFBO);
-  gl.viewport(0,0,canvas.width,canvas.height);
+// -----------------------------------------------------------
+// 11. Render Loop
+// -----------------------------------------------------------
+function render(timeMS) {
+  const now = timeMS * 0.001;
+  
+  // First: Render the cloud swirl (with gradient sky) directly to the canvas
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.disable(gl.DEPTH_TEST);
   gl.clearColor(0,0,0,1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  
+  gl.useProgram(swirlProgram);
+  gl.bindVertexArray(swirlVAO);
+  gl.uniform1f(uSwirlTimeLoc, now);
+  gl.uniform2f(uSwirlResLoc, canvas.width, canvas.height);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  
+  // Then: Render the moon sphere on top so that its silhouette overwrites the background.
   gl.enable(gl.DEPTH_TEST);
-
-  // Cinematic camera: slight sway, zoom
-  // Sway
-  let sway = Math.sin(now*0.18)*0.11;
-  // Subtle zoom in/out
-  let zoom = 3.2 + 0.13*Math.sin(now*0.09);
-  // Camera shake removed
-  // let shakeX = Math.sin(now*7.2)*0.012 + Math.sin(now*13.7)*0.009;
-  // let shakeY = Math.cos(now*8.4)*0.009 + Math.cos(now*11.3)*0.007;
-
-  // Camera and matrices
+  gl.useProgram(moonProgram);
+  gl.bindVertexArray(vao);
+  
   const aspect = canvas.width / canvas.height;
   const proj = new Float32Array(16);
   const view = new Float32Array(16);
   const model = new Float32Array(16);
   perspective(proj, Math.PI/2.4 + 0.05*Math.sin(now*0.14), aspect, 0.1, 100);
-
-  // Camera lookat without sway or shake
-  lookAt(
-    view,
-    [0, 0, zoom], // Use 0 for x and y instead of shakeX, shakeY
-    [0, 0, 0], // Removed sway from target
-    [0,1,0]
-  );
-  rotateY(model, model, now * 0.1); // Reduced rotation speed
-
-  gl.useProgram(program);
-  gl.bindVertexArray(vao);
-
+  lookAt(view, [0,0,3.2], [0,0,0], [0,1,0]);
+  rotateY(model, model, now * 0.1);
+  
   gl.uniformMatrix4fv(uProjLoc, false, proj);
   gl.uniformMatrix4fv(uViewLoc, false, view);
   gl.uniformMatrix4fv(uModelLoc, false, model);
+  
+  // Set lighting and texture uniforms
   gl.uniform3fv(uLightDirLoc, [0.6, 1.0, 0.7]);
-  gl.uniform3fv(uViewPosLoc, [0, 0, zoom]); // Use 0 for x and y instead of shakeX, shakeY
+  gl.uniform3fv(uViewPosLoc, [0, 0, 3.2]);
   gl.uniform1i(uTextureLoc, 0);
   gl.uniform1i(uDisplaceLoc, 1);
   gl.uniform1f(uDispScaleLoc, 0.09);
-  gl.uniform1f(uBumpScaleLoc, 1.5); // set bump mapping intensity
-
+  gl.uniform1f(uBumpScaleLoc, 1.5);
+  
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texMoon);
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, texDisplace);
-
+  
   gl.drawElements(gl.TRIANGLES, sphere.indices.length, gl.UNSIGNED_SHORT, 0);
-
-  // 2. Postprocessing pass: draw FBO color to screen with effects
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.viewport(0,0,canvas.width,canvas.height);
-  gl.disable(gl.DEPTH_TEST);
-
-  gl.useProgram(postProgram);
-  gl.bindVertexArray(quadVAO);
-  gl.activeTexture(gl.TEXTURE2);
-  gl.bindTexture(gl.TEXTURE_2D, postColor);
-  gl.uniform1i(uSceneLoc, 2);
-  gl.uniform1f(uTimeLoc, now);
-  gl.uniform2f(uResLoc, canvas.width, canvas.height);
-
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
+  
   requestAnimationFrame(render);
 }
 requestAnimationFrame(render);
 
-// === 10. Responsive Resize ===
+// -----------------------------------------------------------
+// 12. Responsive Resize
+// -----------------------------------------------------------
 window.addEventListener('resize', () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  createPostprocessingFBO(canvas.width, canvas.height);
 });
 </script>
 </body>
