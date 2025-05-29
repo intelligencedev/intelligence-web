@@ -1,0 +1,6 @@
+[submodule "manifold/themes/book"]
+	path = manifold/themes/book
+	url = https://github.com/alex-shpak/hugo-book.git
+[submodule "manifold/themes/hugo-book"]
+	path = manifold/themes/hugo-book
+	url = https://github.com/alex-shpak/hugo-book
