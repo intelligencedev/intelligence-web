@@ -1,240 +1,94 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Vortex Divine Proportion Shader</title>
-    <style>
-      /* Ensure the canvas fills the entire viewport */
-      html, body {
-        margin: 0;
-        height: 100%;
-        overflow: hidden;
-      }
-      canvas {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-    </style>
-  </head>
-  <body>
-    <canvas id="glcanvas"></canvas>
-    <script>
-      "use strict";
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Dreamy Moon & Fancy Volumetric Clouds</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#000}canvas{display:block;width:100%;height:100%}</style>
+</head>
+<body>
+<canvas id="glcanvas"></canvas>
+<script>
+/* ——————— tiny helpers ——————— */
+const TAU=Math.PI*2,deg2rad=d=>d*Math.PI/180,sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
+cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
+dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],len=v=>Math.hypot(...v),
+norm=v=>{const l=len(v);return[v[0]/l,v[1]/l,v[2]/l];},
+persp=(fov,asp,n,f)=>{const t=Math.tan(fov/2);return new Float32Array([1/(asp*t),0,0,0,0,1/t,0,0,0,0,(f+n)/(n-f),-1,0,0,2*f*n/(n-f),0]);},
+look=(e,t,u)=>{const z=norm(sub(e,t)),x=norm(cross(u,z)),y=cross(z,x);return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,e),-dot(y,e),-dot(z,e),1]);},
+mul=(o,a,b)=>{for(let r=0;r<4;r++)for(let c=0;c<4;c++){let s=0;for(let k=0;k<4;k++)s+=a[r*4+k]*b[k*4+c];o[r*4+c]=s;}};
 
-      /****************************************************
-       * 1. Setup WebGL Context and Canvas
-       ****************************************************/
-      const canvas = document.getElementById('glcanvas');
-      // Set canvas dimensions to fill the window
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+/* ——————— WebGL setup ——————— */
+const cvs=document.getElementById('glcanvas'),gl=cvs.getContext('webgl');
+if(!gl)throw'WebGL not supported';
+const resize=()=>{cvs.width=innerWidth;cvs.height=innerHeight;gl.viewport(0,0,cvs.width,cvs.height)};addEventListener('resize',resize);resize();
+const comp=(src,t)=>{const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(s);return s;}
+const link=(v,f)=>{const p=gl.createProgram();gl.attachShader(p,comp(v,gl.VERTEX_SHADER));gl.attachShader(p,comp(f,gl.FRAGMENT_SHADER));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw gl.getProgramInfoLog(p);return p;};
+const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,1,-1,-1,1,1,1,-1]),gl.STATIC_DRAW);
 
-      // Get the WebGL rendering context
-      const gl = canvas.getContext('webgl');
-      if (!gl) {
-        alert('WebGL not supported in your browser!');
-        throw new Error('WebGL not supported.');
-      }
+/* ——————— Cloud program ——————— */
+const cloudVS=`attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}`;
+const cloudFS=`precision mediump float;
+uniform vec2 uR;uniform float uT;
+float h(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float n(vec3 p){vec3 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);float a=h(i),b=h(i+vec3(1,0,0)),c=h(i+vec3(0,1,0)),d=h(i+vec3(1,1,0)),e=h(i+vec3(0,0,1)),f1=h(i+vec3(1,0,1)),g=h(i+vec3(0,1,1)),h1=h(i+vec3(1,1,1));float nx0=mix(a,b,u.x),nx1=mix(c,d,u.x),nx2=mix(e,f1,u.x),nx3=mix(g,h1,u.x);float nxy0=mix(nx0,nx1,u.y),nxy1=mix(nx2,nx3,u.y);return mix(nxy0,nxy1,u.z);}
+float fbm(vec3 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p*=2.;a*=.5;}return v;}
+const float B=-.25,T=.45,D=1.15,S=.04,C=.55; // bottom, top, density, step, cutoff
+vec3 march(vec3 ro,vec3 rd){
+  float t0=(B-ro.y)/rd.y,t1=(T-ro.y)/rd.y;if(t0>t1){float tmp=t0;t0=t1;t1=tmp;}
+  t0=max(t0,0.);if(t1<=t0) return vec3(0);
+  vec3 sun=normalize(vec3(.8,.6,.2));float tr=1.;vec3 acc=vec3(0);
+  for(float t=t0;t<t1;t+=S){if(tr<.02)break;vec3 p=ro+rd*t;float d=max(fbm(p*.8+vec3(0.,uT*.05,0.))-C,0.);float hgt=smoothstep(B,T,p.y)*smoothstep(T,B,p.y);float dens=d*hgt*D;float absorb=exp(-dens*8.);float scat=dens*max(dot(sun,vec3(0,1,0)),0.);acc+=tr*scat*vec3(1.,.97,.92)*S;tr*=absorb;}
+  return acc;
+}
+void main(){
+  vec2 uv=(gl_FragCoord.xy/uR)*2.-1.;uv.x*=uR.x/uR.y;
+  vec3 ro=vec3(0.,.9,2.8),rd=normalize(vec3(uv,-1.6));
+  vec3 sky=mix(vec3(.12,.18,.45),vec3(.03,.04,.08),pow(max(rd.y,0.),.4));
+  vec3 col=march(ro,rd)+sky;
+  gl_FragColor=vec4(max(col,0.),1.);
+}`;
+const cloudP=link(cloudVS,cloudFS);
+gl.useProgram(cloudP);
+const cPos=gl.getAttribLocation(cloudP,'a');gl.enableVertexAttribArray(cPos);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.vertexAttribPointer(cPos,2,gl.FLOAT,false,0,0);
+const cRes=gl.getUniformLocation(cloudP,'uR'),cTime=gl.getUniformLocation(cloudP,'uT');
 
-      /****************************************************
-       * 2. Define Shader Sources
-       ****************************************************/
-      const vertexShaderSource = `
-        attribute vec2 a_Position;
-        void main() {
-          gl_Position = vec4(a_Position, 0.0, 1.0);
-        }
-      `;
+/* ——————— Moon program ——————— */
+const moonVS=`attribute vec3 p,n;uniform mat4 mvp,m;varying vec3 N;void main(){N=mat3(m)*n;gl_Position=mvp*vec4(p,1.);}`;
+const moonFS=`precision mediump float;varying vec3 N;uniform vec3 L;void main(){float d=max(dot(normalize(N),L),0.);float h=d*.5+.5;vec3 base=vec3(.9);gl_FragColor=vec4(base*(.25+h*.75),1.);}`;
+const moonP=link(moonVS,moonFS);
+const mp=gl.getAttribLocation(moonP,'p'),mn=gl.getAttribLocation(moonP,'n'),mvpUL=gl.getUniformLocation(moonP,'mvp'),mUL=gl.getUniformLocation(moonP,'m'),lUL=gl.getUniformLocation(moonP,'L');
+/* sphere */
+function sph(lat=40,lon=40){const v=[],n=[],i=[];for(let a=0;a<=lat;a++){const th=a*Math.PI/lat,st=Math.sin(th),ct=Math.cos(th);for(let b=0;b<=lon;b++){const ph=b*TAU/lon,sp=Math.sin(ph),cp=Math.cos(ph);v.push(cp*st,ct,sp*st);n.push(cp*st,ct,sp*st);} }
+for(let a=0;a<lat;a++)for(let b=0;b<lon;b++){const k=a*(lon+1)+b,j=k+lon+1;i.push(k,j,k+1,j,j+1,k+1);}return{v:new Float32Array(v),n:new Float32Array(n),i:new Uint16Array(i)};}
+const s=sph(),vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,s.v,gl.STATIC_DRAW);
+const nb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,nb);gl.bufferData(gl.ARRAY_BUFFER,s.n,gl.STATIC_DRAW);
+const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,s.i,gl.STATIC_DRAW);
 
-      const fragmentShaderSource = `
-        precision mediump float;
-        uniform vec2 u_resolution;
-        uniform float u_time;
+/* ——————— render loop ——————— */
+let start=performance.now();
+const draw=()=>{const t=(performance.now()-start)*1e-3;
+  gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
 
-        // 3D hash function
-        float hash(vec3 p) {
-            p = fract(p * 0.3183099 + 0.1);
-            p *= 17.0;
-            return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-        }
+  /* pass1 clouds */
+  gl.disable(gl.DEPTH_TEST);gl.useProgram(cloudP);
+  gl.uniform2f(cRes,cvs.width,cvs.height);gl.uniform1f(cTime,t);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
 
-        // 3D value noise
-        float noise(vec3 p) {
-            vec3 i = floor(p);
-            vec3 f = fract(p);
-            float a = hash(i);
-            float b = hash(i + vec3(1.0, 0.0, 0.0));
-            float c = hash(i + vec3(0.0, 1.0, 0.0));
-            float d = hash(i + vec3(1.0, 1.0, 0.0));
-            float e = hash(i + vec3(0.0, 0.0, 1.0));
-            float f1 = hash(i + vec3(1.0, 0.0, 1.0));
-            float g = hash(i + vec3(0.0, 1.0, 1.0));
-            float h = hash(i + vec3(1.0, 1.0, 1.0));
-            vec3 u = f * f * (3.0 - 2.0 * f);
-            return mix(
-              mix(mix(a, b, u.x), mix(c, d, u.x), u.y),
-              mix(mix(e, f1, u.x), mix(g, h, u.x), u.y),
-              u.z);
-        }
+  /* pass2 moon */
+  gl.enable(gl.DEPTH_TEST);gl.useProgram(moonP);
+  gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.enableVertexAttribArray(mp);gl.vertexAttribPointer(mp,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,nb);gl.enableVertexAttribArray(mn);gl.vertexAttribPointer(mn,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);
+  const proj=persp(deg2rad(45),cvs.width/cvs.height,.1,100),view=look([0,.8,3],[0,.3,0],[0,1,0]),
+        model=new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,.3,0,1]),tmp=new Float32Array(16),mvp=new Float32Array(16);
+  mul(tmp,view,model);mul(mvp,proj,tmp);
+  gl.uniformMatrix4fv(mvpUL,false,mvp);gl.uniformMatrix4fv(mUL,false,model);
+  const L=norm([.8,.6,.2]);gl.uniform3f(lUL,L[0],L[1],L[2]);
+  gl.drawElements(gl.TRIANGLES,s.i.length,gl.UNSIGNED_SHORT,0);
 
-        // Fractal Brownian Motion
-        float fbm(vec3 p) {
-            float v = 0.0;
-            float a = 0.5;
-            for(int i = 0; i < 5; i++) {
-                v += a * noise(p);
-                p *= 2.0;
-                a *= 0.5;
-            }
-            return v;
-        }
-
-        #define PHI 1.61803398875
-
-        void main() {
-            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-            uv = uv * 2.0 - 1.0;
-            uv.x *= u_resolution.x / u_resolution.y;
-            float time = u_time * 0.12;
-            float angle = atan(uv.y, uv.x);
-            float radius = length(uv);
-            float spiralTurns = 3.0;
-            float spiralAngle = spiralTurns * log(radius + 0.02) / log(PHI);
-            float vortexAngle = angle - spiralAngle + time;
-            vec2 spiralUV = vec2(cos(vortexAngle), sin(vortexAngle)) * radius;
-            vec2 p2d = spiralUV * 1.6;
-            float z = 0.8 * time + 2.0 * radius;
-            float q = fbm(vec3(p2d, z));
-            float rVal = fbm(vec3(p2d * 1.8 - 0.13 * time, z + 1.5));
-            float sVal = fbm(vec3(p2d * 3.2 + 0.29 * time, z - 2.3));
-            float f = mix(mix(q, rVal, 0.5), sVal, 0.5);
-            float cloud = smoothstep(0.43, 0.72, f);
-            vec3 backgroundColor = vec3(0.07, 0.09, 0.13);
-            vec3 cloudColor = vec3(1.0, 0.98, 0.92) * 1.15;
-            vec3 col = mix(backgroundColor, cloudColor, cloud);
-            float coreFBM = fbm(vec3(uv * 8.0 + time * 0.2, z + 5.0));
-            float core = exp(-pow(radius * 4.0, 2.0)) * (0.7 + 0.3 * coreFBM);
-            vec3 coreColor = vec3(1.0, 0.92, 0.7);
-            col += coreColor * core;
-            gl_FragColor = vec4(col, 1.0);
-        }
-      `;
-
-      /****************************************************
-       * 3. Compile Shaders with Error Handling
-       ****************************************************/
-      function compileShader(gl, source, type) {
-        const shader = gl.createShader(type);
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-
-        // Check if compilation succeeded
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-          const error = gl.getShaderInfoLog(shader);
-          gl.deleteShader(shader);
-          console.error('Shader compilation error:', error);
-          throw new Error('Shader compilation error: ' + error);
-        }
-        return shader;
-      }
-
-      /****************************************************
-       * 4. Create and Link Shader Program
-       ****************************************************/
-      function createShaderProgram(gl, vsSource, fsSource) {
-        const vertexShader = compileShader(gl, vsSource, gl.VERTEX_SHADER);
-        const fragmentShader = compileShader(gl, fsSource, gl.FRAGMENT_SHADER);
-        const program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
-
-        // Check if linking succeeded
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-          const error = gl.getProgramInfoLog(program);
-          gl.deleteProgram(program);
-          console.error('Program linking error:', error);
-          throw new Error('Program linking error: ' + error);
-        }
-        return program;
-      }
-
-      const program = createShaderProgram(gl, vertexShaderSource, fragmentShaderSource);
-      gl.useProgram(program);
-
-      /****************************************************
-       * 5. Create Full-Screen Quad Geometry
-       ****************************************************/
-      // Create a buffer for the vertices
-      const vertexBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-
-      // Define 4 vertices for a full-screen quad (using a triangle strip)
-      const vertices = new Float32Array([
-        -1.0,  1.0,  // Top-left
-        -1.0, -1.0,  // Bottom-left
-         1.0,  1.0,  // Top-right
-         1.0, -1.0   // Bottom-right
-      ]);
-      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-      // Locate the shader attribute for vertex positions
-      const a_Position = gl.getAttribLocation(program, 'a_Position');
-      if (a_Position < 0) {
-        throw new Error('Failed to get the storage location of a_Position');
-      }
-      gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
-      gl.enableVertexAttribArray(a_Position);
-
-      /****************************************************
-       * 6. Get Uniform Locations
-       ****************************************************/
-      const u_resolution = gl.getUniformLocation(program, 'u_resolution');
-      const u_time = gl.getUniformLocation(program, 'u_time');
-      if (!u_resolution || !u_time) {
-        throw new Error('Failed to get the locations of uniforms.');
-      }
-
-      /****************************************************
-       * 7. Handle Canvas Resize
-       ****************************************************/
-      function resizeCanvas() {
-        const displayWidth = window.innerWidth;
-        const displayHeight = window.innerHeight;
-        if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
-          canvas.width = displayWidth;
-          canvas.height = displayHeight;
-          gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-        }
-      }
-      window.addEventListener('resize', resizeCanvas);
-
-      /****************************************************
-       * 8. Render Loop
-       ****************************************************/
-      let startTime = performance.now();
-      function render() {
-        // Update canvas size if needed
-        resizeCanvas();
-        const currentTime = performance.now();
-        const elapsedTime = (currentTime - startTime) / 1000; // in seconds
-
-        // Set uniform values: canvas resolution and elapsed time
-        gl.uniform2f(u_resolution, canvas.width, canvas.height);
-        gl.uniform1f(u_time, elapsedTime);
-
-        // Clear the canvas
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        // Draw the full-screen quad
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-        // Request next frame
-        requestAnimationFrame(render);
-      }
-      requestAnimationFrame(render);
-    </script>
-  </body>
+  requestAnimationFrame(draw);
+};
+requestAnimationFrame(draw);
+</script>
+</body>
 </html>
