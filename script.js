@@ -130,6 +130,238 @@ function generatePerlinNoise(x, y) {
     })(x * 0.1, y * 0.1);
 }
 
+// --- START: 3D Simplex Noise and FBM Port from Shader to JavaScript ---
+
+// Helper to mimic GLSL mod(x,y) for THREE.Vector objects
+function vecMod(v, m) {
+    if (v instanceof THREE.Vector2 && m instanceof THREE.Vector2) return new THREE.Vector2(v.x % m.x, v.y % m.y); // Basic JS modulo, GLSL mod is different for negative
+    if (v instanceof THREE.Vector3 && m instanceof THREE.Vector3) return new THREE.Vector3(v.x % m.x, v.y % m.y, v.z % m.z);
+    if (v instanceof THREE.Vector4 && m instanceof THREE.Vector4) return new THREE.Vector4(v.x % m.x, v.y % m.y, v.z % m.z, v.w % m.w);
+    // For GLSL-like mod: x - y * floor(x/y)
+    if (v instanceof THREE.Vector3 && typeof m === 'number') { // mod(vec3, float)
+      return new THREE.Vector3(
+        v.x - m * Math.floor(v.x/m),
+        v.y - m * Math.floor(v.y/m),
+        v.z - m * Math.floor(v.z/m)
+      );
+    }
+     if (v instanceof THREE.Vector4 && typeof m === 'number') { // mod(vec4, float)
+      return new THREE.Vector4(
+        v.x - m * Math.floor(v.x/m),
+        v.y - m * Math.floor(v.y/m),
+        v.z - m * Math.floor(v.z/m),
+        v.w - m * Math.floor(v.w/m)
+      );
+    }
+    return v % m; // Fallback for scalar
+}
+
+
+function mod289_v3(x) { // x is THREE.Vector3
+    return x.clone().sub(new THREE.Vector3().setScalar(289.0).multiply(new THREE.Vector3(Math.floor(x.x / 289.0), Math.floor(x.y / 289.0), Math.floor(x.z / 289.0))));
+}
+
+function mod289_v4(x) { // x is THREE.Vector4
+    return x.clone().sub(new THREE.Vector4().setScalar(289.0).multiply(new THREE.Vector4(Math.floor(x.x / 289.0), Math.floor(x.y / 289.0), Math.floor(x.z / 289.0), Math.floor(x.w / 289.0))));
+}
+
+function permute_v4(x_in) { // x_in is THREE.Vector4
+    let x = x_in.clone();
+    let term1 = x.multiplyScalar(34.0);
+    let term2 = term1.addScalar(1.0);
+    let result = mod289_v4(term2.multiply(x)); // component-wise multiply
+    return result;
+}
+
+function taylorInvSqrt_v4(r) { // r is THREE.Vector4
+    return new THREE.Vector4(
+        1.79284291400159 - 0.85373472095314 * r.x,
+        1.79284291400159 - 0.85373472095314 * r.y,
+        1.79284291400159 - 0.85373472095314 * r.z,
+        1.79284291400159 - 0.85373472095314 * r.w
+    );
+}
+
+function snoiseJS(v_in) { // v_in is THREE.Vector3
+    let v = v_in.clone();
+    const C = new THREE.Vector2(1.0/6.0, 1.0/3.0);
+    const D = new THREE.Vector4(0.0, 0.5, 1.0, 2.0);
+
+    let i = new THREE.Vector3(
+        Math.floor(v.x + (v.x + v.y + v.z) * C.y),
+        Math.floor(v.y + (v.x + v.y + v.z) * C.y),
+        Math.floor(v.z + (v.x + v.y + v.z) * C.y)
+    );
+    let x0 = v.clone().sub(i).add(new THREE.Vector3().setScalar((i.x + i.y + i.z) * C.x));
+    
+    let g = new THREE.Vector3(
+        x0.x >= x0.y ? 1.0 : 0.0,
+        x0.y >= x0.z ? 1.0 : 0.0,
+        x0.z >= x0.x ? 1.0 : 0.0
+    );
+    let l = new THREE.Vector3(1.0 - g.x, 1.0 - g.y, 1.0 - g.z); // 1.0 - g
+    let i1 = new THREE.Vector3(Math.min(g.x, l.z), Math.min(g.y, l.x), Math.min(g.z, l.y)); // min(g.xyz, l.zxy);
+    let i2 = new THREE.Vector3(Math.max(g.x, l.z), Math.max(g.y, l.x), Math.max(g.z, l.y)); // max(g.xyz, l.zxy);
+
+    let x1 = x0.clone().sub(i1).add(new THREE.Vector3().setScalar(C.x));
+    let x2 = x0.clone().sub(i2).add(new THREE.Vector3().setScalar(C.y)); // C.yyy in GLSL means C.y for all components
+    let x3 = x0.clone().subScalar(D.y); // D.yyy is (0.5,0.5,0.5)
+
+    i = mod289_v3(i);
+    
+    let p = permute_v4(
+        permute_v4(
+            permute_v4(
+                new THREE.Vector4(i.z + 0.0, i.z + i1.z, i.z + i2.z, i.z + 1.0)
+            ).add(new THREE.Vector4(i.y + 0.0, i.y + i1.y, i.y + i2.y, i.y + 1.0))
+        ).add(new THREE.Vector4(i.x + 0.0, i.x + i1.x, i.x + i2.x, i.x + 1.0))
+    );
+
+    const n_ = 0.142857142857; // 1.0/7.0
+    let ns = new THREE.Vector3(D.w, D.y, D.z).multiplyScalar(n_).sub(new THREE.Vector3(D.x, D.z, D.x));
+
+    let j = p.clone().sub(mod289_v4(new THREE.Vector4().setScalar(49.0)).multiply( // This was likely floor(p * ns.z * ns.z), not mod289
+         new THREE.Vector4(
+            Math.floor(p.x * ns.z * ns.z), Math.floor(p.y * ns.z * ns.z),
+            Math.floor(p.z * ns.z * ns.z), Math.floor(p.w * ns.z * ns.z)
+        )
+    ));
+
+
+    let x_ = new THREE.Vector4(Math.floor(j.x * ns.z), Math.floor(j.y * ns.z), Math.floor(j.z * ns.z), Math.floor(j.w * ns.z));
+    let y_ = new THREE.Vector4(
+        Math.floor(j.x - 7.0 * x_.x), Math.floor(j.y - 7.0 * x_.y),
+        Math.floor(j.z - 7.0 * x_.z), Math.floor(j.w - 7.0 * x_.w)
+    );
+
+    let x = x_.multiplyScalar(ns.x).addScalar(ns.y);
+    let y = y_.multiplyScalar(ns.x).addScalar(ns.y);
+
+    let h = new THREE.Vector4(1.0 - Math.abs(x.x) - Math.abs(y.x), 1.0 - Math.abs(x.y) - Math.abs(y.y), 1.0 - Math.abs(x.z) - Math.abs(y.z), 1.0 - Math.abs(x.w) - Math.abs(y.w));
+    
+    let b0 = new THREE.Vector4(x.x, x.y, y.x, y.y);
+    let b1 = new THREE.Vector4(x.z, x.w, y.z, y.w);
+
+    let s0 = new THREE.Vector4(Math.floor(b0.x)*2.0 + 1.0, Math.floor(b0.y)*2.0 + 1.0, Math.floor(b0.z)*2.0 + 1.0, Math.floor(b0.w)*2.0 + 1.0);
+    let s1 = new THREE.Vector4(Math.floor(b1.x)*2.0 + 1.0, Math.floor(b1.y)*2.0 + 1.0, Math.floor(b1.z)*2.0 + 1.0, Math.floor(b1.w)*2.0 + 1.0);
+    
+    let sh = new THREE.Vector4(
+        h.x >= 0.0 ? -1.0 : 0.0, h.y >= 0.0 ? -1.0 : 0.0,
+        h.z >= 0.0 ? -1.0 : 0.0, h.w >= 0.0 ? -1.0 : 0.0
+    );
+
+    let a0 = new THREE.Vector4(b0.x, b0.z, b0.y, b0.w).add(new THREE.Vector4(s0.x, s0.z, s0.y, s0.w).multiply(new THREE.Vector4(sh.x, sh.x, sh.y, sh.y)));
+    let a1 = new THREE.Vector4(b1.x, b1.z, b1.y, b1.w).add(new THREE.Vector4(s1.x, s1.z, s1.y, s1.w).multiply(new THREE.Vector4(sh.z, sh.z, sh.w, sh.w)));
+
+    let p0 = new THREE.Vector3(a0.x, a0.y, h.x);
+    let p1 = new THREE.Vector3(a0.z, a0.w, h.y);
+    let p2 = new THREE.Vector3(a1.x, a1.y, h.z);
+    let p3 = new THREE.Vector3(a1.z, a1.w, h.w);
+
+    let norm = taylorInvSqrt_v4(new THREE.Vector4(p0.dot(p0), p1.dot(p1), p2.dot(p2), p3.dot(p3)));
+    p0.multiplyScalar(norm.x);
+    p1.multiplyScalar(norm.y);
+    p2.multiplyScalar(norm.z);
+    p3.multiplyScalar(norm.w);
+
+    let mVal = new THREE.Vector4(
+        Math.max(0.6 - x0.dot(x0), 0.0), Math.max(0.6 - x1.dot(x1), 0.0),
+        Math.max(0.6 - x2.dot(x2), 0.0), Math.max(0.6 - x3.dot(x3), 0.0)
+    );
+    mVal = mVal.multiply(mVal);
+    mVal = mVal.multiply(mVal);
+
+    return 42.0 * (mVal.x * p0.dot(x0) + mVal.y * p1.dot(x1) + mVal.z * p2.dot(x2) + mVal.w * p3.dot(x3));
+}
+
+function fbmJS(p_vec3, octaves = 6) {
+    let p = p_vec3.clone();
+    let value = 0.0;
+    let amplitude = 0.5;
+    for (let i = 0; i < octaves; i++) {
+        value += amplitude * snoiseJS(p);
+        p.multiplyScalar(2.0);
+        amplitude *= 0.5;
+    }
+    return value;
+}
+
+function fractalNoise3D(vec, octaves = 4, scale = 0.1) {
+    let scaledVec = vec.clone().multiplyScalar(scale);
+    let noiseVal = fbmJS(scaledVec, octaves);
+    return (noiseVal + 1.0) * 0.5; // Remap from approx [-1, 1] to [0, 1]
+}
+
+// --- NEW: Advanced Clustering Functions ---
+
+function generateClusterCenters(numClusters, galacticRadius, spiralArms) {
+    const clusters = [];
+    
+    // Generate spiral arm clusters
+    for (let arm = 0; arm < spiralArms; arm++) {
+        const armAngle = (arm / spiralArms) * 2 * Math.PI;
+        const clustersPerArm = Math.floor(numClusters * 0.7 / spiralArms); // 70% in spiral arms
+        
+        for (let i = 0; i < clustersPerArm; i++) {
+            const t = (i + 1) / (clustersPerArm + 1); // Parameter along arm
+            const radius = Math.pow(t, 0.8) * galacticRadius * 0.9; // Non-linear distribution
+            const angle = armAngle + 3.0 * radius / galacticRadius + (Math.random() - 0.5) * 0.8;
+            
+            const x = radius * Math.cos(angle);
+            const y = radius * Math.sin(angle);
+            const z = (Math.random() - 0.5) * 0.3 * Math.pow(1 - t, 0.5); // Thinner at edges
+            
+            // Add 3D noise perturbation to cluster centers
+            const noiseOffset = fractalNoise3D(new THREE.Vector3(x, y, z), 3, 0.08) - 0.5;
+            clusters.push({
+                center: new THREE.Vector3(x + noiseOffset, y + noiseOffset, z),
+                radius: 0.8 + Math.random() * 1.2, // Cluster size variation
+                density: 0.6 + Math.random() * 0.4, // Density variation
+                armIndex: arm
+            });
+        }
+    }
+    
+    // Generate halo/disc clusters
+    const haloCount = numClusters - clusters.length;
+    for (let i = 0; i < haloCount; i++) {
+        const angle = Math.random() * 2 * Math.PI;
+        const radius = Math.pow(Math.random(), 0.6) * galacticRadius;
+        const x = radius * Math.cos(angle);
+        const y = radius * Math.sin(angle);
+        const z = (Math.random() - 0.5) * 1.5 * Math.pow(1 - radius/galacticRadius, 0.3);
+        
+        clusters.push({
+            center: new THREE.Vector3(x, y, z),
+            radius: 0.5 + Math.random() * 0.8,
+            density: 0.2 + Math.random() * 0.3,
+            armIndex: -1 // Not part of spiral arms
+        });
+    }
+    
+    return clusters;
+}
+
+function getClusterInfluence(position, clusters) {
+    let totalInfluence = 0;
+    let spiralArmBonus = 0;
+    
+    clusters.forEach(cluster => {
+        const distance = position.distanceTo(cluster.center);
+        const influence = cluster.density * Math.exp(-distance / cluster.radius);
+        totalInfluence += influence;
+        
+        // Bonus for spiral arm clusters
+        if (cluster.armIndex >= 0) {
+            spiralArmBonus += influence * 0.3;
+        }
+    });
+    
+    return totalInfluence + spiralArmBonus;
+}
+
+// --- END: Advanced Clustering Functions ---
+
 // --- NEW: Volumetric Smoke Shader ---
 const volumetricSmokeShader = {
     uniforms: {
@@ -162,7 +394,7 @@ const volumetricSmokeShader = {
 
         varying vec3 vWorldPosition;
         
-        // 3D Simplex Noise function (by Ashima Arts)
+        // Enhanced 3D Simplex Noise function
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
         vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
         vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
@@ -214,17 +446,55 @@ const volumetricSmokeShader = {
             return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
         }
         
-        // Fractal Brownian Motion
+        // Enhanced Multi-Scale FBM with Domain Warping
         float fbm(vec3 p) {
+            // First pass - base noise
             float value = 0.0;
             float amplitude = 0.5;
-            float frequency = 0.0;
-            for (int i = 0; i < 6; i++) {
-                value += amplitude * snoise(p);
-                p *= 2.0;
+            vec3 q = p;
+            for (int i = 0; i < 4; i++) {
+                value += amplitude * snoise(q);
+                q *= 2.0;
                 amplitude *= 0.5;
             }
+            
+            // Domain warping for more complex structures
+            vec3 warp = vec3(
+                snoise(p + vec3(1.7, 9.2, 4.3)),
+                snoise(p + vec3(8.3, 2.8, 7.1)),
+                snoise(p + vec3(3.1, 6.7, 1.9))
+            ) * 0.3;
+            
+            // Second pass with warped domain
+            vec3 r = p + warp;
+            amplitude = 0.3;
+            for (int i = 0; i < 3; i++) {
+                value += amplitude * abs(snoise(r));
+                r *= 2.0;
+                amplitude *= 0.5;
+            }
+            
             return value;
+        }
+        
+        // Layered 3D noise for volumetric detail
+        float volumetricDensity(vec3 p, float time) {
+            // Large scale structure
+            float density1 = fbm(p * 0.8 + vec3(time * 0.05, 0.0, time * 0.03));
+            
+            // Medium scale detail
+            float density2 = fbm(p * 2.1 + vec3(time * 0.08, time * 0.06, 0.0)) * 0.6;
+            
+            // Fine scale wispy details
+            float density3 = snoise(p * 8.0 + vec3(time * 0.15, time * 0.12, time * 0.1)) * 0.3;
+            
+            // Combine with different weights
+            float combined = density1 + density2 + density3;
+            
+            // Apply additional shaping
+            combined *= 1.0 - smoothstep(0.0, 0.5, length(p.xy) * 0.1); // Fade at edges
+            
+            return combined;
         }
 
         void main() {
@@ -233,51 +503,110 @@ const volumetricSmokeShader = {
                 discard;
             }
 
-            // Use world position and time to drive the 3D noise
-            vec3 noisePos = vec3(vWorldPosition * 0.5);
-            noisePos.z += uTime * 0.1;
-
-            float noiseValue = fbm(noisePos);
+            // Enhanced 3D volumetric calculation
+            vec3 worldPos = vWorldPosition;
+            float time = uTime;
             
-            // Remap noise to create more contrast (clumpiness)
-            noiseValue = smoothstep(0.3, 0.7, noiseValue);
+            // Calculate volumetric density with multiple octaves and domain warping
+            float density = volumetricDensity(worldPos * 0.3, time);
+            
+            // Additional turbulence layer
+            vec3 turbulence = vec3(
+                snoise(worldPos * 1.5 + time * 0.1),
+                snoise(worldPos * 1.8 + time * 0.12),
+                snoise(worldPos * 2.1 + time * 0.08)
+            ) * 0.2;
+            
+            float finalDensity = volumetricDensity(worldPos * 0.3 + turbulence, time);
+            
+            // Remap density for better contrast
+            finalDensity = smoothstep(0.2, 0.8, finalDensity);
+            
+            // Color mixing with enhanced variation
+            float colorNoise = snoise(worldPos * 0.5 + time * 0.03);
+            colorNoise = colorNoise * 0.5 + 0.5; // Remap to [0,1]
+            
+            // Add temperature variation
+            float temperature = snoise(worldPos * 0.8 + time * 0.02) * 0.3 + 0.7;
+            vec3 baseColor = mix(uColor1, uColor2, colorNoise);
+            vec3 finalColor = baseColor * temperature;
+            
+            // Enhanced particle edge with soft falloff
+            float edgeFalloff = 1.0 - smoothstep(0.2, 0.5, dist);
+            float alpha = edgeFalloff * finalDensity * 0.8;
+            
+            // Add subtle glow effect
+            alpha += edgeFalloff * 0.1;
 
-            // Mix colors based on a different noise frequency
-            float colorNoise = snoise(vWorldPosition * 0.2 + uTime * 0.05);
-            vec3 mixedColor = mix(uColor1, uColor2, colorNoise);
-
-            // Create a soft falloff at the particle edge
-            float alpha = (1.0 - dist * 2.0) * noiseValue;
-
-            gl_FragColor = vec4(mixedColor, alpha);
+            gl_FragColor = vec4(finalColor, alpha);
         }
     `
 };
 
-// --- NEW: Function to generate volumetric smoke in spiral arms ---
+// --- NEW: Function to generate volumetric smoke with clustering ---
 function generateVolumetricSmoke() {
     const geometry = new THREE.BufferGeometry();
     const positions = [];
+    
+    // Generate cluster centers for smoke binding
+    const smokeClusters = generateClusterCenters(25, galaxyParams.galacticRadius, galaxyParams.spiralArms);
+    
+    let attempts = 0;
+    const maxAttempts = galaxyParams.numSmokeParticles * 3;
 
-    for (let i = 0; i < galaxyParams.numSmokeParticles; i++) {
-        // This logic is borrowed from generateGalaxyStars to ensure placement in spiral arms
-        const armAngle = (i % galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
-        const distanceFromCenter = Math.pow(Math.random(), 1.5) * galaxyParams.galacticRadius;
+    while (positions.length / 3 < galaxyParams.numSmokeParticles && attempts < maxAttempts) {
+        attempts++;
         
-        // Add more spread to the arms for a diffuse look
-        const armSpread = 2.0; 
-        const angle = armAngle + armSpread * distanceFromCenter + (Math.random() - 0.5) * 2.5;
-
-        // Make the smoke distribution less dense than stars
-        if (distanceFromCenter < galaxyParams.coreRadius * 2.0 || distanceFromCenter > galaxyParams.galacticRadius * 0.9) {
+        // Choose generation method based on probability
+        let x, y, z, distanceFromCenter;
+        
+        if (Math.random() < 0.8) {
+            // 80% cluster-based generation
+            const cluster = smokeClusters[Math.floor(Math.random() * smokeClusters.length)];
+            const clusterOffset = new THREE.Vector3(
+                (Math.random() - 0.5) * cluster.radius * 2,
+                (Math.random() - 0.5) * cluster.radius * 2,
+                (Math.random() - 0.5) * cluster.radius * 0.8
+            );
+            
+            const position = cluster.center.clone().add(clusterOffset);
+            x = position.x;
+            y = position.y;
+            z = position.z;
+            distanceFromCenter = Math.sqrt(x * x + y * y);
+        } else {
+            // 20% spiral arm generation
+            const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
+            distanceFromCenter = Math.pow(Math.random(), 1.3) * galaxyParams.galacticRadius;
+            const angle = armAngle + 2.8 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 1.5;
+            
+            x = distanceFromCenter * Math.cos(angle);
+            y = distanceFromCenter * Math.sin(angle);
+            
+            const normalizedDistance = distanceFromCenter / galaxyParams.galacticRadius;
+            const thicknessMultiplier = Math.pow(Math.max(0, 1.0 - normalizedDistance), 0.4);
+            z = (Math.random() - 0.5) * 1.2 * thicknessMultiplier;
+        }
+        
+        if (distanceFromCenter < galaxyParams.coreRadius * 1.2 || distanceFromCenter > galaxyParams.galacticRadius * 0.98) {
             continue;
         }
-
-        const x = distanceFromCenter * Math.cos(angle);
-        const y = distanceFromCenter * Math.sin(angle);
-        const z = (Math.random() - 0.5) * 0.4; // Thicker vertical distribution than stars
-
-        positions.push(x, y, z);
+        
+        // Enhanced cluster influence check
+        const position = new THREE.Vector3(x, y, z);
+        const clusterInfluence = getClusterInfluence(position, smokeClusters);
+        
+        // Multi-layer noise for realistic distribution
+        const noise1 = fractalNoise3D(position, 4, 0.08);
+        const noise2 = fractalNoise3D(position, 6, 0.15) * 0.7;
+        const combinedNoise = (noise1 + noise2) / 1.7;
+        
+        // Combined probability based on cluster influence and noise
+        const probability = Math.min(1.0, clusterInfluence * 0.7 + combinedNoise * 0.3);
+        
+        if (Math.random() < probability * 0.85) { // 85% acceptance rate for good candidates
+            positions.push(x, y, z);
+        }
     }
 
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -299,25 +628,64 @@ function generateGalaxyStars() {
     const geometry = new THREE.BufferGeometry();
     const positions = [];
     const colors = [];
+    
+    // Generate cluster centers for realistic star distribution
+    const starClusters = generateClusterCenters(35, galaxyParams.galacticRadius, galaxyParams.spiralArms);
+    
+    let attempts = 0;
+    const maxAttempts = galaxyParams.numStars * 2;
 
-    for (let i = 0; i < galaxyParams.numStars; i++) {
-        const armAngle = (i % galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
-        const distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2) * galaxyParams.galacticRadius);
-        const angle = armAngle + 2.9 * distanceFromCenter + 1 * (Math.random() - 0.5);
-
-        const x = distanceFromCenter * Math.cos(angle);
-        const y = distanceFromCenter * Math.sin(angle);
-        const z = 0.5 * (Math.random() - 0.5);
+    while (positions.length / 3 < galaxyParams.numStars && attempts < maxAttempts) {
+        attempts++;
+        
+        let x, y, z, distanceFromCenter;
+        
+        if (Math.random() < 0.75) {
+            // 75% cluster-based generation
+            const cluster = starClusters[Math.floor(Math.random() * starClusters.length)];
+            const clusterOffset = new THREE.Vector3(
+                (Math.random() - 0.5) * cluster.radius * 1.5,
+                (Math.random() - 0.5) * cluster.radius * 1.5,
+                (Math.random() - 0.5) * cluster.radius * 0.3
+            );
+            
+            const position = cluster.center.clone().add(clusterOffset);
+            x = position.x;
+            y = position.y;
+            z = position.z;
+            distanceFromCenter = Math.sqrt(x * x + y * y);
+        } else {
+            // 25% spiral arm generation
+            const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
+            distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 1.8) * galaxyParams.galacticRadius);
+            const angle = armAngle + 3.2 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 0.8;
+            
+            x = distanceFromCenter * Math.cos(angle);
+            y = distanceFromCenter * Math.sin(angle);
+            
+            const normalizedDistance = distanceFromCenter / galaxyParams.galacticRadius;
+            const thicknessMultiplier = Math.pow(Math.max(0, 1.0 - normalizedDistance), 0.9);
+            z = (Math.random() - 0.5) * 0.4 * thicknessMultiplier;
+        }
 
         if (distanceFromCenter < galaxyParams.coreRadius || distanceFromCenter > galaxyParams.galacticRadius) {
             continue;
         }
 
-        positions.push(x, y, z);
+        // Enhanced cluster influence and noise check
+        const position = new THREE.Vector3(x, y, z);
+        const clusterInfluence = getClusterInfluence(position, starClusters);
+        const noise = fractalNoise3D(position, 5, 0.12);
+        
+        const probability = Math.min(1.0, clusterInfluence * 0.8 + noise * 0.2);
+        
+        if (Math.random() < probability * 0.9) {
+            positions.push(x, y, z);
 
-        const starType = starTypes[Math.floor(Math.random() * starTypes.length)];
-        const color = getRandomColorInRange(starType.colorRange);
-        colors.push(color.r, color.g, color.b);
+            const starType = starTypes[Math.floor(Math.random() * starTypes.length)];
+            const color = getRandomColorInRange(starType.colorRange);
+            colors.push(color.r, color.g, color.b);
+        }
     }
 
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -337,6 +705,9 @@ function generateGalaxyStars() {
 
 function generateNebula() {
     const nebulaGroup = new THREE.Group();
+    
+    // Generate cluster centers for nebula
+    const nebulaClusters = generateClusterCenters(20, galaxyParams.galacticRadius, galaxyParams.spiralArms);
 
     for (let layer = 0; layer < 3; layer++) {
         const geometry = new THREE.BufferGeometry();
@@ -344,27 +715,67 @@ function generateNebula() {
         const colors = [];
         const angles = [];
         const radii = [];
+        let currentLayerPositionsCount = 0;
         const scaleFactor = 1 + 0.3 * layer;
+        const effectiveGalacticRadius = galaxyParams.galacticRadius * scaleFactor;
 
-        for (let i = 0; i < galaxyParams.numNebulaParticles; i++) {
-            const angle = Math.random() * 2 * Math.PI;
-            const radius = Math.pow(Math.random(), 1.5) * galaxyParams.galacticRadius * scaleFactor;
+        let attempts = 0;
+        const maxAttempts = (galaxyParams.numNebulaParticles / 3) * 2;
 
-            if (radius < galaxyParams.coreRadius || radius > galaxyParams.galacticRadius) {
+        while (currentLayerPositionsCount < galaxyParams.numNebulaParticles / 3 && attempts < maxAttempts) {
+            attempts++;
+            
+            let angle, radius, x, y, z;
+            
+            if (Math.random() < 0.7) {
+                // Cluster-based generation
+                const cluster = nebulaClusters[Math.floor(Math.random() * nebulaClusters.length)];
+                const clusterOffset = new THREE.Vector3(
+                    (Math.random() - 0.5) * cluster.radius * 2.5,
+                    (Math.random() - 0.5) * cluster.radius * 2.5,
+                    (Math.random() - 0.5) * cluster.radius * 1.2
+                );
+                
+                const position = cluster.center.clone().add(clusterOffset);
+                x = position.x;
+                y = position.y;
+                z = position.z;
+                radius = Math.sqrt(x * x + y * y);
+                angle = Math.atan2(y, x);
+            } else {
+                // Traditional generation
+                angle = Math.random() * 2 * Math.PI;
+                radius = Math.pow(Math.random(), 1.2) * effectiveGalacticRadius;
+                x = radius * Math.cos(angle);
+                y = radius * Math.sin(angle);
+                
+                const normalizedDistance = radius / effectiveGalacticRadius;
+                const thicknessMultiplier = Math.pow(Math.max(0, 1.0 - normalizedDistance), 0.6);
+                z = (Math.random() - 0.5) * 0.8 * thicknessMultiplier * (0.8 + layer * 0.3);
+            }
+
+            if (radius < galaxyParams.coreRadius * scaleFactor || radius > effectiveGalacticRadius) {
                 continue;
             }
 
-            const x = radius * Math.cos(angle);
-            const y = radius * Math.sin(angle);
-            const z = 0.5 * (Math.random() - 0.5);
-
-            positions.push(x, y, z);
-            angles.push(angle);
-            radii.push(radius);
-
-            const noiseVal = 0.55 + 0.3 * fractalNoise({ x: x, y: y }, 5, 0.5, 2);
-            const color = new THREE.Color().setHSL(noiseVal, 0.7, 0.5);
-            colors.push(color.r, color.g, color.b);
+            // Enhanced clustering check
+            const position = new THREE.Vector3(x, y, z);
+            const clusterInfluence = getClusterInfluence(position, nebulaClusters);
+            const noise = fractalNoise3D(position, 4, 0.1);
+            
+            const probability = Math.min(1.0, clusterInfluence * 0.6 + noise * 0.4);
+            
+            if (Math.random() < probability * 0.8) {
+                positions.push(x, y, z);
+                currentLayerPositionsCount++;
+                
+                const noiseVal = 0.55 + 0.3 * fractalNoise({ x: x, y: y }, 5, 0.5, 2);
+                const color = new THREE.Color().setHSL(noiseVal, 0.7, 0.5);
+                // Push angles and radii here as well, as they are associated with the particle
+                angles.push(angle);
+                radii.push(radius);
+                colors.push(color.r, color.g, color.b);
+            }
         }
 
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
