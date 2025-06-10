@@ -92,6 +92,19 @@
     <!-- Nebula parameters -->
     <label for="num-nebula-particles">Number of Nebula Particles</label>
     <input type="range" id="num-nebula-particles" min="1000" max="100000" step="1000" value="50000">
+    <br><br>
+    <!-- Smoke parameters -->
+    <label for="num-smoke-particles">Number of Smoke Particles</label>
+    <input type="range" id="num-smoke-particles" min="500" max="20000" step="500" value="3000">
+    <br>
+    <label for="smoke-particle-size">Smoke Particle Size</label>
+    <input type="range" id="smoke-particle-size" min="0.1" max="2.0" step="0.05" value="0.8">
+    <br>
+    <label for="smoke-color1">Smoke Color 1</label>
+    <input type="color" id="smoke-color1" value="#101025">
+    <br>
+    <label for="smoke-color2">Smoke Color 2</label>
+    <input type="color" id="smoke-color2" value="#251510">
   </div>
 
   <!-- Load Three.js and additional scripts for post-processing -->

@@ -1,94 +1,236 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<title>Dreamy Moon & Fancy Volumetric Clouds</title>
-<style>html,body{margin:0;height:100%;overflow:hidden;background:#000}canvas{display:block;width:100%;height:100%}</style>
+<meta charset="UTF-8">
+<title>Cinematic Spiral Galaxy Shader</title>
+<style>
+  html,body{height:100%;margin:0;overflow:hidden;background:#000}
+  canvas{display:block;width:100vw;height:100vh}
+</style>
 </head>
 <body>
-<canvas id="glcanvas"></canvas>
-<script>
-/* ——————— tiny helpers ——————— */
-const TAU=Math.PI*2,deg2rad=d=>d*Math.PI/180,sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
-cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
-dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],len=v=>Math.hypot(...v),
-norm=v=>{const l=len(v);return[v[0]/l,v[1]/l,v[2]/l];},
-persp=(fov,asp,n,f)=>{const t=Math.tan(fov/2);return new Float32Array([1/(asp*t),0,0,0,0,1/t,0,0,0,0,(f+n)/(n-f),-1,0,0,2*f*n/(n-f),0]);},
-look=(e,t,u)=>{const z=norm(sub(e,t)),x=norm(cross(u,z)),y=cross(z,x);return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,e),-dot(y,e),-dot(z,e),1]);},
-mul=(o,a,b)=>{for(let r=0;r<4;r++)for(let c=0;c<4;c++){let s=0;for(let k=0;k<4;k++)s+=a[r*4+k]*b[k*4+c];o[r*4+c]=s;}};
+<canvas id="c"></canvas>
 
-/* ——————— WebGL setup ——————— */
-const cvs=document.getElementById('glcanvas'),gl=cvs.getContext('webgl');
-if(!gl)throw'WebGL not supported';
-const resize=()=>{cvs.width=innerWidth;cvs.height=innerHeight;gl.viewport(0,0,cvs.width,cvs.height)};addEventListener('resize',resize);resize();
-const comp=(src,t)=>{const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(s);return s;}
-const link=(v,f)=>{const p=gl.createProgram();gl.attachShader(p,comp(v,gl.VERTEX_SHADER));gl.attachShader(p,comp(f,gl.FRAGMENT_SHADER));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw gl.getProgramInfoLog(p);return p;};
-const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,1,-1,-1,1,1,1,-1]),gl.STATIC_DRAW);
+<script id="vs" type="x-shader/x-vertex">
+attribute vec2 a_Position;
+uniform vec2  u_resolution;
+uniform float u_time;
+varying vec3  v_rayDir;
 
-/* ——————— Cloud program ——————— */
-const cloudVS=`attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}`;
-const cloudFS=`precision mediump float;
-uniform vec2 uR;uniform float uT;
-float h(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
-float n(vec3 p){vec3 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);float a=h(i),b=h(i+vec3(1,0,0)),c=h(i+vec3(0,1,0)),d=h(i+vec3(1,1,0)),e=h(i+vec3(0,0,1)),f1=h(i+vec3(1,0,1)),g=h(i+vec3(0,1,1)),h1=h(i+vec3(1,1,1));float nx0=mix(a,b,u.x),nx1=mix(c,d,u.x),nx2=mix(e,f1,u.x),nx3=mix(g,h1,u.x);float nxy0=mix(nx0,nx1,u.y),nxy1=mix(nx2,nx3,u.y);return mix(nxy0,nxy1,u.z);}
-float fbm(vec3 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p*=2.;a*=.5;}return v;}
-const float B=-.25,T=.45,D=1.15,S=.04,C=.55; // bottom, top, density, step, cutoff
-vec3 march(vec3 ro,vec3 rd){
-  float t0=(B-ro.y)/rd.y,t1=(T-ro.y)/rd.y;if(t0>t1){float tmp=t0;t0=t1;t1=tmp;}
-  t0=max(t0,0.);if(t1<=t0) return vec3(0);
-  vec3 sun=normalize(vec3(.8,.6,.2));float tr=1.;vec3 acc=vec3(0);
-  for(float t=t0;t<t1;t+=S){if(tr<.02)break;vec3 p=ro+rd*t;float d=max(fbm(p*.8+vec3(0.,uT*.05,0.))-C,0.);float hgt=smoothstep(B,T,p.y)*smoothstep(T,B,p.y);float dens=d*hgt*D;float absorb=exp(-dens*8.);float scat=dens*max(dot(sun,vec3(0,1,0)),0.);acc+=tr*scat*vec3(1.,.97,.92)*S;tr*=absorb;}
-  return acc;
-}
 void main(){
-  vec2 uv=(gl_FragCoord.xy/uR)*2.-1.;uv.x*=uR.x/uR.y;
-  vec3 ro=vec3(0.,.9,2.8),rd=normalize(vec3(uv,-1.6));
-  vec3 sky=mix(vec3(.12,.18,.45),vec3(.03,.04,.08),pow(max(rd.y,0.),.4));
-  vec3 col=march(ro,rd)+sky;
-  gl_FragColor=vec4(max(col,0.),1.);
-}`;
-const cloudP=link(cloudVS,cloudFS);
-gl.useProgram(cloudP);
-const cPos=gl.getAttribLocation(cloudP,'a');gl.enableVertexAttribArray(cPos);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.vertexAttribPointer(cPos,2,gl.FLOAT,false,0,0);
-const cRes=gl.getUniformLocation(cloudP,'uR'),cTime=gl.getUniformLocation(cloudP,'uT');
+  /* slow cork-screw orbit */
+  float a=u_time*0.04, e=u_time*0.01;
+  vec3 cam=vec3(sin(a)*6.5,1.7+sin(e)*0.6,cos(a)*6.5);
+  vec3 tgt=vec3(0.0,0.4,0.0);
+  vec3 up =vec3(0.0,1.0,0.0);
 
-/* ——————— Moon program ——————— */
-const moonVS=`attribute vec3 p,n;uniform mat4 mvp,m;varying vec3 N;void main(){N=mat3(m)*n;gl_Position=mvp*vec4(p,1.);}`;
-const moonFS=`precision mediump float;varying vec3 N;uniform vec3 L;void main(){float d=max(dot(normalize(N),L),0.);float h=d*.5+.5;vec3 base=vec3(.9);gl_FragColor=vec4(base*(.25+h*.75),1.);}`;
-const moonP=link(moonVS,moonFS);
-const mp=gl.getAttribLocation(moonP,'p'),mn=gl.getAttribLocation(moonP,'n'),mvpUL=gl.getUniformLocation(moonP,'mvp'),mUL=gl.getUniformLocation(moonP,'m'),lUL=gl.getUniformLocation(moonP,'L');
-/* sphere */
-function sph(lat=40,lon=40){const v=[],n=[],i=[];for(let a=0;a<=lat;a++){const th=a*Math.PI/lat,st=Math.sin(th),ct=Math.cos(th);for(let b=0;b<=lon;b++){const ph=b*TAU/lon,sp=Math.sin(ph),cp=Math.cos(ph);v.push(cp*st,ct,sp*st);n.push(cp*st,ct,sp*st);} }
-for(let a=0;a<lat;a++)for(let b=0;b<lon;b++){const k=a*(lon+1)+b,j=k+lon+1;i.push(k,j,k+1,j,j+1,k+1);}return{v:new Float32Array(v),n:new Float32Array(n),i:new Uint16Array(i)};}
-const s=sph(),vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,s.v,gl.STATIC_DRAW);
-const nb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,nb);gl.bufferData(gl.ARRAY_BUFFER,s.n,gl.STATIC_DRAW);
-const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,s.i,gl.STATIC_DRAW);
+  vec3 f=normalize(tgt-cam);
+  vec3 r=normalize(cross(f,up));
+  vec3 u =      cross(r,f);
 
-/* ——————— render loop ——————— */
-let start=performance.now();
-const draw=()=>{const t=(performance.now()-start)*1e-3;
-  gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  vec2 scr=a_Position*vec2(u_resolution.x/u_resolution.y,1.0);
+  v_rayDir=normalize(scr.x*r + scr.y*u + 1.6*f);
 
-  /* pass1 clouds */
-  gl.disable(gl.DEPTH_TEST);gl.useProgram(cloudP);
-  gl.uniform2f(cRes,cvs.width,cvs.height);gl.uniform1f(cTime,t);
-  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  gl_Position=vec4(a_Position,0.0,1.0);
+}
+</script>
 
-  /* pass2 moon */
-  gl.enable(gl.DEPTH_TEST);gl.useProgram(moonP);
-  gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.enableVertexAttribArray(mp);gl.vertexAttribPointer(mp,3,gl.FLOAT,false,0,0);
-  gl.bindBuffer(gl.ARRAY_BUFFER,nb);gl.enableVertexAttribArray(mn);gl.vertexAttribPointer(mn,3,gl.FLOAT,false,0,0);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);
-  const proj=persp(deg2rad(45),cvs.width/cvs.height,.1,100),view=look([0,.8,3],[0,.3,0],[0,1,0]),
-        model=new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,.3,0,1]),tmp=new Float32Array(16),mvp=new Float32Array(16);
-  mul(tmp,view,model);mul(mvp,proj,tmp);
-  gl.uniformMatrix4fv(mvpUL,false,mvp);gl.uniformMatrix4fv(mUL,false,model);
-  const L=norm([.8,.6,.2]);gl.uniform3f(lUL,L[0],L[1],L[2]);
-  gl.drawElements(gl.TRIANGLES,s.i.length,gl.UNSIGNED_SHORT,0);
+<script id="fs" type="x-shader/x-fragment">
+precision highp float;
+uniform float u_time;
+uniform vec2  u_resolution;
+varying vec3  v_rayDir;
 
-  requestAnimationFrame(draw);
-};
-requestAnimationFrame(draw);
+#define STEPS 90
+#define PI 3.14159265359
+#define TAU 6.28318530718
+
+/* ---------- hash & noise ---------- */
+float h31(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.55);}
+float noise(vec3 p){
+  vec3 i=floor(p);vec3 f=fract(p);f=f*f*(3.-2.*f);
+  float n000=h31(i),n100=h31(i+vec3(1,0,0)),n010=h31(i+vec3(0,1,0)),n110=h31(i+vec3(1,1,0));
+  float n001=h31(i+vec3(0,0,1)),n101=h31(i+vec3(1,0,1)),n011=h31(i+vec3(0,1,1)),n111=h31(i+vec3(1,1,1));
+  float nx00=mix(n000,n100,f.x),nx10=mix(n010,n110,f.x),nx01=mix(n001,n101,f.x),nx11=mix(n011,n111,f.x);
+  float nxy0=mix(nx00,nx10,f.y),nxy1=mix(nx01,nx11,f.y);
+  return mix(nxy0,nxy1,f.z);
+}
+float fbm(vec3 p){
+  float a=.55,s=0.;
+  for(int i=0;i<6;i++){s+=a*noise(p);p=p*2.2+vec3(1.3);a*=.55;}
+  return s;
+}
+vec3 curl(vec3 p){
+  const float e=.01;
+  vec3 dx=vec3(e,0,0),dy=vec3(0,e,0),dz=vec3(0,0,e);
+  return normalize(vec3(
+    fbm(p+dy)-fbm(p-dy) - (fbm(p+dz)-fbm(p-dz)),
+    fbm(p+dz)-fbm(p-dz) - (fbm(p+dx)-fbm(p-dx)),
+    fbm(p+dx)-fbm(p-dx) - (fbm(p+dy)-fbm(p-dy))
+  ));
+}
+
+/* ---------- galaxy params ---------- */
+const float R_MIN=0.4, R_MAX=5.2, DISK_H=0.22;
+const int ARMS=4; const float PITCH=0.26; const float ARM_W=0.85;
+const float ROT_SPD=0.025; const float BULGE=1.4; const float DUST_ABS=2.4;
+
+/* rotation curve */
+float rot(float r){return r<0.7 ? r*2.2 : 1.25;}
+
+/* star colour LUT */
+vec3 starCol(float k){
+  k=clamp(k,0.,1.);
+  vec3 O=vec3(.55,.66,1.),B=vec3(.77,.83,1.),A=vec3(.97,.97,.98),
+       F=vec3(1.,.9,.76),   G=vec3(1.,.85,.65),K=vec3(1.,.7,.4),M=vec3(1.,.5,.23);
+  if(k>.85) return mix(B,O,(k-.85)/.15);
+  if(k>.70) return mix(A,B,(k-.70)/.15);
+  if(k>.55) return mix(F,A,(k-.55)/.15);
+  if(k>.40) return mix(G,F,(k-.40)/.15);
+  if(k>.25) return mix(K,G,(k-.25)/.15);
+  return mix(M,K,k/.25);
+}
+
+/* spiral density */
+float spiral(vec3 p,float t){
+  vec2 gc=vec2(length(p.xz),atan(p.z,p.x));
+  float r=gc.x,th=gc.y;if(r<R_MIN||r>R_MAX) return 0.;
+  float dens=0.;float rotAng=rot(r)*ROT_SPD*t;
+  for(int i=0;i<ARMS;i++){
+    float off=float(i)*TAU/float(ARMS);
+    float a=th - log(r/0.5)/PITCH - off - rotAng;
+    dens+=exp(-pow(sin(a),2.)/(ARM_W*ARM_W));
+  }
+  dens*=0.8+0.6*fbm(p*7.);
+  return dens;
+}
+
+/* dust lanes */
+float dust(vec3 p,float t){
+  vec2 gc=vec2(length(p.xz),atan(p.z,p.x));float r=gc.x;if(r<R_MIN||r>R_MAX) return 0.;
+  float d=0.;float rotAng=rot(r)*ROT_SPD*t;
+  for(int i=0;i<ARMS;i++){
+    float off=float(i)*TAU/float(ARMS);
+    float a=gc.y - log(r/0.45)/PITCH - off - rotAng + 0.4;
+    d+=exp(-pow(sin(a),2.)/(ARM_W*.35*ARM_W*.35));
+  }
+  return d*(.7+.5*fbm(p*14.));
+}
+
+/* H-α glow regions */
+float HII(vec3 p,float t){
+  float r=length(p.xz);if(r<0.5||r>R_MAX*.85) return 0.;
+  float s=spiral(p,t)*1.2;
+  return s*smoothstep(.5,.8,fbm(p*18.+t*.02));
+}
+
+/* galaxy density & metadata (x dens, y temp, z dust) */
+vec3 galaxy(vec3 p,float t,out float hii){
+  float r=length(p.xz);
+  float zFall=exp(-abs(p.y)/DISK_H); if(zFall<.02){hii=0.;return vec3(0);}
+  float bul=exp(-r/BULGE)*exp(-abs(p.y)/(DISK_H*.5));
+  float disk=spiral(p,t)*zFall;
+  float halo=exp(-r/6.)*.08;
+  hii=HII(p,t);
+  float dens=bul+disk+halo+hii;
+  float temp=(bul*.25+disk*(.55+.3*fbm(p*3.))+hii*.9)/max(dens,1e-3);
+  float dustL=dust(p,t);
+  return vec3(dens,temp,dustL);
+}
+
+/* phase */
+float phase(float g,float mu){float g2=g*g,d=1.+g2-2.*g*mu;return (1.-g2)/(4.*PI*pow(d,1.5));}
+
+/* background stars */
+vec3 stars(vec3 rd){
+  vec3 col=vec3(0);
+  for(int l=0;l<3;l++){
+    float sc=pow(8.,float(l+1));
+    vec3 p=floor(rd*sc);
+    float h=h31(p);
+    float th=.999-.0005*float(l);
+    if(h>th){
+      float br=(h-th)/(1.-th);
+      col+=starCol(h31(p+325.))*br*(1.7-.4*float(l));
+    }
+  }
+  return col;
+}
+
+/* ACES */
+vec3 tonemap(vec3 x){
+  const float a=2.51,b=.03,c=2.43,d=.59,e=.14;
+  return clamp((x*(a*x+b))/(x*(c*x+d)+e),0.,1.);
+}
+
+void main(){
+  vec3 ro=vec3(sin(u_time*.04)*6.5,1.7+sin(u_time*.01)*.6,cos(u_time*.04)*6.5);
+  vec3 rd=normalize(v_rayDir);
+
+  float maxD=14.,dt=maxD/float(STEPS);
+  float jitter=h31(vec3(gl_FragCoord.xy*.37,u_time))*dt;
+  float t=jitter;
+
+  vec3 col=vec3(0); float trans=1.; float alpha=0.;
+  for(int i=0;i<STEPS;i++){
+    if(trans<.02||t>maxD) break;
+    vec3 p=ro+rd*t;
+    /* galaxy rotation */
+    float ang=u_time*ROT_SPD;mat2 rot=mat2(cos(ang),-sin(ang),sin(ang),cos(ang));
+    p.xz=rot*p.xz;
+
+    float hii; vec3 meta=galaxy(p,u_time,hii);
+    float dens=meta.x,temp=meta.y,dustL=meta.z;
+    if(dens>.002){
+      vec3 sc=starCol(temp);
+      if(hii>.1) sc=mix(sc,vec3(1.,.35,.46),hii*.65);
+      float dustF=exp(-dustL*DUST_ABS*dt);
+      sc*=dustF;
+      if(dustL>.15){sc*=vec3(1.25,.9,.7);} /* reddening */
+      sc*=phase(.4,dot(rd,normalize(-p)));
+      float abs=1.-exp(-dens*dt*1.5);
+      col+=sc*abs*trans*1.3;
+      trans*=dustF*(1.-abs);
+      alpha+=abs*(1.-alpha);
+    }
+    t+=dt;
+  }
+
+  vec3 bg=mix(vec3(.005,.008,.015),vec3(.1,.15,.27),clamp(rd.y*.5+.5,0.,1.));
+  bg+=vec3(.02,.01,.03)*fbm(rd*2.+u_time*.02)*.02;
+  bg+=stars(rd)*(1.-alpha);
+
+  col=mix(bg,col,alpha);
+  col=tonemap(col*1.3);
+  col=pow(col,vec3(.85));
+
+  gl_FragColor=vec4(col,1.);
+}
+</script>
+
+<script>
+/* minimal GL bootstrap */
+const cvs=document.getElementById('c');
+const gl=cvs.getContext('webgl');
+const vsSrc=document.getElementById('vs').textContent;
+const fsSrc=document.getElementById('fs').textContent;
+function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
+if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(o);return o;}
+const prog=gl.createProgram();
+gl.attachShader(prog,sh(gl.VERTEX_SHADER,vsSrc));
+gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fsSrc));
+gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw gl.getProgramInfoLog(prog);
+gl.useProgram(prog);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+const loc=gl.getAttribLocation(prog,'a_Position');
+gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const uTime=gl.getUniformLocation(prog,'u_time');
+const uRes=gl.getUniformLocation(prog,'u_resolution');
+function rs(){const d=window.devicePixelRatio||1;cvs.width=innerWidth*d;cvs.height=innerHeight*d;
+gl.viewport(0,0,cvs.width,cvs.height);}window.onresize=rs;rs();
+requestAnimationFrame(function loop(t){gl.uniform1f(uTime,t*.001);gl.uniform2f(uRes,cvs.width,cvs.height);
+gl.drawArrays(gl.TRIANGLES,0,6);requestAnimationFrame(loop);});
 </script>
 </body>
 </html>
