@@ -486,6 +486,8 @@ function generateVolumetricSmoke() {
     
     // Generate cluster centers for smoke binding
     const smokeClusters = generateClusterCenters(25, galaxyParams.galacticRadius, galaxyParams.spiralArms);
+    // Use only spiral-arm clusters for smoke distribution
+    const armSmokeClusters = smokeClusters.filter(c => c.armIndex >= 0);
     
     let attempts = 0;
     const maxAttempts = galaxyParams.numSmokeParticles * 3;
@@ -495,25 +497,26 @@ function generateVolumetricSmoke() {
         
         // Choose generation method based on probability
         let x, y, z, distanceFromCenter;
-        
-        if (Math.random() < 0.8) {
-            // 80% cluster-based generation
-            const cluster = smokeClusters[Math.floor(Math.random() * smokeClusters.length)];
+        if (Math.random() < 0.9) {
+            // 90% spiral-arm cluster generation
+            const cluster = armSmokeClusters.length > 0
+                ? armSmokeClusters[Math.floor(Math.random() * armSmokeClusters.length)]
+                : smokeClusters[Math.floor(Math.random() * smokeClusters.length)];
+            
             const clusterOffset = randomPointInEllipsoid(
                 cluster.radius * 2,
                 cluster.radius * 2,
                 cluster.radius * 0.8
             );
-
+            
             const position = cluster.center.clone().add(clusterOffset);
             x = position.x;
             y = position.y;
             z = position.z;
             distanceFromCenter = Math.sqrt(x * x + y * y);
         } else {
-            // 20% spiral arm generation with enhanced central concentration
+            // 10% random generation
             const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
-            // Enhanced exponential distribution for central concentration
             distanceFromCenter = Math.pow(Math.random(), 2.5) * galaxyParams.galacticRadius;
             const angle = armAngle + 2.8 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 1.5;
             
