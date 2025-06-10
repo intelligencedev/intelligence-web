@@ -50,7 +50,8 @@ const galaxyParams = {
     smokeParticleSize: 0.8, // Initial value, will be updated by control
     smokeColor1: new THREE.Color(0x101025), // Initial value, will be updated by control
     smokeColor2: new THREE.Color(0x251510),  // Initial value, will be updated by control
-    smokeNoiseIntensity: 0.65 // New parameter for noise intensity
+    smokeNoiseIntensity: 0.65, // New parameter for noise intensity
+    godRaysIntensity: 0.85 // New parameter for god rays intensity
 };
 
 function getRandomColorInRange(range) {
@@ -410,164 +411,39 @@ const volumetricSmokeShader = {
 
         varying vec3 vWorldPosition;
         
-        // Enhanced 3D Simplex Noise function
-        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
-        vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
-
-        float snoise(vec3 v) {
-            const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-            const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-            vec3 i  = floor(v + dot(v, C.yyy));
-            vec3 x0 = v - i + dot(i, C.xxx);
-            vec3 g = step(x0.yzx, x0.xyz);
-            vec3 l = 1.0 - g;
-            vec3 i1 = min(g.xyz, l.zxy);
-            vec3 i2 = max(g.xyz, l.zxy);
-            vec3 x1 = x0 - i1 + C.xxx;
-            vec3 x2 = x0 - i2 + C.yyy;
-            vec3 x3 = x0 - D.yyy;
-            i = mod289(i);
-            vec4 p = permute(permute(permute(
-                i.z + vec4(0.0, i1.z, i2.z, 1.0))
-                + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-                + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-            float n_ = 0.142857142857;
-            vec3 ns = n_ * D.wyz - D.xzx;
-            vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-            vec4 x_ = floor(j * ns.z);
-            vec4 y_ = floor(j - 7.0 * x_);
-            vec4 x = x_ * ns.x + ns.yyyy;
-            vec4 y = y_ * ns.x + ns.yyyy;
-            vec4 h = 1.0 - abs(x) - abs(y);
-            vec4 b0 = vec4(x.xy, y.xy);
-            vec4 b1 = vec4(x.zw, y.zw);
-            vec4 s0 = floor(b0)*2.0 + 1.0;
-            vec4 s1 = floor(b1)*2.0 + 1.0;
-            vec4 sh = -step(h, vec4(0.0));
-            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
-            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-            vec3 p0 = vec3(a0.xy,h.x);
-            vec3 p1 = vec3(a0.zw,h.y);
-            vec3 p2 = vec3(a1.xy,h.z);
-            vec3 p3 = vec3(a1.zw,h.w);
-            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
-            p0 *= norm.x;
-            p1 *= norm.y;
-            p2 *= norm.z;
-            p3 *= norm.w;
-            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-            m = m * m;
-            return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+        // Simple hash function for basic noise
+        float hash(vec3 p) {
+            p = fract(p * 0.3183099 + 0.1);
+            p *= 17.0;
+            return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
         }
         
-        // Enhanced Multi-Scale FBM with improved contrast and detail
-        float fbm(vec3 p, float intensity) {
+        // Simple 3D noise function
+        float noise(vec3 x) {
+            vec3 p = floor(x);
+            vec3 f = fract(x);
+            f = f * f * (3.0 - 2.0 * f);
+            
+            return mix(mix(mix(hash(p + vec3(0, 0, 0)), 
+                               hash(p + vec3(1, 0, 0)), f.x),
+                           mix(hash(p + vec3(0, 1, 0)), 
+                               hash(p + vec3(1, 1, 0)), f.x), f.y),
+                       mix(mix(hash(p + vec3(0, 0, 1)), 
+                               hash(p + vec3(1, 0, 1)), f.x),
+                           mix(hash(p + vec3(0, 1, 1)), 
+                               hash(p + vec3(1, 1, 1)), f.x), f.y), f.z);
+        }
+        
+        // Simple FBM with limited octaves
+        float fbm(vec3 p) {
             float value = 0.0;
             float amplitude = 0.5;
-            float frequency = 1.0;
-            
-            // First pass - base structure with varying octaves based on intensity
-            for (int i = 0; i < 6; i++) {
-                float octaveValue = snoise(p * frequency);
-                // Apply power curve for more dramatic contrast
-                octaveValue = sign(octaveValue) * pow(abs(octaveValue), 0.8);
-                value += amplitude * octaveValue * intensity;
-                frequency *= 2.0;
+            for (int i = 0; i < 3; i++) {
+                value += amplitude * noise(p);
+                p *= 2.0;
                 amplitude *= 0.5;
             }
-            
             return value;
-        }
-        
-        // Advanced domain warping for cloudscape-like structures
-        float cloudscapeFBM(vec3 p, float time, float intensity) {
-            // Primary domain warping
-            vec3 q = p + vec3(
-                fbm(p + vec3(0.0, 0.0, time * 0.1), intensity),
-                fbm(p + vec3(5.2, 1.3, time * 0.08), intensity),
-                fbm(p + vec3(1.7, 9.2, time * 0.05), intensity)
-            ) * 0.4 * intensity;
-            
-            // Secondary domain warping for fine detail
-            vec3 r = p + 4.0 * vec3(
-                fbm(q + vec3(1.7, 9.2, time * 0.15), intensity),
-                fbm(q + vec3(8.3, 2.8, time * 0.12), intensity),
-                fbm(q + vec3(3.1, 6.7, time * 0.1), intensity)
-            ) * intensity;
-            
-            // Final noise composition
-            float result = fbm(r, intensity);
-            
-            // Add billowy cloud characteristics
-            float billows = abs(snoise(p * 2.0 + time * 0.3)) * 0.3;
-            result += billows * intensity;
-            
-            return result;
-        }
-        
-        // Layered 3D noise for enhanced volumetric detail
-        float volumetricDensity(vec3 p, float time, float intensity) {
-            float wrappedTime = mod(time, 1000.0);
-            
-            // Large scale cloudscape structure
-            float density1 = cloudscapeFBM(p * 0.6, wrappedTime, intensity);
-            
-            // Medium scale detail with higher frequency
-            float density2 = cloudscapeFBM(p * 1.8, wrappedTime * 1.3, intensity * 0.8) * 0.7;
-            
-            // Fine scale wispy details
-            float density3 = fbm(p * 6.0, intensity * 0.6) * 0.4;
-            
-            // Ultra-fine detail for texture
-            float density4 = snoise(p * 12.0 + wrappedTime * 0.2) * 0.2 * intensity;
-            
-            // Combine all layers with enhanced contrast
-            float combined = density1 + density2 + density3 + density4;
-            
-            // Apply contrast enhancement
-            combined = smoothstep(-0.3, 1.2, combined);
-            
-            // Add distance-based falloff
-            float distanceFalloff = 1.0 - smoothstep(0.0, 0.8, length(p.xy) * 0.08);
-            combined *= distanceFalloff;
-            
-            // Final contrast boost
-            combined = pow(combined, 0.7 + intensity * 0.3);
-            
-            return combined;
-        }
-        
-        // Enhanced color mixing with atmospheric effects
-        vec3 atmosphericColor(vec3 worldPos, float time, float density, float intensity) {
-            // Base color mixing
-            float colorNoise1 = snoise(worldPos * 0.3 + time * 0.02);
-            float colorNoise2 = snoise(worldPos * 0.8 + time * 0.04) * 0.5;
-            float colorMix = (colorNoise1 + colorNoise2) * 0.5 + 0.5;
-            
-            // Temperature variation for more realistic coloring
-            float temperature = snoise(worldPos * 0.5 + time * 0.01) * intensity;
-            temperature = temperature * 0.4 + 0.6;
-            
-            // Altitude-based color variation
-            float altitude = worldPos.z * 0.1;
-            float altitudeInfluence = exp(-altitude * altitude * 2.0);
-            
-            // Mix colors with enhanced variation
-            vec3 baseColor = mix(uColor1, uColor2, colorMix);
-            
-            // Add atmospheric tinting
-            vec3 atmosphericTint = vec3(1.0, 0.95, 0.9); // Slight warm tint
-            baseColor *= mix(vec3(1.0), atmosphericTint, altitudeInfluence * 0.3);
-            
-            // Apply temperature variation
-            baseColor *= temperature;
-            
-            // Enhance contrast based on density
-            baseColor = mix(baseColor * 0.7, baseColor * 1.3, density);
-            
-            return baseColor;
         }
 
         void main() {
@@ -579,35 +455,24 @@ const volumetricSmokeShader = {
             vec3 worldPos = vWorldPosition;
             float time = mod(uTime, 1000.0);
             
-            // Calculate enhanced volumetric density
-            float density = volumetricDensity(worldPos * 0.25, time, uNoiseIntensity);
+            // Simple animated noise
+            vec3 noisePos = worldPos * 0.5 + vec3(time * 0.1, time * 0.05, 0.0);
+            float density = fbm(noisePos) * uNoiseIntensity;
             
-            // Additional turbulence with intensity control
-            vec3 turbulence = vec3(
-                snoise(worldPos * 2.0 + time * 0.1),
-                snoise(worldPos * 2.3 + time * 0.12),
-                snoise(worldPos * 1.8 + time * 0.08)
-            ) * 0.15 * uNoiseIntensity;
+            // Add some variation
+            float variation = noise(worldPos * 1.5 + time * 0.2) * 0.3;
+            density += variation;
             
-            // Recalculate density with turbulence
-            float finalDensity = volumetricDensity(worldPos * 0.25 + turbulence, time, uNoiseIntensity);
+            // Remap density
+            density = smoothstep(0.2, 0.8, density);
             
-            // Enhanced contrast mapping
-            finalDensity = smoothstep(0.1, 0.9, finalDensity);
-            finalDensity = pow(finalDensity, 0.8);
+            // Color mixing
+            float colorNoise = noise(worldPos * 0.8 + time * 0.03);
+            vec3 finalColor = mix(uColor1, uColor2, colorNoise);
             
-            // Get atmospheric color
-            vec3 finalColor = atmosphericColor(worldPos, time, finalDensity, uNoiseIntensity);
-            
-            // Enhanced particle edge with multiple falloffs
-            float edgeFalloff = 1.0 - smoothstep(0.1, 0.5, dist);
-            float innerGlow = 1.0 - smoothstep(0.0, 0.3, dist);
-            
-            // Combine alpha components
-            float alpha = (edgeFalloff * finalDensity * 0.9) + (innerGlow * 0.1);
-            
-            // Apply intensity-based alpha boost
-            alpha *= 0.7 + uNoiseIntensity * 0.3;
+            // Particle edge falloff
+            float edgeFalloff = 1.0 - smoothstep(0.2, 0.5, dist);
+            float alpha = edgeFalloff * density * 0.8;
 
             gl_FragColor = vec4(finalColor, alpha);
         }
@@ -1220,6 +1085,11 @@ function applySmokeSizeChange() {
     });
 }
 
+function applyGodRaysIntensityChange() {
+    const newIntensity = galaxyParams.godRaysIntensity;
+    godRayPass.uniforms.exposure.value = newIntensity;
+}
+
 function applyNoiseIntensityChange() {
     const newNoiseIntensity = galaxyParams.smokeNoiseIntensity;
     galaxyGroup.children.forEach(child => {
@@ -1246,6 +1116,9 @@ function handleParameterChange(inputId) {
     } else {
         value = inputElement.value; // Fallback, though not expected for current controls
     }
+
+    // Update the corresponding value display
+    updateValueDisplay(inputId, value);
 
     switch (inputId) {
         case "num-stars":
@@ -1286,15 +1159,57 @@ function handleParameterChange(inputId) {
             galaxyParams.smokeNoiseIntensity = value;
             applyNoiseIntensityChange();
             break;
+        case "god-rays-intensity":
+            galaxyParams.godRaysIntensity = value;
+            applyGodRaysIntensityChange();
+            break;
         case "smoke-color1":
             galaxyParams.smokeColor1.set(value);
-            // No explicit call to applySmokeSizeChange needed for color, as uniform value is the object itself.
             break;
         case "smoke-color2":
             galaxyParams.smokeColor2.set(value);
-            // Same as above.
             break;
     }
+}
+
+function updateValueDisplay(inputId, value) {
+    const valueElement = document.getElementById(inputId + '-value');
+    if (valueElement) {
+        // Format the value based on type
+        if (inputId.includes('color')) {
+            valueElement.textContent = value.toUpperCase();
+        } else if (Number.isInteger(value) || inputId.includes('num-') || inputId.includes('spiral-arms') || inputId.includes('galactic-radius')) {
+            valueElement.textContent = value.toString();
+        } else {
+            valueElement.textContent = value.toFixed(2);
+        }
+    }
+}
+
+function initializeValueDisplays() {
+    const controlIds = [
+        "num-stars", "star-size", "galactic-radius", "spiral-arms",
+        "core-radius", "num-nebula-particles", "num-smoke-particles",
+        "smoke-particle-size", "smoke-noise-intensity", "god-rays-intensity", 
+        "smoke-color1", "smoke-color2"
+    ];
+
+    controlIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            let value;
+            if (element.type === 'color') {
+                value = element.value;
+            } else if (element.type === 'range') {
+                if (["num-stars", "galactic-radius", "spiral-arms", "num-nebula-particles", "num-smoke-particles"].includes(id)) {
+                    value = parseInt(element.value);
+                } else {
+                    value = parseFloat(element.value);
+                }
+            }
+            updateValueDisplay(id, value);
+        }
+    });
 }
 
 function animate() {
@@ -1352,8 +1267,12 @@ document.addEventListener("DOMContentLoaded", function() {
     const controlIds = [
         "num-stars", "star-size", "galactic-radius", "spiral-arms",
         "core-radius", "num-nebula-particles", "num-smoke-particles",
-        "smoke-particle-size", "smoke-noise-intensity", "smoke-color1", "smoke-color2"
+        "smoke-particle-size", "smoke-noise-intensity", "god-rays-intensity",
+        "smoke-color1", "smoke-color2"
     ];
+
+    // Initialize value displays
+    initializeValueDisplays();
 
     controlIds.forEach(id => {
         const element = document.getElementById(id);
