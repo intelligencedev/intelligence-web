@@ -1332,17 +1332,29 @@ document.addEventListener("DOMContentLoaded", function() {
 
 animate();
 
-// helper: random point inside ellipsoid to avoid cubic artifacts
+// helper: random point inside ellipsoid to avoid cubic artifacts with Gaussian falloff
 function randomPointInEllipsoid(rx, ry, rz) {
+    // Get random direction using spherical coordinates
     const u = Math.random();
     const v = Math.random();
     const theta = 2.0 * Math.PI * u;
     const phi = Math.acos(2.0 * v - 1.0);
-    const r = Math.cbrt(Math.random());
     const sinPhi = Math.sin(phi);
+    
+    // Direction vector
+    const dir = new THREE.Vector3(
+        sinPhi * Math.cos(theta),
+        sinPhi * Math.sin(theta),
+        Math.cos(phi)
+    );
+    
+    // Gaussian magnitude using rx as the characteristic radius
+    const magnitude = rx * Math.sqrt(-2 * Math.log(Math.max(1e-9, Math.random())));
+    
+    // Apply magnitude and ellipsoid scaling
     return new THREE.Vector3(
-        r * sinPhi * Math.cos(theta) * rx,
-        r * sinPhi * Math.sin(theta) * ry,
-        r * Math.cos(phi) * rz
+        dir.x * magnitude,
+        dir.y * magnitude,
+        dir.z * magnitude * (rz / rx)  // Scale z to maintain ellipsoid aspect ratio
     );
 }
