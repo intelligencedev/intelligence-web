@@ -49,7 +49,8 @@ const galaxyParams = {
     numSmokeParticles: 3000, // Initial value, will be updated by control
     smokeParticleSize: 0.8, // Initial value, will be updated by control
     smokeColor1: new THREE.Color(0x101025), // Initial value, will be updated by control
-    smokeColor2: new THREE.Color(0x251510)  // Initial value, will be updated by control
+    smokeColor2: new THREE.Color(0x251510),  // Initial value, will be updated by control
+    smokeNoiseIntensity: 0.65 // New parameter for noise intensity
 };
 
 function getRandomColorInRange(range) {
@@ -313,7 +314,11 @@ function generateClusterCenters(numClusters, galacticRadius, spiralArms) {
             
             const x = radius * Math.cos(angle);
             const y = radius * Math.sin(angle);
-            const z = (Math.random() - 0.5) * 0.3 * Math.pow(1 - t, 0.5); // Thinner at edges
+            
+            // Enhanced vertical distribution - much thicker at center, thinner at edges
+            const normalizedRadius = radius / galacticRadius;
+            const verticalScale = Math.pow(1.0 - normalizedRadius, 1.2) * 0.8 + 0.1;
+            const z = (Math.random() - 0.5) * verticalScale;
             
             // Add 3D noise perturbation to cluster centers
             const noiseOffset = fractalNoise3D(new THREE.Vector3(x, y, z), 3, 0.08) - 0.5;
@@ -326,14 +331,19 @@ function generateClusterCenters(numClusters, galacticRadius, spiralArms) {
         }
     }
     
-    // Generate halo/disc clusters
+    // Generate halo/disc clusters with enhanced central concentration
     const haloCount = numClusters - clusters.length;
     for (let i = 0; i < haloCount; i++) {
         const angle = Math.random() * 2 * Math.PI;
-        const radius = Math.pow(Math.random(), 0.6) * galacticRadius;
+        // Enhanced central concentration using exponential distribution
+        const radius = Math.pow(Math.random(), 1.8) * galacticRadius;
         const x = radius * Math.cos(angle);
         const y = radius * Math.sin(angle);
-        const z = (Math.random() - 0.5) * 1.5 * Math.pow(1 - radius/galacticRadius, 0.3);
+        
+        // Much thicker at center, exponentially thinner towards edges
+        const normalizedRadius = radius / galacticRadius;
+        const verticalScale = Math.exp(-normalizedRadius * 3.0) * 2.0 + 0.1;
+        const z = (Math.random() - 0.5) * verticalScale;
         
         clusters.push({
             center: new THREE.Vector3(x, y, z),
@@ -372,7 +382,8 @@ const volumetricSmokeShader = {
         uTime: { value: 0.0 },
         uColor1: { value: galaxyParams.smokeColor1 },
         uColor2: { value: galaxyParams.smokeColor2 },
-        uSize: { value: galaxyParams.smokeParticleSize }
+        uSize: { value: galaxyParams.smokeParticleSize },
+        uNoiseIntensity: { value: galaxyParams.smokeNoiseIntensity }
     },
     vertexShader: `
         uniform float uSize;
@@ -395,6 +406,7 @@ const volumetricSmokeShader = {
         uniform float uTime;
         uniform vec3 uColor1;
         uniform vec3 uColor2;
+        uniform float uNoiseIntensity;
 
         varying vec3 vWorldPosition;
         
@@ -450,58 +462,112 @@ const volumetricSmokeShader = {
             return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
         }
         
-        // Enhanced Multi-Scale FBM with Domain Warping
-        float fbm(vec3 p) {
-            // First pass - base noise
+        // Enhanced Multi-Scale FBM with improved contrast and detail
+        float fbm(vec3 p, float intensity) {
             float value = 0.0;
             float amplitude = 0.5;
-            vec3 q = p;
-            for (int i = 0; i < 4; i++) {
-                value += amplitude * snoise(q);
-                q *= 2.0;
-                amplitude *= 0.5;
-            }
+            float frequency = 1.0;
             
-            // Domain warping for more complex structures
-            vec3 warp = vec3(
-                snoise(p + vec3(1.7, 9.2, 4.3)),
-                snoise(p + vec3(8.3, 2.8, 7.1)),
-                snoise(p + vec3(3.1, 6.7, 1.9))
-            ) * 0.3;
-            
-            // Second pass with warped domain
-            vec3 r = p + warp;
-            amplitude = 0.3;
-            for (int i = 0; i < 3; i++) {
-                value += amplitude * abs(snoise(r));
-                r *= 2.0;
+            // First pass - base structure with varying octaves based on intensity
+            for (int i = 0; i < 6; i++) {
+                float octaveValue = snoise(p * frequency);
+                // Apply power curve for more dramatic contrast
+                octaveValue = sign(octaveValue) * pow(abs(octaveValue), 0.8);
+                value += amplitude * octaveValue * intensity;
+                frequency *= 2.0;
                 amplitude *= 0.5;
             }
             
             return value;
         }
         
-        // Layered 3D noise for volumetric detail
-        float volumetricDensity(vec3 p, float time) {
-            // Use modulo to prevent floating point precision issues at large time values
+        // Advanced domain warping for cloudscape-like structures
+        float cloudscapeFBM(vec3 p, float time, float intensity) {
+            // Primary domain warping
+            vec3 q = p + vec3(
+                fbm(p + vec3(0.0, 0.0, time * 0.1), intensity),
+                fbm(p + vec3(5.2, 1.3, time * 0.08), intensity),
+                fbm(p + vec3(1.7, 9.2, time * 0.05), intensity)
+            ) * 0.4 * intensity;
+            
+            // Secondary domain warping for fine detail
+            vec3 r = p + 4.0 * vec3(
+                fbm(q + vec3(1.7, 9.2, time * 0.15), intensity),
+                fbm(q + vec3(8.3, 2.8, time * 0.12), intensity),
+                fbm(q + vec3(3.1, 6.7, time * 0.1), intensity)
+            ) * intensity;
+            
+            // Final noise composition
+            float result = fbm(r, intensity);
+            
+            // Add billowy cloud characteristics
+            float billows = abs(snoise(p * 2.0 + time * 0.3)) * 0.3;
+            result += billows * intensity;
+            
+            return result;
+        }
+        
+        // Layered 3D noise for enhanced volumetric detail
+        float volumetricDensity(vec3 p, float time, float intensity) {
             float wrappedTime = mod(time, 1000.0);
             
-            // Large scale structure
-            float density1 = fbm(p * 0.8 + vec3(wrappedTime * 0.05, 0.0, wrappedTime * 0.03));
+            // Large scale cloudscape structure
+            float density1 = cloudscapeFBM(p * 0.6, wrappedTime, intensity);
             
-            // Medium scale detail
-            float density2 = fbm(p * 2.1 + vec3(wrappedTime * 0.08, wrappedTime * 0.06, 0.0)) * 0.6;
+            // Medium scale detail with higher frequency
+            float density2 = cloudscapeFBM(p * 1.8, wrappedTime * 1.3, intensity * 0.8) * 0.7;
             
             // Fine scale wispy details
-            float density3 = snoise(p * 8.0 + vec3(wrappedTime * 0.15, wrappedTime * 0.12, wrappedTime * 0.1)) * 0.3;
+            float density3 = fbm(p * 6.0, intensity * 0.6) * 0.4;
             
-            // Combine with different weights
-            float combined = density1 + density2 + density3;
+            // Ultra-fine detail for texture
+            float density4 = snoise(p * 12.0 + wrappedTime * 0.2) * 0.2 * intensity;
             
-            // Apply additional shaping
-            combined *= 1.0 - smoothstep(0.0, 0.5, length(p.xy) * 0.1); // Fade at edges
+            // Combine all layers with enhanced contrast
+            float combined = density1 + density2 + density3 + density4;
+            
+            // Apply contrast enhancement
+            combined = smoothstep(-0.3, 1.2, combined);
+            
+            // Add distance-based falloff
+            float distanceFalloff = 1.0 - smoothstep(0.0, 0.8, length(p.xy) * 0.08);
+            combined *= distanceFalloff;
+            
+            // Final contrast boost
+            combined = pow(combined, 0.7 + intensity * 0.3);
             
             return combined;
+        }
+        
+        // Enhanced color mixing with atmospheric effects
+        vec3 atmosphericColor(vec3 worldPos, float time, float density, float intensity) {
+            // Base color mixing
+            float colorNoise1 = snoise(worldPos * 0.3 + time * 0.02);
+            float colorNoise2 = snoise(worldPos * 0.8 + time * 0.04) * 0.5;
+            float colorMix = (colorNoise1 + colorNoise2) * 0.5 + 0.5;
+            
+            // Temperature variation for more realistic coloring
+            float temperature = snoise(worldPos * 0.5 + time * 0.01) * intensity;
+            temperature = temperature * 0.4 + 0.6;
+            
+            // Altitude-based color variation
+            float altitude = worldPos.z * 0.1;
+            float altitudeInfluence = exp(-altitude * altitude * 2.0);
+            
+            // Mix colors with enhanced variation
+            vec3 baseColor = mix(uColor1, uColor2, colorMix);
+            
+            // Add atmospheric tinting
+            vec3 atmosphericTint = vec3(1.0, 0.95, 0.9); // Slight warm tint
+            baseColor *= mix(vec3(1.0), atmosphericTint, altitudeInfluence * 0.3);
+            
+            // Apply temperature variation
+            baseColor *= temperature;
+            
+            // Enhance contrast based on density
+            baseColor = mix(baseColor * 0.7, baseColor * 1.3, density);
+            
+            return baseColor;
         }
 
         void main() {
@@ -510,40 +576,38 @@ const volumetricSmokeShader = {
                 discard;
             }
 
-            // Enhanced 3D volumetric calculation with wrapped time
             vec3 worldPos = vWorldPosition;
-            float time = mod(uTime, 1000.0); // Wrap time to prevent precision issues
+            float time = mod(uTime, 1000.0);
             
-            // Calculate volumetric density with multiple octaves and domain warping
-            float density = volumetricDensity(worldPos * 0.3, time);
+            // Calculate enhanced volumetric density
+            float density = volumetricDensity(worldPos * 0.25, time, uNoiseIntensity);
             
-            // Additional turbulence layer with wrapped time
+            // Additional turbulence with intensity control
             vec3 turbulence = vec3(
-                snoise(worldPos * 1.5 + time * 0.1),
-                snoise(worldPos * 1.8 + time * 0.12),
-                snoise(worldPos * 2.1 + time * 0.08)
-            ) * 0.2;
+                snoise(worldPos * 2.0 + time * 0.1),
+                snoise(worldPos * 2.3 + time * 0.12),
+                snoise(worldPos * 1.8 + time * 0.08)
+            ) * 0.15 * uNoiseIntensity;
             
-            float finalDensity = volumetricDensity(worldPos * 0.3 + turbulence, time);
+            // Recalculate density with turbulence
+            float finalDensity = volumetricDensity(worldPos * 0.25 + turbulence, time, uNoiseIntensity);
             
-            // Remap density for better contrast
-            finalDensity = smoothstep(0.2, 0.8, finalDensity);
+            // Enhanced contrast mapping
+            finalDensity = smoothstep(0.1, 0.9, finalDensity);
+            finalDensity = pow(finalDensity, 0.8);
             
-            // Color mixing with enhanced variation and wrapped time
-            float colorNoise = snoise(worldPos * 0.5 + time * 0.03);
-            colorNoise = colorNoise * 0.5 + 0.5; // Remap to [0,1]
+            // Get atmospheric color
+            vec3 finalColor = atmosphericColor(worldPos, time, finalDensity, uNoiseIntensity);
             
-            // Add temperature variation with wrapped time
-            float temperature = snoise(worldPos * 0.8 + time * 0.02) * 0.3 + 0.7;
-            vec3 baseColor = mix(uColor1, uColor2, colorNoise);
-            vec3 finalColor = baseColor * temperature;
+            // Enhanced particle edge with multiple falloffs
+            float edgeFalloff = 1.0 - smoothstep(0.1, 0.5, dist);
+            float innerGlow = 1.0 - smoothstep(0.0, 0.3, dist);
             
-            // Enhanced particle edge with soft falloff
-            float edgeFalloff = 1.0 - smoothstep(0.2, 0.5, dist);
-            float alpha = edgeFalloff * finalDensity * 0.8;
+            // Combine alpha components
+            float alpha = (edgeFalloff * finalDensity * 0.9) + (innerGlow * 0.1);
             
-            // Add subtle glow effect
-            alpha += edgeFalloff * 0.1;
+            // Apply intensity-based alpha boost
+            alpha *= 0.7 + uNoiseIntensity * 0.3;
 
             gl_FragColor = vec4(finalColor, alpha);
         }
@@ -582,20 +646,23 @@ function generateVolumetricSmoke() {
             z = position.z;
             distanceFromCenter = Math.sqrt(x * x + y * y);
         } else {
-            // 20% spiral arm generation
+            // 20% spiral arm generation with enhanced central concentration
             const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
-            distanceFromCenter = Math.pow(Math.random(), 1.3) * galaxyParams.galacticRadius;
+            // Enhanced exponential distribution for central concentration
+            distanceFromCenter = Math.pow(Math.random(), 2.5) * galaxyParams.galacticRadius;
             const angle = armAngle + 2.8 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 1.5;
             
             x = distanceFromCenter * Math.cos(angle);
             y = distanceFromCenter * Math.sin(angle);
             
+            // Enhanced vertical distribution - exponentially thicker at center
             const normalizedDistance = distanceFromCenter / galaxyParams.galacticRadius;
-            const thicknessMultiplier = Math.pow(Math.max(0, 1.0 - normalizedDistance), 0.4);
-            z = (Math.random() - 0.5) * 1.2 * thicknessMultiplier;
+            const thicknessMultiplier = Math.exp(-normalizedDistance * 2.5) * 3.0 + 0.1;
+            z = (Math.random() - 0.5) * thicknessMultiplier;
         }
         
-        if (distanceFromCenter < galaxyParams.coreRadius * 1.2 || distanceFromCenter > galaxyParams.galacticRadius * 0.98) {
+        // Allow particles closer to center (reduced minimum distance)
+        if (distanceFromCenter < galaxyParams.coreRadius * 0.3 || distanceFromCenter > galaxyParams.galacticRadius * 0.98) {
             continue;
         }
         
@@ -608,8 +675,11 @@ function generateVolumetricSmoke() {
         const noise2 = fractalNoise3D(position, 6, 0.15) * 0.7;
         const combinedNoise = (noise1 + noise2) / 1.7;
         
-        // Combined probability based on cluster influence and noise
-        const probability = Math.min(1.0, clusterInfluence * 0.7 + combinedNoise * 0.3);
+        // Enhanced central density bonus
+        const centralBonus = Math.exp(-distanceFromCenter / (galaxyParams.galacticRadius * 0.3)) * 0.4;
+        
+        // Combined probability based on cluster influence, noise, and central concentration
+        const probability = Math.min(1.0, clusterInfluence * 0.6 + combinedNoise * 0.3 + centralBonus);
         
         if (Math.random() < probability * 0.85) { // 85% acceptance rate for good candidates
             positions.push(x, y, z);
@@ -662,20 +732,23 @@ function generateGalaxyStars() {
             z = position.z;
             distanceFromCenter = Math.sqrt(x * x + y * y);
         } else {
-            // 25% spiral arm generation
+            // 25% spiral arm generation with enhanced central concentration
             const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
-            distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 1.8) * galaxyParams.galacticRadius);
+            // Enhanced exponential distribution for higher central concentration
+            distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2.8) * galaxyParams.galacticRadius);
             const angle = armAngle + 3.2 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 0.8;
             
             x = distanceFromCenter * Math.cos(angle);
             y = distanceFromCenter * Math.sin(angle);
             
+            // Enhanced vertical distribution - exponentially thicker at center
             const normalizedDistance = distanceFromCenter / galaxyParams.galacticRadius;
-            const thicknessMultiplier = Math.pow(Math.max(0, 1.0 - normalizedDistance), 0.9);
-            z = (Math.random() - 0.5) * 0.4 * thicknessMultiplier;
+            const thicknessMultiplier = Math.exp(-normalizedDistance * 2.0) * 1.5 + 0.05;
+            z = (Math.random() - 0.5) * thicknessMultiplier;
         }
 
-        if (distanceFromCenter < galaxyParams.coreRadius || distanceFromCenter > galaxyParams.galacticRadius) {
+        // Allow stars much closer to galactic center
+        if (distanceFromCenter > galaxyParams.galacticRadius) {
             continue;
         }
 
@@ -684,12 +757,28 @@ function generateGalaxyStars() {
         const clusterInfluence = getClusterInfluence(position, starClusters);
         const noise = fractalNoise3D(position, 5, 0.12);
         
-        const probability = Math.min(1.0, clusterInfluence * 0.8 + noise * 0.2);
+        // Enhanced central density bonus for stars
+        const centralBonus = Math.exp(-distanceFromCenter / (galaxyParams.galacticRadius * 0.2)) * 0.5;
+        
+        const probability = Math.min(1.0, clusterInfluence * 0.7 + noise * 0.2 + centralBonus);
         
         if (Math.random() < probability * 0.9) {
             positions.push(x, y, z);
 
-            const starType = starTypes[Math.floor(Math.random() * starTypes.length)];
+            // Enhanced star type selection based on distance from center
+            let starTypeIndex;
+            if (distanceFromCenter < galaxyParams.galacticRadius * 0.3) {
+                // More massive, hotter stars in the galactic center
+                starTypeIndex = Math.floor(Math.random() * 4); // O, B, A, F types
+            } else if (distanceFromCenter < galaxyParams.galacticRadius * 0.7) {
+                // Mixed population in mid-disc
+                starTypeIndex = Math.floor(Math.random() * 7); // O through K types
+            } else {
+                // Cooler stars in outer regions
+                starTypeIndex = Math.floor(Math.random() * 3) + 4; // G, K, M types
+            }
+            
+            const starType = starTypes[starTypeIndex];
             const color = getRandomColorInRange(starType.colorRange);
             colors.push(color.r, color.g, color.b);
         }
@@ -851,12 +940,68 @@ const rotationShader = {
     `
 };
 
-// --- Update galaxy generation to include smoke ---
-const blackHole = new THREE.Mesh(
-    new THREE.SphereGeometry(galaxyParams.coreRadius, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0x000000 })
-);
-scene.add(blackHole);
+// --- Update galaxy generation to include galactic core ---
+// Create galactic core instead of black hole
+const galacticCore = new THREE.Group();
+
+// Central bright core
+const coreGeometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 0.8, 16, 16);
+const coreMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0xFFDD88,
+    transparent: true,
+    opacity: 0.8
+});
+const centralCore = new THREE.Mesh(coreGeometry, coreMaterial);
+galacticCore.add(centralCore);
+
+// Core glow effect
+const glowGeometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 1.5, 16, 16);
+const glowMaterial = new THREE.MeshBasicMaterial({
+    color: 0xFFAA44,
+    transparent: true,
+    opacity: 0.3
+});
+const coreGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+galacticCore.add(coreGlow);
+
+// Dense star cluster in core region
+const coreStarsGeometry = new THREE.BufferGeometry();
+const coreStarsPositions = [];
+const coreStarsColors = [];
+
+for (let i = 0; i < 500; i++) {
+    const radius = Math.pow(Math.random(), 0.5) * galaxyParams.coreRadius * 2;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = (Math.random() - 0.5) * Math.PI * 0.3; // Flattened distribution
+    
+    const x = radius * Math.cos(theta) * Math.cos(phi);
+    const y = radius * Math.sin(theta) * Math.cos(phi);
+    const z = radius * Math.sin(phi) * 0.3; // Very flat central region
+    
+    coreStarsPositions.push(x, y, z);
+    
+    // Bright, hot stars in the core
+    const coreStarType = starTypes[Math.floor(Math.random() * 3)]; // O, B, A types
+    const color = getRandomColorInRange(coreStarType.colorRange);
+    coreStarsColors.push(color.r, color.g, color.b);
+}
+
+coreStarsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(coreStarsPositions, 3));
+coreStarsGeometry.setAttribute("color", new THREE.Float32BufferAttribute(coreStarsColors, 3));
+
+const coreStarsMaterial = new THREE.PointsMaterial({
+    size: galaxyParams.starSize * 1.5,
+    map: createCircularGradientTexture(),
+    vertexColors: true,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+});
+
+const coreStars = new THREE.Points(coreStarsGeometry, coreStarsMaterial);
+galacticCore.add(coreStars);
+
+scene.add(galacticCore);
 
 const pointLight = new THREE.PointLight(0xffffff, 1, 100);
 pointLight.position.set(0, 0, 0);
@@ -1001,8 +1146,18 @@ function toggleInfoPanel() {
 }
 
 function updateBlackHoleSize() {
-    blackHole.geometry.dispose();
-    blackHole.geometry = new THREE.SphereGeometry(galaxyParams.coreRadius, 32, 32);
+    // Update galactic core size instead of black hole
+    galacticCore.children.forEach((child, index) => {
+        if (child.geometry) {
+            child.geometry.dispose();
+            if (index === 0) { // Central core
+                child.geometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 0.8, 16, 16);
+            } else if (index === 1) { // Glow
+                child.geometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 1.5, 16, 16);
+            }
+            // Core stars (index 2) don't need geometry update as they're points
+        }
+    });
 }
 
 function regenerateGalaxy() {
@@ -1065,6 +1220,16 @@ function applySmokeSizeChange() {
     });
 }
 
+function applyNoiseIntensityChange() {
+    const newNoiseIntensity = galaxyParams.smokeNoiseIntensity;
+    galaxyGroup.children.forEach(child => {
+        // Check if it's the smoke Points system (has uNoiseIntensity uniform)
+        if (child.isPoints && child.material.isShaderMaterial && child.material.uniforms.uNoiseIntensity) {
+            child.material.uniforms.uNoiseIntensity.value = newNoiseIntensity;
+        }
+    });
+}
+
 function handleParameterChange(inputId) {
     const inputElement = document.getElementById(inputId);
     let value;
@@ -1116,6 +1281,10 @@ function handleParameterChange(inputId) {
         case "smoke-particle-size":
             galaxyParams.smokeParticleSize = value;
             applySmokeSizeChange();
+            break;
+        case "smoke-noise-intensity":
+            galaxyParams.smokeNoiseIntensity = value;
+            applyNoiseIntensityChange();
             break;
         case "smoke-color1":
             galaxyParams.smokeColor1.set(value);
@@ -1183,7 +1352,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const controlIds = [
         "num-stars", "star-size", "galactic-radius", "spiral-arms",
         "core-radius", "num-nebula-particles", "num-smoke-particles",
-        "smoke-particle-size", "smoke-color1", "smoke-color2"
+        "smoke-particle-size", "smoke-noise-intensity", "smoke-color1", "smoke-color2"
     ];
 
     controlIds.forEach(id => {
