@@ -311,7 +311,8 @@ function generateClusterCenters(numClusters, galacticRadius, spiralArms) {
         for (let i = 0; i < clustersPerArm; i++) {
             const t = (i + 1) / (clustersPerArm + 1); // Parameter along arm
             const radius = Math.pow(t, 0.8) * galacticRadius * 0.9; // Non-linear distribution
-            const angle = armAngle + 3.0 * radius / galacticRadius + (Math.random() - 0.5) * 0.8;
+            // REVERSED spiral direction: negate the pitch term
+            const angle = armAngle - 3.0 * radius / galacticRadius + (Math.random() - 0.5) * 0.8;
             
             const x = radius * Math.cos(angle);
             const y = radius * Math.sin(angle);
@@ -467,12 +468,12 @@ const volumetricSmokeShader = {
             density = smoothstep(0.2, 0.8, density);
             
             // Color mixing
-            float colorNoise = noise(worldPos * 0.8 + time * 0.03);
+            float colorNoise = noise(worldPos * 4.8 + time * 0.03);
             vec3 finalColor = mix(uColor1, uColor2, colorNoise);
             
             // Particle edge falloff
             float edgeFalloff = 1.0 - smoothstep(0.2, 0.5, dist);
-            float alpha = edgeFalloff * density * 0.8;
+            float alpha = edgeFalloff * density * 0.3;
 
             gl_FragColor = vec4(finalColor, alpha);
         }
@@ -518,7 +519,8 @@ function generateVolumetricSmoke() {
             // 10% random generation
             const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
             distanceFromCenter = Math.pow(Math.random(), 2.5) * galaxyParams.galacticRadius;
-            const angle = armAngle + 2.8 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 1.5;
+            // REVERSED spiral direction: negate the pitch term
+            const angle = armAngle - 2.8 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 1.5;
             
             x = distanceFromCenter * Math.cos(angle);
             y = distanceFromCenter * Math.sin(angle);
@@ -582,7 +584,6 @@ function generateGalaxyStars() {
 
     while (positions.length / 3 < galaxyParams.numStars && attempts < maxAttempts) {
         attempts++;
-        
         let x, y, z, distanceFromCenter;
         
         if (Math.random() < 0.75) {
@@ -604,7 +605,8 @@ function generateGalaxyStars() {
             const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
             // Enhanced exponential distribution for higher central concentration
             distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2.8) * galaxyParams.galacticRadius);
-            const angle = armAngle + 3.2 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 0.8;
+            // REVERSED spiral direction: negate the pitch term
+            const angle = armAngle - 3.2 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 0.8;
             
             x = distanceFromCenter * Math.cos(angle);
             y = distanceFromCenter * Math.sin(angle);
@@ -817,7 +819,7 @@ const coreGeometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 0.8, 16,
 const coreMaterial = new THREE.MeshBasicMaterial({ 
     color: 0xFFDD88,
     transparent: true,
-    opacity: 0.8
+    opacity: 0.1
 });
 const centralCore = new THREE.Mesh(coreGeometry, coreMaterial);
 galacticCore.add(centralCore);
@@ -827,7 +829,7 @@ const glowGeometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 1.5, 16,
 const glowMaterial = new THREE.MeshBasicMaterial({
     color: 0xFFAA44,
     transparent: true,
-    opacity: 0.3
+    opacity: 0.1
 });
 const coreGlow = new THREE.Mesh(glowGeometry, glowMaterial);
 galacticCore.add(coreGlow);
@@ -923,13 +925,13 @@ function updateLensingEffect() {
 
 const lensingPass = new THREE.ShaderPass(lensingShader);
 lensingPass.uniforms.blackHolePosition.value = new THREE.Vector2(0.5, 0.5);
-composer.addPass(lensingPass);
+//composer.addPass(lensingPass);
 
 const GodRayShader = {
     uniforms: {
         tDiffuse: { value: null },
         lightPosition: { value: new THREE.Vector2(0.5, 0.5) },
-        exposure: { value: 0.85 },
+        exposure: { value: 0.45 },
         decay: { value: 0.95 },
         density: { value: 0.96 },
         weight: { value: 0.5 },

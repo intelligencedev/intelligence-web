@@ -98,7 +98,7 @@ float spiral(vec3 p,float t){
   float dens=0.;float rotAng=rot(r)*ROT_SPD*t;
   for(int i=0;i<ARMS;i++){
     float off=float(i)*TAU/float(ARMS);
-    float a=th - log(r/0.5)/PITCH - off - rotAng;
+    float a=th + log(r/0.5)/PITCH - off - rotAng;
     dens+=exp(-pow(sin(a),2.)/(ARM_W*ARM_W));
   }
   dens*=0.8+0.6*fbm(p*7.);
