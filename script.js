@@ -34,6 +34,10 @@ const controlParams = {
     rotationSpeed: 5e-4
 };
 
+// Add time tracking for continuous animation
+let globalTime = 0;
+let lastFrameTime = 0;
+
 const galaxyParams = {
     numStars: 2e5,
     starSize: 0.01,
@@ -479,14 +483,17 @@ const volumetricSmokeShader = {
         
         // Layered 3D noise for volumetric detail
         float volumetricDensity(vec3 p, float time) {
+            // Use modulo to prevent floating point precision issues at large time values
+            float wrappedTime = mod(time, 1000.0);
+            
             // Large scale structure
-            float density1 = fbm(p * 0.8 + vec3(time * 0.05, 0.0, time * 0.03));
+            float density1 = fbm(p * 0.8 + vec3(wrappedTime * 0.05, 0.0, wrappedTime * 0.03));
             
             // Medium scale detail
-            float density2 = fbm(p * 2.1 + vec3(time * 0.08, time * 0.06, 0.0)) * 0.6;
+            float density2 = fbm(p * 2.1 + vec3(wrappedTime * 0.08, wrappedTime * 0.06, 0.0)) * 0.6;
             
             // Fine scale wispy details
-            float density3 = snoise(p * 8.0 + vec3(time * 0.15, time * 0.12, time * 0.1)) * 0.3;
+            float density3 = snoise(p * 8.0 + vec3(wrappedTime * 0.15, wrappedTime * 0.12, wrappedTime * 0.1)) * 0.3;
             
             // Combine with different weights
             float combined = density1 + density2 + density3;
@@ -503,14 +510,14 @@ const volumetricSmokeShader = {
                 discard;
             }
 
-            // Enhanced 3D volumetric calculation
+            // Enhanced 3D volumetric calculation with wrapped time
             vec3 worldPos = vWorldPosition;
-            float time = uTime;
+            float time = mod(uTime, 1000.0); // Wrap time to prevent precision issues
             
             // Calculate volumetric density with multiple octaves and domain warping
             float density = volumetricDensity(worldPos * 0.3, time);
             
-            // Additional turbulence layer
+            // Additional turbulence layer with wrapped time
             vec3 turbulence = vec3(
                 snoise(worldPos * 1.5 + time * 0.1),
                 snoise(worldPos * 1.8 + time * 0.12),
@@ -522,11 +529,11 @@ const volumetricSmokeShader = {
             // Remap density for better contrast
             finalDensity = smoothstep(0.2, 0.8, finalDensity);
             
-            // Color mixing with enhanced variation
+            // Color mixing with enhanced variation and wrapped time
             float colorNoise = snoise(worldPos * 0.5 + time * 0.03);
             colorNoise = colorNoise * 0.5 + 0.5; // Remap to [0,1]
             
-            // Add temperature variation
+            // Add temperature variation with wrapped time
             float temperature = snoise(worldPos * 0.8 + time * 0.02) * 0.3 + 0.7;
             vec3 baseColor = mix(uColor1, uColor2, colorNoise);
             vec3 finalColor = baseColor * temperature;
@@ -817,7 +824,9 @@ const rotationShader = {
         varying vec3 vColor;
 
         void main() {
-            float rotationAngle = angle + time * rotationSpeed * (speed > 0.0 ? speed : 1.0); // Added a default for speed
+            // Use modulo to prevent floating point precision issues
+            float wrappedTime = mod(time, 1000.0);
+            float rotationAngle = angle + wrappedTime * rotationSpeed * (speed > 0.0 ? speed : 1.0);
             vec3 newPosition = vec3(
                 radius * cos(rotationAngle),
                 radius * sin(rotationAngle),
@@ -1121,18 +1130,28 @@ function handleParameterChange(inputId) {
 
 function animate() {
     requestAnimationFrame(animate);
-    galaxyGroup.rotation.z += controlParams.rotationSpeed;
-    updateLensingEffect();
     
-    const elapsedTime = performance.now() / 1000;
+    // Calculate smooth time progression
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
+    lastFrameTime = currentTime;
+    
+    // Accumulate global time for continuous animation
+    globalTime += deltaTime;
+    
+    // Continuous galaxy rotation without resets
+    galaxyGroup.rotation.z += controlParams.rotationSpeed;
+    
+    updateLensingEffect();
 
     galaxyGroup.children.forEach(child => {
         if (child.material && child.material.uniforms && child.material.uniforms.time) {
-            child.material.uniforms.time.value += 0.01;
+            // Use continuous time accumulation instead of fixed increment
+            child.material.uniforms.time.value = globalTime;
         }
-        // --- Animate the smoke shader's time uniform ---
+        // --- Animate the smoke shader's time uniform with continuous time ---
         if (child.material && child.material.uniforms && child.material.uniforms.uTime) {
-            child.material.uniforms.uTime.value = elapsedTime;
+            child.material.uniforms.uTime.value = globalTime;
         }
     });
 
@@ -1154,6 +1173,10 @@ window.addEventListener("resize", () => {
 // document.getElementById("core-radius").addEventListener("input", () => { ... }); // REMOVED
 
 document.addEventListener("DOMContentLoaded", function() {
+    // Initialize time tracking
+    lastFrameTime = performance.now();
+    globalTime = 0;
+    
     // Initial population of the galaxy
     regenerateGalaxy();
 
