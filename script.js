@@ -1240,6 +1240,11 @@ function animate() {
     });
 
     composer.render();
+    // update camera coordinates label
+    const ccEl = document.getElementById("camera-coordinates");
+    if (ccEl) {
+        ccEl.textContent = `x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}`;
+    }
 }
 
 godRayPass.uniforms.lightPosition.value = new THREE.Vector2(0.5, 0.5);
