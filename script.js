@@ -51,6 +51,13 @@ const galaxyParams = {
     smokeColor1: new THREE.Color(0x101025), // Initial value, will be updated by control
     smokeColor2: new THREE.Color(0x251510),  // Initial value, will be updated by control
     smokeNoiseIntensity: 0.65, // New parameter for noise intensity
+    // --- New parameters for smoke rim lighting ---
+    smokeRimColor: new THREE.Color(0xffffff), // Color of the rim light
+    smokeRimIntensity: 2.0, // Intensity of the rim light (can be > 1 for HDR)
+    smokeRimPower: 3.0, // Power for the rim falloff (sharpness)
+    smokeRimInner: 0.35, // Inner edge of the rim (0.0 to 0.5)
+    smokeRimOuter: 0.5, // Outer edge of the rim (0.0 to 0.5)
+    // --- End of new smoke rim lighting parameters ---
     godRaysIntensity: 0.85 // New parameter for god rays intensity
 };
 
@@ -387,7 +394,14 @@ const volumetricSmokeShader = {
         uColor1: { value: galaxyParams.smokeColor1 },
         uColor2: { value: galaxyParams.smokeColor2 },
         uSize: { value: galaxyParams.smokeParticleSize },
-        uNoiseIntensity: { value: galaxyParams.smokeNoiseIntensity }
+        uNoiseIntensity: { value: galaxyParams.smokeNoiseIntensity },
+        // --- New uniforms for smoke rim lighting ---
+        uRimColor: { value: galaxyParams.smokeRimColor },
+        uRimIntensity: { value: galaxyParams.smokeRimIntensity },
+        uRimPower: { value: galaxyParams.smokeRimPower },
+        uRimInner: { value: galaxyParams.smokeRimInner },
+        uRimOuter: { value: galaxyParams.smokeRimOuter }
+        // --- End of new smoke rim lighting uniforms ---
     },
     vertexShader: `
         uniform float uSize;
@@ -411,6 +425,13 @@ const volumetricSmokeShader = {
         uniform vec3 uColor1;
         uniform vec3 uColor2;
         uniform float uNoiseIntensity;
+        // --- New uniforms for smoke rim lighting ---
+        uniform vec3 uRimColor;
+        uniform float uRimIntensity;
+        uniform float uRimPower;
+        uniform float uRimInner;
+        uniform float uRimOuter;
+        // --- End of new smoke rim lighting uniforms ---
 
         varying vec3 vWorldPosition;
         
@@ -477,7 +498,15 @@ const volumetricSmokeShader = {
             float edgeFalloff = 1.0 - smoothstep(0.2, 0.5, dist);
             float alpha = edgeFalloff * density * 0.3;
 
-            gl_FragColor = vec4(finalColor, alpha);
+            // --- Rim Lighting Calculation ---
+            float rimFactor = smoothstep(uRimInner, uRimOuter, dist);
+            rimFactor = pow(rimFactor, uRimPower);
+            vec3 rimEffect = uRimColor * rimFactor * uRimIntensity;
+            
+            vec3 smokeColor = finalColor + rimEffect;
+            // --- End of Rim Lighting Calculation ---
+
+            gl_FragColor = vec4(smokeColor, alpha);
         }
     `
 };
