@@ -499,12 +499,12 @@ function generateVolumetricSmoke() {
         if (Math.random() < 0.8) {
             // 80% cluster-based generation
             const cluster = smokeClusters[Math.floor(Math.random() * smokeClusters.length)];
-            const clusterOffset = new THREE.Vector3(
-                (Math.random() - 0.5) * cluster.radius * 2,
-                (Math.random() - 0.5) * cluster.radius * 2,
-                (Math.random() - 0.5) * cluster.radius * 0.8
+            const clusterOffset = randomPointInEllipsoid(
+                cluster.radius * 2,
+                cluster.radius * 2,
+                cluster.radius * 0.8
             );
-            
+
             const position = cluster.center.clone().add(clusterOffset);
             x = position.x;
             y = position.y;
@@ -585,17 +585,17 @@ function generateGalaxyStars() {
         if (Math.random() < 0.75) {
             // 75% cluster-based generation
             const cluster = starClusters[Math.floor(Math.random() * starClusters.length)];
-            const clusterOffset = new THREE.Vector3(
-                (Math.random() - 0.5) * cluster.radius * 1.5,
-                (Math.random() - 0.5) * cluster.radius * 1.5,
-                (Math.random() - 0.5) * cluster.radius * 0.3
+            const clusterOffset = randomPointInEllipsoid(
+                cluster.radius * 1.5,
+                cluster.radius * 1.5,
+                cluster.radius * 0.3
             );
-            
-            const position = cluster.center.clone().add(clusterOffset);
-            x = position.x;
-            y = position.y;
-            z = position.z;
-            distanceFromCenter = Math.sqrt(x * x + y * y);
+                
+                const position = cluster.center.clone().add(clusterOffset);
+                x = position.x;
+                y = position.y;
+                z = position.z;
+                distanceFromCenter = Math.sqrt(x * x + y * y);
         } else {
             // 25% spiral arm generation with enhanced central concentration
             const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
@@ -691,10 +691,10 @@ function generateNebula() {
             if (Math.random() < 0.7) {
                 // Cluster-based generation
                 const cluster = nebulaClusters[Math.floor(Math.random() * nebulaClusters.length)];
-                const clusterOffset = new THREE.Vector3(
-                    (Math.random() - 0.5) * cluster.radius * 2.5,
-                    (Math.random() - 0.5) * cluster.radius * 2.5,
-                    (Math.random() - 0.5) * cluster.radius * 1.2
+                const clusterOffset = randomPointInEllipsoid(
+                    cluster.radius * 2.5,
+                    cluster.radius * 2.5,
+                    cluster.radius * 1.2
                 );
                 
                 const position = cluster.center.clone().add(clusterOffset);
@@ -1293,3 +1293,18 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 animate();
+
+// helper: random point inside ellipsoid to avoid cubic artifacts
+function randomPointInEllipsoid(rx, ry, rz) {
+    const u = Math.random();
+    const v = Math.random();
+    const theta = 2.0 * Math.PI * u;
+    const phi = Math.acos(2.0 * v - 1.0);
+    const r = Math.cbrt(Math.random());
+    const sinPhi = Math.sin(phi);
+    return new THREE.Vector3(
+        r * sinPhi * Math.cos(theta) * rx,
+        r * sinPhi * Math.sin(theta) * ry,
+        r * Math.cos(phi) * rz
+    );
+}
