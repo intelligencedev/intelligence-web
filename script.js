@@ -299,6 +299,7 @@ function fractalNoise3D(vec, octaves = 4, scale = 0.1) {
 }
 
 // --- NEW: Advanced Clustering Functions ---
+let sharedGalaxyClusters = null; // Global variable to hold shared cluster centers
 
 function generateClusterCenters(numClusters, galacticRadius, spiralArms) {
     const clusters = [];
@@ -362,6 +363,7 @@ function getClusterInfluence(position, clusters) {
     let totalInfluence = 0;
     let spiralArmBonus = 0;
     
+    // Use the passed 'clusters' argument, not 'sharedGalaxyClusters'
     clusters.forEach(cluster => {
         const distance = position.distanceTo(cluster.center);
         const influence = cluster.density * Math.exp(-distance / cluster.radius);
@@ -484,10 +486,8 @@ const volumetricSmokeShader = {
 function generateVolumetricSmoke() {
     const geometry = new THREE.BufferGeometry();
     const positions = [];
-    
-    // Generate cluster centers for smoke binding
-    const smokeClusters = generateClusterCenters(25, galaxyParams.galacticRadius, galaxyParams.spiralArms);
-    // Use only spiral-arm clusters for smoke distribution
+    // Use sharedGalaxyClusters directly
+    const smokeClusters = sharedGalaxyClusters;
     const armSmokeClusters = smokeClusters.filter(c => c.armIndex >= 0);
     
     let attempts = 0;
@@ -538,6 +538,7 @@ function generateVolumetricSmoke() {
         
         // Enhanced cluster influence check
         const position = new THREE.Vector3(x, y, z);
+        // Pass smokeClusters (which is sharedGalaxyClusters) to getClusterInfluence
         const clusterInfluence = getClusterInfluence(position, smokeClusters);
         
         // Multi-layer noise for realistic distribution
@@ -575,9 +576,8 @@ function generateGalaxyStars() {
     const geometry = new THREE.BufferGeometry();
     const positions = [];
     const colors = [];
-    
-    // Generate cluster centers for realistic star distribution
-    const starClusters = generateClusterCenters(35, galaxyParams.galacticRadius, galaxyParams.spiralArms);
+    // Use sharedGalaxyClusters directly
+    const starClusters = sharedGalaxyClusters;
     
     let attempts = 0;
     const maxAttempts = galaxyParams.numStars * 2;
@@ -624,6 +624,7 @@ function generateGalaxyStars() {
 
         // Enhanced cluster influence and noise check
         const position = new THREE.Vector3(x, y, z);
+        // Pass starClusters (which is sharedGalaxyClusters) to getClusterInfluence
         const clusterInfluence = getClusterInfluence(position, starClusters);
         const noise = fractalNoise3D(position, 5, 0.12);
         
@@ -671,9 +672,8 @@ function generateGalaxyStars() {
 
 function generateNebula() {
     const nebulaGroup = new THREE.Group();
-    
-    // Generate cluster centers for nebula
-    const nebulaClusters = generateClusterCenters(20, galaxyParams.galacticRadius, galaxyParams.spiralArms);
+    // Use sharedGalaxyClusters directly
+    const nebulaClusters = sharedGalaxyClusters;
 
     for (let layer = 0; layer < 3; layer++) {
         const geometry = new THREE.BufferGeometry();
@@ -726,6 +726,7 @@ function generateNebula() {
 
             // Enhanced clustering check
             const position = new THREE.Vector3(x, y, z);
+            // Pass nebulaClusters (which is sharedGalaxyClusters) to getClusterInfluence
             const clusterInfluence = getClusterInfluence(position, nebulaClusters);
             const noise = fractalNoise3D(position, 4, 0.1);
             
@@ -1052,7 +1053,10 @@ function regenerateGalaxy() {
         galaxyGroup.remove(object);
     }
     
-    // Regenerate and add all components
+    // Generate shared clusters ONCE for all components
+    sharedGalaxyClusters = generateClusterCenters(35, galaxyParams.galacticRadius, galaxyParams.spiralArms);
+    
+    // Regenerate and add all components. They will use the global sharedGalaxyClusters.
     galaxyGroup.add(generateGalaxyStars());
     galaxyGroup.add(generateNebula());
     galaxyGroup.add(generateVolumetricSmoke());
