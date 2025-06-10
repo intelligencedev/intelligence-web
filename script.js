@@ -432,10 +432,6 @@ const rotationShader = {
 };
 
 // --- Update galaxy generation to include smoke ---
-galaxyGroup.add(generateGalaxyStars());
-galaxyGroup.add(generateNebula());
-galaxyGroup.add(generateVolumetricSmoke()); // Add smoke to the scene
-
 const blackHole = new THREE.Mesh(
     new THREE.SphereGeometry(galaxyParams.coreRadius, 32, 32),
     new THREE.MeshBasicMaterial({ color: 0x000000 })
@@ -589,45 +585,25 @@ function updateBlackHoleSize() {
     blackHole.geometry = new THREE.SphereGeometry(galaxyParams.coreRadius, 32, 32);
 }
 
-function updateGalaxyParameters() {
-    galaxyParams.numStars = parseInt(document.getElementById("num-stars").value);
-    galaxyParams.starSize = parseFloat(document.getElementById("star-size").value);
-    galaxyParams.galacticRadius = parseInt(document.getElementById("galactic-radius").value);
-    galaxyParams.spiralArms = parseInt(document.getElementById("spiral-arms").value);
-    galaxyParams.coreRadius = parseFloat(document.getElementById("core-radius").value);
-    galaxyParams.numNebulaParticles = parseInt(document.getElementById("num-nebula-particles").value);
-
-    // Update smoke parameters
-    galaxyParams.numSmokeParticles = parseInt(document.getElementById("num-smoke-particles").value);
-    galaxyParams.smokeParticleSize = parseFloat(document.getElementById("smoke-particle-size").value);
-    galaxyParams.smokeColor1.set(document.getElementById("smoke-color1").value);
-    galaxyParams.smokeColor2.set(document.getElementById("smoke-color2").value);
-
-
-    galaxyGroup.children.forEach(child => {
-        if (child.material && child.material.uniforms && child.material.uniforms.size) {
-            child.material.uniforms.size.value = galaxyParams.starSize;
-        }
-        // Update smoke shader uniforms
-        if (child.material && child.material.uniforms && child.material.uniforms.uSize) { // For smoke particle size
-            child.material.uniforms.uSize.value = galaxyParams.smokeParticleSize;
-        }
-        if (child.material && child.material.uniforms && child.material.uniforms.uColor1) { // For smoke color 1
-            child.material.uniforms.uColor1.value.copy(galaxyParams.smokeColor1);
-        }
-        if (child.material && child.material.uniforms && child.material.uniforms.uColor2) { // For smoke color 2
-            child.material.uniforms.uColor2.value.copy(galaxyParams.smokeColor2);
-        }
-    });
-    regenerateGalaxy();
-}
-
 function regenerateGalaxy() {
     // Clear all children from the group
     while(galaxyGroup.children.length > 0){ 
         const object = galaxyGroup.children[0];
-        if (object.geometry) object.geometry.dispose();
-        if (object.material) object.material.dispose();
+        if (object.isGroup) { // Handle groups like nebula
+            object.children.forEach(childInGroup => {
+                if (childInGroup.geometry) childInGroup.geometry.dispose();
+                if (childInGroup.material) {
+                    if (childInGroup.material.dispose) childInGroup.material.dispose();
+                    // If shader material, dispose textures in uniforms if any (not currently the case for nebula/smoke)
+                }
+            });
+        } else { // Handle individual Points objects like stars and smoke
+            if (object.geometry) object.geometry.dispose();
+            if (object.material) {
+                if (object.material.dispose) object.material.dispose();
+                if (object.material.map && object.material.map.dispose) object.material.map.dispose(); // Dispose star texture
+            }
+        }
         galaxyGroup.remove(object);
     }
     
@@ -635,6 +611,101 @@ function regenerateGalaxy() {
     galaxyGroup.add(generateGalaxyStars());
     galaxyGroup.add(generateNebula());
     galaxyGroup.add(generateVolumetricSmoke());
+}
+
+
+// --- New Parameter Handling Logic ---
+
+function applyStarSizeChange() {
+    const newStarSize = galaxyParams.starSize;
+    galaxyGroup.children.forEach(child => {
+        if (child.isPoints && child.material.isPointsMaterial) { // Stars
+            child.material.size = newStarSize;
+        } else if (child.isGroup) { // Nebula group
+            child.children.forEach(nebulaLayer => {
+                // Check if it's a nebula layer (Points with rotationShader)
+                if (nebulaLayer.isPoints && nebulaLayer.material.isShaderMaterial && nebulaLayer.material.uniforms.rotationSpeed) {
+                    nebulaLayer.material.uniforms.size.value = newStarSize;
+                }
+            });
+        }
+    });
+}
+
+function applySmokeSizeChange() {
+    const newSmokeSize = galaxyParams.smokeParticleSize;
+    // Color uniforms (uColor1, uColor2) in volumetricSmokeShader point to galaxyParams.smokeColor1/2
+    // These are THREE.Color objects, so .set() on galaxyParams.smokeColor1/2 updates them directly.
+    // Only uSize needs explicit update here.
+    galaxyGroup.children.forEach(child => {
+        // Check if it's the smoke Points system (has uTime and uColor1 uniforms)
+        if (child.isPoints && child.material.isShaderMaterial && child.material.uniforms.uTime && child.material.uniforms.uColor1) {
+            child.material.uniforms.uSize.value = newSmokeSize;
+        }
+    });
+}
+
+function handleParameterChange(inputId) {
+    const inputElement = document.getElementById(inputId);
+    let value;
+
+    if (inputElement.type === 'color') {
+        value = inputElement.value;
+    } else if (inputElement.type === 'range') {
+        // Ensure correct parsing for integer vs float based on step or typical use
+        if (["num-stars", "galactic-radius", "spiral-arms", "num-nebula-particles", "num-smoke-particles"].includes(inputId)) {
+            value = parseInt(inputElement.value);
+        } else {
+            value = parseFloat(inputElement.value);
+        }
+    } else {
+        value = inputElement.value; // Fallback, though not expected for current controls
+    }
+
+    switch (inputId) {
+        case "num-stars":
+            galaxyParams.numStars = value;
+            regenerateGalaxy();
+            break;
+        case "star-size":
+            galaxyParams.starSize = value;
+            applyStarSizeChange();
+            break;
+        case "galactic-radius":
+            galaxyParams.galacticRadius = value;
+            regenerateGalaxy();
+            break;
+        case "spiral-arms":
+            galaxyParams.spiralArms = value;
+            regenerateGalaxy();
+            break;
+        case "core-radius":
+            galaxyParams.coreRadius = value;
+            updateBlackHoleSize();
+            updateLensingEffect(); 
+            regenerateGalaxy(); 
+            break;
+        case "num-nebula-particles":
+            galaxyParams.numNebulaParticles = value;
+            regenerateGalaxy();
+            break;
+        case "num-smoke-particles":
+            galaxyParams.numSmokeParticles = value;
+            regenerateGalaxy();
+            break;
+        case "smoke-particle-size":
+            galaxyParams.smokeParticleSize = value;
+            applySmokeSizeChange();
+            break;
+        case "smoke-color1":
+            galaxyParams.smokeColor1.set(value);
+            // No explicit call to applySmokeSizeChange needed for color, as uniform value is the object itself.
+            break;
+        case "smoke-color2":
+            galaxyParams.smokeColor2.set(value);
+            // Same as above.
+            break;
+    }
 }
 
 function animate() {
@@ -667,44 +738,29 @@ window.addEventListener("resize", () => {
     composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Assuming your HTML has controls for the new parameters
-// Example: <input type="range" id="num-smoke-particles" ... >
-// You would need to add event listeners for them similar to the others.
-
-document.getElementById("star-size").addEventListener("input", () => {
-    galaxyParams.starSize = parseFloat(document.getElementById("star-size").value);
-    galaxyGroup.children.forEach(child => {
-        if (child.isPoints && child.material.uniforms.size) { // Check for nebula
-            child.material.uniforms.size.value = galaxyParams.starSize;
-        }
-        if(child.isPoints && child.material.size){ // Check for stars
-             child.material.size = galaxyParams.starSize;
-        }
-    });
-});
-
-document.getElementById("core-radius").addEventListener("input", () => {
-    galaxyParams.coreRadius = parseFloat(document.getElementById("core-radius").value);
-    updateBlackHoleSize();
-    updateLensingEffect();
-    regenerateGalaxy();
-});
+// REMOVE old event listeners for star-size and core-radius (previously lines 600-616)
+// document.getElementById("star-size").addEventListener("input", () => { ... }); // REMOVED
+// document.getElementById("core-radius").addEventListener("input", () => { ... }); // REMOVED
 
 document.addEventListener("DOMContentLoaded", function() {
-    document.getElementById("num-stars").addEventListener("input", updateGalaxyParameters);
-    document.getElementById("star-size").addEventListener("input", updateGalaxyParameters);
-    document.getElementById("galactic-radius").addEventListener("input", updateGalaxyParameters);
-    document.getElementById("spiral-arms").addEventListener("input", updateGalaxyParameters);
-    document.getElementById("core-radius").addEventListener("input", updateGalaxyParameters);
-    document.getElementById("num-nebula-particles").addEventListener("input", updateGalaxyParameters);
-    
-    // Add event listeners for new smoke controls
-    document.getElementById("num-smoke-particles").addEventListener("input", updateGalaxyParameters);
-    document.getElementById("smoke-particle-size").addEventListener("input", updateGalaxyParameters);
-    document.getElementById("smoke-color1").addEventListener("input", updateGalaxyParameters);
-    document.getElementById("smoke-color2").addEventListener("input", updateGalaxyParameters);
-    
+    // Initial population of the galaxy
+    regenerateGalaxy();
 
+    const controlIds = [
+        "num-stars", "star-size", "galactic-radius", "spiral-arms",
+        "core-radius", "num-nebula-particles", "num-smoke-particles",
+        "smoke-particle-size", "smoke-color1", "smoke-color2"
+    ];
+
+    controlIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener("input", function() {
+                handleParameterChange(this.id);
+            });
+        }
+    });
+    
     const parametersButton = document.getElementById("parameters-button");
     if(parametersButton) parametersButton.addEventListener("click", toggleParametersMenu);
 });
