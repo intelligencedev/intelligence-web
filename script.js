@@ -58,7 +58,9 @@ const galaxyParams = {
     smokeRimInner: 0.35, // Inner edge of the rim (0.0 to 0.5)
     smokeRimOuter: 0.5, // Outer edge of the rim (0.0 to 0.5)
     // --- End of new smoke rim lighting parameters ---
-    godRaysIntensity: 0.15 // New parameter for god rays intensity
+    godRaysIntensity: 0.15, // New parameter for god rays intensity
+    sunPosition: new THREE.Vector3(10.0, 10.0, 10.0),
+    anisotropyG: 0.8
 };
 
 function getRandomColorInRange(range) {
@@ -387,55 +389,52 @@ function getClusterInfluence(position, clusters) {
 
 // --- END: Advanced Clustering Functions ---
 
-// --- NEW: Volumetric Smoke Shader ---
-const volumetricSmokeShader = {
+// --- NEW: Volumetric Raymarching Inspired Smoke Shader ---
+const VolumetricRaymarchingInspiredSmokeShader = {
     uniforms: {
         uTime: { value: 0.0 },
         uColor1: { value: galaxyParams.smokeColor1 },
         uColor2: { value: galaxyParams.smokeColor2 },
         uSize: { value: galaxyParams.smokeParticleSize },
         uNoiseIntensity: { value: galaxyParams.smokeNoiseIntensity },
-        // --- New uniforms for smoke rim lighting ---
-        uRimColor: { value: galaxyParams.smokeRimColor },
-        uRimIntensity: { value: galaxyParams.smokeRimIntensity },
-        uRimPower: { value: galaxyParams.smokeRimPower },
-        uRimInner: { value: galaxyParams.smokeRimInner },
-        uRimOuter: { value: galaxyParams.smokeRimOuter }
-        // --- End of new smoke rim lighting uniforms ---
+        uSunPosition: { value: galaxyParams.sunPosition },
+        uAnisotropyG: { value: galaxyParams.anisotropyG },
+        uCameraPosition: { value: new THREE.Vector3() },
+        uParticleTexture: { value: null }
     },
     vertexShader: `
         uniform float uSize;
-        uniform float uTime;
+        attribute float aParticleSize;
+        attribute float aParticleOpacity;
         
         varying vec3 vWorldPosition;
+        varying float vParticleOpacity;
 
         void main() {
             vec4 modelPosition = modelMatrix * vec4(position, 1.0);
             vWorldPosition = modelPosition.xyz;
+            vParticleOpacity = aParticleOpacity;
 
             vec4 viewPosition = viewMatrix * modelPosition;
             vec4 projectedPosition = projectionMatrix * viewPosition;
 
             gl_Position = projectedPosition;
-            gl_PointSize = uSize * (300.0 / -viewPosition.z);
+            gl_PointSize = (uSize * aParticleSize) * (300.0 / -viewPosition.z);
         }
     `,
     fragmentShader: `
-        uniform float uTime;
         uniform vec3 uColor1;
         uniform vec3 uColor2;
         uniform float uNoiseIntensity;
-        // --- New uniforms for smoke rim lighting ---
-        uniform vec3 uRimColor;
-        uniform float uRimIntensity;
-        uniform float uRimPower;
-        uniform float uRimInner;
-        uniform float uRimOuter;
-        // --- End of new smoke rim lighting uniforms ---
+        uniform vec3 uSunPosition;
+        uniform float uAnisotropyG;
+        uniform vec3 uCameraPosition;
+        uniform sampler2D uParticleTexture;
 
         varying vec3 vWorldPosition;
+        varying float vParticleOpacity;
         
-        // Simple hash function for basic noise
+        // Simple hash function for noise
         float hash(vec3 p) {
             p = fract(p * 0.3183099 + 0.1);
             p *= 17.0;
@@ -458,55 +457,55 @@ const volumetricSmokeShader = {
                                hash(p + vec3(1, 1, 1)), f.x), f.y), f.z);
         }
         
-        // Simple FBM with limited octaves
-        float fbm(vec3 p) {
-            float value = 0.0;
-            float amplitude = 0.5;
-            for (int i = 0; i < 3; i++) {
-                value += amplitude * noise(p);
-                p *= 2.0;
-                amplitude *= 0.5;
-            }
-            return value;
+        // Henyey-Greenstein phase function
+        float henyeyGreenstein(float cosTheta, float g) {
+            float g2 = g * g;
+            return (1.0 - g2) / (4.0 * 3.14159265 * pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5));
         }
 
         void main() {
-            float dist = length(gl_PointCoord - vec2(0.5));
+            vec2 pointCoord = gl_PointCoord;
+            float dist = length(pointCoord - vec2(0.5));
             if (dist > 0.5) {
                 discard;
             }
 
-            vec3 worldPos = vWorldPosition;
-            float time = mod(uTime, 1000.0);
+            // Sample particle texture
+            vec4 texColor = texture2D(uParticleTexture, pointCoord);
             
-            // Simple animated noise
-            vec3 noisePos = worldPos * 0.5 + vec3(time * 0.1, time * 0.05, 0.0);
-            float density = fbm(noisePos) * uNoiseIntensity;
+            // Static noise based on world position
+            vec3 noisePos = vWorldPosition * 0.8;
+            float density = noise(noisePos) * uNoiseIntensity;
             
-            // Add some variation
-            float variation = noise(worldPos * 1.5 + time * 0.2) * 0.3;
-            density += variation;
+            // Add variation with multiple octaves
+            density += noise(noisePos * 2.0) * 0.5 * uNoiseIntensity;
+            density += noise(noisePos * 4.0) * 0.25 * uNoiseIntensity;
             
             // Remap density
-            density = smoothstep(0.2, 0.8, density);
+            density = smoothstep(0.1, 0.9, density);
             
-            // Color mixing
-            float colorNoise = noise(worldPos * 4.8 + time * 0.03);
-            vec3 finalColor = mix(uColor1, uColor2, colorNoise);
+            // Light direction from sun to particle
+            vec3 lightDir = normalize(uSunPosition - vWorldPosition);
+            // View direction from camera to particle
+            vec3 viewDir = normalize(uCameraPosition - vWorldPosition);
             
-            // Particle edge falloff
-            float edgeFalloff = 1.0 - smoothstep(0.2, 0.5, dist);
-            float alpha = edgeFalloff * density * 0.3;
+            // Calculate cosine of scattering angle
+            float cosTheta = dot(-lightDir, viewDir);
+            
+            // Apply Henyey-Greenstein phase function
+            float phase = henyeyGreenstein(cosTheta, uAnisotropyG);
+            
+            // Color mixing based on noise
+            float colorNoise = noise(vWorldPosition * 3.0);
+            vec3 baseColor = mix(uColor1, uColor2, colorNoise);
+            
+            // Apply phase function to simulate light scattering
+            vec3 finalColor = baseColor * phase * 2.0;
+            
+            // Particle edge falloff using texture
+            float alpha = texColor.a * density * vParticleOpacity * 0.4;
 
-            // --- Rim Lighting Calculation ---
-            float rimFactor = smoothstep(uRimInner, uRimOuter, dist);
-            rimFactor = pow(rimFactor, uRimPower);
-            vec3 rimEffect = uRimColor * rimFactor * uRimIntensity;
-            
-            vec3 smokeColor = finalColor + rimEffect;
-            // --- End of Rim Lighting Calculation ---
-
-            gl_FragColor = vec4(smokeColor, alpha);
+            gl_FragColor = vec4(finalColor, alpha);
         }
     `
 };
@@ -576,17 +575,23 @@ function generateVolumetricSmoke() {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-    geometry.setAttribute('opacity', new THREE.Float32BufferAttribute(opacities, 1));
+    geometry.setAttribute('aParticleSize', new THREE.Float32BufferAttribute(sizes, 1));
+    geometry.setAttribute('aParticleOpacity', new THREE.Float32BufferAttribute(opacities, 1));
 
     const material = new THREE.ShaderMaterial({
-        uniforms: volumetricSmokeShader.uniforms,
-        vertexShader: volumetricSmokeShader.vertexShader,
-        fragmentShader: volumetricSmokeShader.fragmentShader,
+        uniforms: VolumetricRaymarchingInspiredSmokeShader.uniforms,
+        vertexShader: VolumetricRaymarchingInspiredSmokeShader.vertexShader,
+        fragmentShader: VolumetricRaymarchingInspiredSmokeShader.fragmentShader,
         transparent: true,
-        blending: THREE.NormalBlending, // Normal blending works best for dark smoke
-        depthWrite: false, // Essential for correct layering of transparent objects
+        blending: THREE.NormalBlending,
+        depthWrite: false,
     });
+
+    // Set up uniforms
+    material.uniforms.uParticleTexture.value = createCircularGradientTexture();
+    material.uniforms.uCameraPosition.value.copy(camera.position);
+    material.uniforms.uSunPosition.value.copy(galaxyParams.sunPosition);
+    material.uniforms.uAnisotropyG.value = galaxyParams.anisotropyG;
 
     return new THREE.Points(geometry, material);
 }
@@ -1124,8 +1129,9 @@ function applyGodRaysIntensityChange() {
 function applyNoiseIntensityChange() {
     const newNoiseIntensity = galaxyParams.smokeNoiseIntensity;
     galaxyGroup.children.forEach(child => {
-        // Check if it's the smoke Points system (has uNoiseIntensity uniform)
-        if (child.isPoints && child.material.isShaderMaterial && child.material.uniforms.uNoiseIntensity) {
+        // Check if it's the new smoke Points system
+        if (child.isPoints && child.material.isShaderMaterial && 
+            child.material.uniforms.uNoiseIntensity && child.material.uniforms.uSunPosition) {
             child.material.uniforms.uNoiseIntensity.value = newNoiseIntensity;
         }
     });
@@ -1184,7 +1190,7 @@ function handleParameterChange(inputId) {
             break;
         case "smoke-particle-size":
             galaxyParams.smokeParticleSize = value;
-            applySmokeSizeChange();
+            regenerateGalaxy();
             break;
         case "smoke-noise-intensity":
             galaxyParams.smokeNoiseIntensity = value;
@@ -1264,9 +1270,9 @@ function animate() {
             // Use continuous time accumulation instead of fixed increment
             child.material.uniforms.time.value = globalTime;
         }
-        // --- Animate the smoke shader's time uniform with continuous time ---
-        if (child.material && child.material.uniforms && child.material.uniforms.uTime) {
-            child.material.uniforms.uTime.value = globalTime;
+        // Update camera position for new smoke shader
+        if (child.material && child.material.uniforms && child.material.uniforms.uCameraPosition) {
+            child.material.uniforms.uCameraPosition.value.copy(camera.position);
         }
     });
 
