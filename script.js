@@ -998,15 +998,17 @@ const GodRayShader = {
                 texCoord -= deltaTextCoord;
                 vec4 sampleColor = texture2D(tDiffuse, texCoord);
                 sampleColor *= illuminationDecay * weight;
-
                 shadowEffect += sampleColor;
                 illuminationDecay *= decay;
             }
 
-            vec3 resultColor = mix(originalColor.rgb, shadowEffect.rgb, 0.5);
-            resultColor += originalColor.rgb * 0.3;
+            // Apply exposure (controlled by slider) only to the god rays (shadowEffect)
+            vec3 godRaysComponent = shadowEffect.rgb * exposure;
 
-            gl_FragColor = vec4(resultColor, originalColor.a) * exposure;
+            // Combine the original scene color with the intensity-controlled god rays
+            vec3 finalColor = originalColor.rgb + godRaysComponent;
+
+            gl_FragColor = vec4(finalColor, originalColor.a);
         }
     `
 };
