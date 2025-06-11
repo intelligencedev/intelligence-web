@@ -1285,6 +1285,11 @@ function animate() {
     if (ccEl) {
         ccEl.textContent = `x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}`;
     }
+    // update camera rotation label
+    const crEl = document.getElementById("camera-rotation");
+    if (crEl) {
+        crEl.textContent = `rx: ${camera.rotation.x.toFixed(2)}, ry: ${camera.rotation.y.toFixed(2)}, rz: ${camera.rotation.z.toFixed(2)}`;
+    }
 }
 
 godRayPass.uniforms.lightPosition.value = new THREE.Vector2(0.5, 0.5);
