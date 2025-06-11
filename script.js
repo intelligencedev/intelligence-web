@@ -18,7 +18,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-camera.position.set(0.28, -3.04, 0.78);
+camera.position.set(0.36, -7.70, 1.89);
 camera.rotation.set(1.32, 0.09, 0);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -39,18 +39,18 @@ let globalTime = 0;
 let lastFrameTime = 0;
 
 const galaxyParams = {
-    numStars: 2e5,
-    starSize: 0.01,
-    galacticRadius: 15,
+    numStars: 102000,
+    starSize: 0.02,
+    galacticRadius: 9,
     spiralArms: 2,
-    coreRadius: 0.5,
-    numNebulaParticles: 5e4,
+    coreRadius: 0.50,
+    numNebulaParticles: 28000,
     // --- New parameters for volumetric smoke ---
-    numSmokeParticles: 3000, // Initial value, will be updated by control
-    smokeParticleSize: 0.8, // Initial value, will be updated by control
-    smokeColor1: new THREE.Color(0x101025), // Initial value, will be updated by control
-    smokeColor2: new THREE.Color(0x251510),  // Initial value, will be updated by control
-    smokeNoiseIntensity: 0.65, // New parameter for noise intensity
+    numSmokeParticles: 4500, // Initial value, will be updated by control
+    smokeParticleSize: 2.0, // Initial value, will be updated by control
+    smokeColor1: new THREE.Color(0x1C1127), // Initial value, will be updated by control
+    smokeColor2: new THREE.Color(0x2D1710),  // Initial value, will be updated by control
+    smokeNoiseIntensity: 0.30, // New parameter for noise intensity
     // --- New parameters for smoke rim lighting ---
     smokeRimColor: new THREE.Color(0xffffff), // Color of the rim light
     smokeRimIntensity: 2.0, // Intensity of the rim light (can be > 1 for HDR)
@@ -58,7 +58,7 @@ const galaxyParams = {
     smokeRimInner: 0.35, // Inner edge of the rim (0.0 to 0.5)
     smokeRimOuter: 0.5, // Outer edge of the rim (0.0 to 0.5)
     // --- End of new smoke rim lighting parameters ---
-    godRaysIntensity: 0.85 // New parameter for god rays intensity
+    godRaysIntensity: 0.15 // New parameter for god rays intensity
 };
 
 function getRandomColorInRange(range) {
