@@ -513,81 +513,72 @@ const volumetricSmokeShader = {
 
 // --- NEW: Function to generate volumetric smoke with clustering ---
 function generateVolumetricSmoke() {
-    const geometry = new THREE.BufferGeometry();
     const positions = [];
-    // Use sharedGalaxyClusters directly
-    const smokeClusters = sharedGalaxyClusters;
-    const armSmokeClusters = smokeClusters.filter(c => c.armIndex >= 0);
-    
+    const colors = [];
+    const sizes = []; // For individual particle size variation if needed
+    const opacities = []; // For individual particle opacity variation
+
     let attempts = 0;
-    const maxAttempts = galaxyParams.numSmokeParticles * 3;
+    const maxAttempts = galaxyParams.numSmokeParticles * 20; // Increased attempts for better distribution
+
+    // Use sharedGalaxyClusters for smoke distribution
+    const smokeClusters = sharedGalaxyClusters;
 
     while (positions.length / 3 < galaxyParams.numSmokeParticles && attempts < maxAttempts) {
         attempts++;
-        
-        // Choose generation method based on probability
-        let x, y, z, distanceFromCenter;
-        if (Math.random() < 0.9) {
-            // 90% spiral-arm cluster generation
-            const cluster = armSmokeClusters.length > 0
-                ? armSmokeClusters[Math.floor(Math.random() * armSmokeClusters.length)]
-                : smokeClusters[Math.floor(Math.random() * smokeClusters.length)];
-            
-            const clusterOffset = randomPointInEllipsoid(
-                cluster.radius * 2,
-                cluster.radius * 2,
-                cluster.radius * 0.8
-            );
-            
-            const position = cluster.center.clone().add(clusterOffset);
-            x = position.x;
-            y = position.y;
-            z = position.z;
-            distanceFromCenter = Math.sqrt(x * x + y * y);
-        } else {
-            // 10% random generation
-            const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
-            distanceFromCenter = Math.pow(Math.random(), 2.5) * galaxyParams.galacticRadius;
-            // REVERSED spiral direction: negate the pitch term
-            const angle = armAngle - 2.8 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 1.5;
-            
-            x = distanceFromCenter * Math.cos(angle);
-            y = distanceFromCenter * Math.sin(angle);
-            
-            // Enhanced vertical distribution - exponentially thicker at center
-            const normalizedDistance = distanceFromCenter / galaxyParams.galacticRadius;
-            const thicknessMultiplier = Math.exp(-normalizedDistance * 2.5) * 3.0 + 0.1;
-            z = (Math.random() - 0.5) * thicknessMultiplier;
-        }
-        
-        // Allow particles closer to center (reduced minimum distance)
-        if (distanceFromCenter < galaxyParams.coreRadius * 0.3 || distanceFromCenter > galaxyParams.galacticRadius * 0.98) {
-            continue;
-        }
-        
-        // Enhanced cluster influence check
+
+        // Generate position within the galactic disk, similar to stars
+        const angle = Math.random() * Math.PI * 2;
+        // Bias particle generation towards the outer parts of the radius for arm concentration
+        const distanceFromCenter = Math.pow(Math.random(), 0.75) * galaxyParams.galacticRadius; 
+        const armOffset = (Math.random() - 0.5) * (galaxyParams.galacticRadius / galaxyParams.spiralArms) * 0.3; // Tighter to arm center
+        const effectiveRadius = distanceFromCenter + armOffset;
+
+        const x = effectiveRadius * Math.cos(angle + distanceFromCenter * 0.1 * galaxyParams.spiralArms);
+        const y = effectiveRadius * Math.sin(angle + distanceFromCenter * 0.1 * galaxyParams.spiralArms);
+        // Reduce the z-spread to make smoke more aligned with the galactic plane
+        const z = (Math.random() - 0.5) * 0.75; // Flatter smoke distribution
+
         const position = new THREE.Vector3(x, y, z);
-        // Pass smokeClusters (which is sharedGalaxyClusters) to getClusterInfluence
-        const clusterInfluence = getClusterInfluence(position, smokeClusters);
-        
-        // Multi-layer noise for realistic distribution
-        const noise1 = fractalNoise3D(position, 4, 0.08);
-        const noise2 = fractalNoise3D(position, 6, 0.15) * 0.7;
-        const combinedNoise = (noise1 + noise2) / 1.7;
-        
-        // Enhanced central density bonus
-        const centralBonus = Math.exp(-distanceFromCenter / (galaxyParams.galacticRadius * 0.3)) * 0.4;
-        
-        // Combined probability based on cluster influence, noise, and central concentration
-        const probability = Math.min(1.0, clusterInfluence * 0.6 + combinedNoise * 0.3 + centralBonus);
-        
-        if (Math.random() < probability * 0.85) { // 85% acceptance rate for good candidates
+
+        // Check distance from center - smoke should be present throughout, but influenced by arms
+        if (distanceFromCenter > galaxyParams.galacticRadius * 1.05) continue; // Slightly more constrained than before
+
+        // --- Apply cluster influence ---
+        const clusterInfluence = getClusterInfluence(position, smokeClusters, 1.5); // Increased sensitivity for smoke
+        const noise = fractalNoise3D(position, 2, 0.15); // Smoother noise for smoke clouds
+
+        // Probability strongly influenced by clusters, with some base probability for general haze
+        // Higher weighting for clusterInfluence
+        const probability = Math.min(1.0, clusterInfluence * 0.75 + noise * 0.15 + 0.1); 
+
+        if (Math.random() < probability) {
             positions.push(x, y, z);
+
+            // Color interpolation between two smoke colors
+            const t = Math.random();
+            const color = new THREE.Color().lerpColors(galaxyParams.smokeColor1, galaxyParams.smokeColor2, t);
+            colors.push(color.r, color.g, color.b);
+
+            sizes.push(galaxyParams.smokeParticleSize * (0.6 + Math.random() * 0.8)); // Vary size
+            opacities.push(0.25 + Math.random() * 0.35); // Vary opacity, generally lower for softer smoke
         }
     }
 
+    if (positions.length === 0) {
+        console.warn("No smoke particles generated. Check parameters or probability logic.");
+        // Create a dummy geometry to prevent errors if no particles are generated
+        const dummyGeometry = new THREE.BufferGeometry();
+        dummyGeometry.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0], 3));
+        return new THREE.Points(dummyGeometry, new THREE.PointsMaterial({size: 0.01, transparent: true, opacity: 0}));
+    }
+
+    const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+    geometry.setAttribute('opacity', new THREE.Float32BufferAttribute(opacities, 1));
+
     const material = new THREE.ShaderMaterial({
         uniforms: volumetricSmokeShader.uniforms,
         vertexShader: volumetricSmokeShader.vertexShader,
