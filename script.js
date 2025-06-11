@@ -525,42 +525,57 @@ function generateVolumetricSmoke() {
 
     while (positions.length / 3 < galaxyParams.numSmokeParticles && attempts < maxAttempts) {
         attempts++;
+        let x, y, z, distanceFromCenter;
 
-        // Generate position within the galactic disk, similar to stars
-        const angle = Math.random() * Math.PI * 2;
-        // Bias particle generation towards the outer parts of the radius for arm concentration
-        const distanceFromCenter = Math.pow(Math.random(), 0.75) * galaxyParams.galacticRadius; 
-        const armOffset = (Math.random() - 0.5) * (galaxyParams.galacticRadius / galaxyParams.spiralArms) * 0.3; // Tighter to arm center
-        const effectiveRadius = distanceFromCenter + armOffset;
+        // Use the same distribution logic as generateGalaxyStars
+        if (Math.random() < 0.75) { // 75% cluster-based generation
+            const cluster = smokeClusters[Math.floor(Math.random() * smokeClusters.length)];
+            // Adjust ellipsoid for smoke - potentially wider and flatter than star clusters
+            const clusterOffset = randomPointInEllipsoid(
+                cluster.radius * 2.0, // Smoke clusters might be more diffuse
+                cluster.radius * 2.0,
+                cluster.radius * 0.5 // Flatter distribution for smoke
+            );
+            
+            const particlePosition = cluster.center.clone().add(clusterOffset);
+            x = particlePosition.x;
+            y = particlePosition.y;
+            z = particlePosition.z;
+            distanceFromCenter = Math.sqrt(x * x + y * y);
 
-        const x = effectiveRadius * Math.cos(angle + distanceFromCenter * 0.1 * galaxyParams.spiralArms);
-        const y = effectiveRadius * Math.sin(angle + distanceFromCenter * 0.1 * galaxyParams.spiralArms);
-        // Reduce the z-spread to make smoke more aligned with the galactic plane
-        const z = (Math.random() - 0.5) * 0.75; // Flatter smoke distribution
+        } else { // 25% spiral arm generation
+            const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
+            distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2.0) * galaxyParams.galacticRadius); // Adjusted exponent for smoke spread
+            const angle = armAngle - 3.2 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 0.8;
+            
+            x = distanceFromCenter * Math.cos(angle);
+            y = distanceFromCenter * Math.sin(angle);
+            
+            const normalizedDistance = distanceFromCenter / galaxyParams.galacticRadius;
+            // Smoke might be thicker or follow a different vertical profile than stars
+            const thicknessMultiplier = Math.exp(-normalizedDistance * 1.5) * 1.0 + 0.1; // Adjusted for smoke
+            z = (Math.random() - 0.5) * thicknessMultiplier * 0.75; // Flatter smoke overall
+        }
 
-        const position = new THREE.Vector3(x, y, z);
+        if (distanceFromCenter > galaxyParams.galacticRadius * 1.1) continue; // Allow smoke to extend slightly further
 
-        // Check distance from center - smoke should be present throughout, but influenced by arms
-        if (distanceFromCenter > galaxyParams.galacticRadius * 1.05) continue; // Slightly more constrained than before
+        const positionVec = new THREE.Vector3(x, y, z);
+        const clusterInfluence = getClusterInfluence(positionVec, smokeClusters, 1.2); // Adjusted sensitivity for smoke
+        const noise = fractalNoise3D(positionVec, 3, 0.1); // Different noise profile for smoke
 
-        // --- Apply cluster influence ---
-        const clusterInfluence = getClusterInfluence(position, smokeClusters, 1.5); // Increased sensitivity for smoke
-        const noise = fractalNoise3D(position, 2, 0.15); // Smoother noise for smoke clouds
-
-        // Probability strongly influenced by clusters, with some base probability for general haze
-        // Higher weighting for clusterInfluence
-        const probability = Math.min(1.0, clusterInfluence * 0.75 + noise * 0.15 + 0.1); 
+        // Probability for smoke, potentially less dense than stars but following similar patterns
+        const centralBonus = Math.exp(-distanceFromCenter / (galaxyParams.galacticRadius * 0.3)) * 0.3; // Less central concentration for smoke
+        const probability = Math.min(1.0, clusterInfluence * 0.6 + noise * 0.3 + centralBonus + 0.05); // Adjusted weights
 
         if (Math.random() < probability) {
             positions.push(x, y, z);
 
-            // Color interpolation between two smoke colors
             const t = Math.random();
             const color = new THREE.Color().lerpColors(galaxyParams.smokeColor1, galaxyParams.smokeColor2, t);
             colors.push(color.r, color.g, color.b);
 
-            sizes.push(galaxyParams.smokeParticleSize * (0.6 + Math.random() * 0.8)); // Vary size
-            opacities.push(0.25 + Math.random() * 0.35); // Vary opacity, generally lower for softer smoke
+            sizes.push(galaxyParams.smokeParticleSize * (0.5 + Math.random() * 1.0)); // Wider size variation
+            opacities.push(0.15 + Math.random() * 0.25); // Generally lower opacity for softer smoke
         }
     }
 
