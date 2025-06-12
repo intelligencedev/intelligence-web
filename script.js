@@ -18,6 +18,10 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+const blueNoiseTexture = new THREE.TextureLoader().load('BlueNoise470.png');
+blueNoiseTexture.wrapS = THREE.RepeatWrapping;
+blueNoiseTexture.wrapT = THREE.RepeatWrapping;
+
 camera.position.set(0.36, -7.70, 1.89);
 camera.rotation.set(1.32, 0.09, 0);
 
@@ -396,11 +400,12 @@ const VolumetricRaymarchingInspiredSmokeShader = {
         uCentralLightIntensity: { value: 1.0 },
         uCameraPosition: { value: new THREE.Vector3() },
         uParticleTexture: { value: null },
+        uBlueNoiseTexture: { value: blueNoiseTexture },
         uDensityFactor: { value: galaxyParams.smokeDensityFactor },
         uMarchSteps: { value: galaxyParams.smokeMarchSteps },
         uDiffuseStrength: { value: galaxyParams.smokeDiffuseStrength },
-        time: { value: 0 },             // Add time uniform for rotation (matches original name)
-        rotationSpeed: { value: 0.1 }   // Add rotation speed uniform (matches original name)
+        time: { value: 0 },
+        rotationSpeed: { value: 0.1 }
     },
     vertexShader: `
         uniform float uSize;
@@ -457,12 +462,14 @@ const VolumetricRaymarchingInspiredSmokeShader = {
         uniform float uDensityFactor;
         uniform int uMarchSteps;
         uniform float uDiffuseStrength;
+        uniform sampler2D uBlueNoiseTexture; // Added blue noise texture uniform
 
         varying vec3 vWorldPosition;
         varying float vParticleOpacity;
         varying vec3 vViewVector;
         varying vec3 vLocalPosition;
         
+        /* Removed hash, noise, and fbm GLSL functions as they are replaced by blue noise texture sampling
         // Simple hash function for noise
         float hash(vec3 p) {
             p = fract(p * 0.3183099 + 0.1);
@@ -504,6 +511,7 @@ const VolumetricRaymarchingInspiredSmokeShader = {
             
             return value;
         }
+        */
 
         // Sphere signed distance function - returns negative inside, positive outside
         float sdfSphere(vec3 p, float radius) {
@@ -519,7 +527,10 @@ const VolumetricRaymarchingInspiredSmokeShader = {
             float base = sdfSphere(localP, 0.5);
             
             // Apply FBM noise
-            float noiseValue = fbm(localP * 3.0, 4) * uNoiseIntensity;
+            // float noiseValue = fbm(localP * 3.0, 4) * uNoiseIntensity; // Old line
+            // Sample blue noise texture for density, animate with uTime
+            vec2 densityNoiseUV = mod(localP.xy * 3.0 + uTime * 0.02, 1.0);
+            float noiseValue = texture2D(uBlueNoiseTexture, densityNoiseUV).r * uNoiseIntensity;
             
             // Higher density factor means thicker smoke
             return (-base + noiseValue * 0.3) * uDensityFactor;
@@ -553,7 +564,10 @@ const VolumetricRaymarchingInspiredSmokeShader = {
                     float diffuse = clamp((density - densityToLight) / 0.2, 0.0, 1.0) * uDiffuseStrength;
                     
                     // Mix colors based on noise
-                    float colorMix = fbm(pos * 2.0, 2);
+                    // float colorMix = fbm(pos * 2.0, 2); // Old line
+                    // Sample blue noise texture for color mixing, animate with uTime and offset
+                    vec2 colorMixNoiseUV = mod(pos.xy * 2.0 + uTime * 0.01 + vec2(0.3, 0.7) , 1.0);
+                    float colorMix = texture2D(uBlueNoiseTexture, colorMixNoiseUV).r;
                     vec3 color = mix(uColor1, uColor2, colorMix);
                     
                     // Apply lighting effects
