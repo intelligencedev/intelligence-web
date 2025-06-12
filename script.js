@@ -49,18 +49,12 @@ const galaxyParams = {
     smokeParticleSize: 0.90,
     smokeColor1: new THREE.Color(0x101025),
     smokeColor2: new THREE.Color(0x251510),
-    smokeNoiseIntensity: 0.65,
-    smokeRimColor: new THREE.Color(0xffffff),
-    smokeRimIntensity: 9.0,
-    smokeRimPower: 3.0,
-    smokeRimInner: 0.35,
-    smokeRimOuter: 0.5,
     smokeDensityFactor: 9.0,
     smokeMarchSteps: 3,
     smokeDiffuseStrength: 3.8,
     godRaysIntensity: 0.3,
     sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
-    anisotropyG: 0.9,
+    anisotropyG: 0.1,
     centralLightIntensity: 1.0
 };
 
