@@ -24,8 +24,8 @@ const blueNoiseTexture = new THREE.TextureLoader().load('BlueNoise470.png');
 blueNoiseTexture.wrapS = THREE.RepeatWrapping;
 blueNoiseTexture.wrapT = THREE.RepeatWrapping;
 
-camera.position.set(0.36, -7.70, 1.89);
-camera.rotation.set(1.32, 0.09, 0);
+camera.position.set(0.52, -7.77, 1.51);
+camera.rotation.set(79.0, 3.9, -18.7);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
