@@ -49,7 +49,7 @@ const galaxyParams = {
     spiralArms: 2,
     coreRadius: 0.10,
     numNebulaParticles: 30000,
-    numSmokeParticles: 9900,
+    numSmokeParticles: 20000,
     smokeParticleSize: 0.90,
     smokeColor1: new THREE.Color(0x101025),
     smokeColor2: new THREE.Color(0x251510),
