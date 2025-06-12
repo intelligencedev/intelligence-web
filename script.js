@@ -18,6 +18,9 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding; // Enable sRGB encoding for HDR
+renderer.toneMapping = THREE.ACESFilmicToneMapping; // Add tone mapping
+renderer.toneMappingExposure = 1.0; // Adjust exposure as needed
 document.body.appendChild(renderer.domElement);
 
 const blueNoiseTexture = new THREE.TextureLoader().load('BlueNoise470.png');
@@ -53,22 +56,25 @@ const galaxyParams = {
     numNebulaParticles: 30000,
     numSmokeParticles: 20000,
     smokeParticleSize: 0.90,
-    smokeColor1: new THREE.Color(0x101025),
-    smokeColor2: new THREE.Color(0x251510),
+    smokeColor1: new THREE.Color(0x101025).multiplyScalar(1.5), // Example: Brighten smoke colors
+    smokeColor2: new THREE.Color(0x251510).multiplyScalar(1.5), // Example: Brighten smoke colors
     smokeDensityFactor: 5.0,
     smokeMarchSteps: 6,
     smokeDiffuseStrength: 9.0,
     godRaysIntensity: 0.33,
     sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
     anisotropyG: 0.1,
-    centralLightIntensity: 0.4
+    centralLightIntensity: 0.4 // This might also need adjustment depending on desired effect
 };
 
 function getRandomColorInRange(range) {
     const r = THREE.MathUtils.lerp(range.min[0], range.max[0], Math.random());
     const g = THREE.MathUtils.lerp(range.min[1], range.max[1], Math.random());
     const b = THREE.MathUtils.lerp(range.min[2], range.max[2], Math.random());
-    return new THREE.Color(r, g, b);
+    // For HDR, colors can exceed 1.0. Adjust multiplier as needed.
+    // For example, to make stars potentially brighter:
+    // return new THREE.Color(r, g, b).multiplyScalar(1.5); 
+    return new THREE.Color(r, g, b); // Keeping original for now, adjust if stars are too dim
 }
 
 function createCircularGradientTexture() {
@@ -663,7 +669,7 @@ function generateVolumetricSmoke() {
             smokeSpiralCounter++;
             const angle = smokeSpiralCounter * GOLDEN_ANGLE;
             distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2.0) * galaxyParams.galacticRadius); // Adjusted exponent for smoke spread
-            // The 'angle' variable from the original 'armAngle - pitch + jitter' logic is replaced by the golden angle.
+            // The 'angle' variable from the original 'armAngle' - pitch + jitter' logic is replaced by the golden angle.
             // 'radius' is effectively 'distanceFromCenter' for x,y calculation.
             
             x = distanceFromCenter * Math.cos(angle);
