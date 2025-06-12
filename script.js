@@ -1101,6 +1101,43 @@ const lensingPass = new THREE.ShaderPass(lensingShader);
 lensingPass.uniforms.blackHolePosition.value = new THREE.Vector2(0.5, 0.5);
 //composer.addPass(lensingPass);
 
+const prevFrameRenderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight); // ADDED
+
+const MotionBlurShader = {
+    uniforms: {
+        tDiffuse: { value: null },
+        tPrevFrame: { value: null },
+        deltaTime: { value: 0.0 },
+        motionBlurStrength: { value: 2.0 } // Controls the intensity of the blur
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform sampler2D tPrevFrame;
+        uniform float deltaTime;
+        uniform float motionBlurStrength;
+        varying vec2 vUv;
+
+        void main() {
+            vec4 currentColor = texture2D(tDiffuse, vUv);
+            vec4 prevColor = texture2D(tPrevFrame, vUv);
+            // Blend current and previous frame. Adjust 'motionBlurStrength' for more/less blur.
+            // A lower deltaTime (faster frame rate) will require a higher strength for the same blur effect.
+            gl_FragColor = mix(currentColor, prevColor, motionBlurStrength);
+        }
+    `
+};
+
+const motionBlurPass = new THREE.ShaderPass(MotionBlurShader, "tDiffuse");
+motionBlurPass.uniforms.tPrevFrame.value = prevFrameRenderTarget.texture;
+composer.addPass(motionBlurPass);
+
 const GodRayShader = {
     uniforms: {
         tDiffuse: { value: null },
@@ -1424,6 +1461,16 @@ function animate() {
     lastFrameTime = currentTime;
     globalTime += deltaTime;
 
+    // Update motion blur pass uniforms
+    motionBlurPass.uniforms.deltaTime.value = deltaTime;
+
+
+    // Render scene to the prevFrameRenderTarget for motion blur
+    renderer.setRenderTarget(prevFrameRenderTarget); // MODIFIED
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(null);
+
+
     // Restore global galaxy rotation
     galaxyGroup.rotation.z += controlParams.rotationSpeed;
 
@@ -1501,6 +1548,9 @@ window.addEventListener("resize", () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
+    if (prevFrameRenderTarget) { // ADDED check for safety, though it should be defined
+        prevFrameRenderTarget.setSize(window.innerWidth, window.innerHeight);
+    }
 });
 
 // REMOVE old event listeners for star-size and core-radius (previously lines 600-616)
