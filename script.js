@@ -39,16 +39,29 @@ let globalTime = 0;
 let lastFrameTime = 0;
 
 const galaxyParams = {
-    numStars: 50000,
-    starSize: 0.03,
-    galacticRadius: 11,
+    numStars: 70000,
+    starSize: 0.02,
+    galacticRadius: 6,
     spiralArms: 2,
-    coreRadius: 0.40,
-    numNebulaParticles: 57000,
-    numSmokeParticles: 5500,    smokeParticleSize: 0.50,    smokeColor1: new THREE.Color(0x101025),    smokeColor2: new THREE.Color(0x251510),    smokeNoiseIntensity: 0.65,    smokeRimColor: new THREE.Color(0xffffff),    smokeRimIntensity: 2.0,    smokeRimPower: 3.0,    smokeRimInner: 0.35,    smokeRimOuter: 0.5,    smokeDensityFactor: 2.0,    smokeMarchSteps: 12,    smokeDiffuseStrength: 1.8,    godRaysIntensity: 0.10,
-    sunPosition: new THREE.Vector3(10.0, 10.0, 10.0),
-    anisotropyG: 0.8,
-    centralLightIntensity: 5.00 // Added centralLightIntensity
+    coreRadius: 0.10,
+    numNebulaParticles: 30000,
+    numSmokeParticles: 9900,
+    smokeParticleSize: 0.90,
+    smokeColor1: new THREE.Color(0x101025),
+    smokeColor2: new THREE.Color(0x251510),
+    smokeNoiseIntensity: 0.65,
+    smokeRimColor: new THREE.Color(0xffffff),
+    smokeRimIntensity: 9.0,
+    smokeRimPower: 3.0,
+    smokeRimInner: 0.35,
+    smokeRimOuter: 0.5,
+    smokeDensityFactor: 9.0,
+    smokeMarchSteps: 3,
+    smokeDiffuseStrength: 3.8,
+    godRaysIntensity: 0.3,
+    sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
+    anisotropyG: 0.9,
+    centralLightIntensity: 1.0
 };
 
 function getRandomColorInRange(range) {
@@ -713,7 +726,6 @@ function generateVolumetricSmoke() {
     return new THREE.Points(geometry, material);
 }
 
-
 function generateGalaxyStars() {
     const geometry = new THREE.BufferGeometry();
     const positions = [];
@@ -965,7 +977,7 @@ const coreMaterial = new THREE.MeshBasicMaterial({
     opacity: 0.1
 });
 const centralCore = new THREE.Mesh(coreGeometry, coreMaterial);
-galacticCore.add(centralCore);
+//galacticCore.add(centralCore);
 
 // Core glow effect
 const glowGeometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 1.5, 16, 16);
@@ -975,7 +987,7 @@ const glowMaterial = new THREE.MeshBasicMaterial({
     opacity: 0.1
 });
 const coreGlow = new THREE.Mesh(glowGeometry, glowMaterial);
-galacticCore.add(coreGlow);
+//galacticCore.add(coreGlow);
 
 // Dense star cluster in core region
 const coreStarsGeometry = new THREE.BufferGeometry();
@@ -1366,6 +1378,25 @@ function initializeValueDisplays() {
     });
 }
 
+// --- NEW: Function to update the display of actual rendered parameters ---
+function updateActualParametersDisplay() {
+    document.getElementById("actual-num-stars").textContent = galaxyParams.numStars.toString();
+    document.getElementById("actual-star-size").textContent = galaxyParams.starSize.toFixed(2);
+    document.getElementById("actual-galactic-radius").textContent = galaxyParams.galacticRadius.toString();
+    document.getElementById("actual-spiral-arms").textContent = galaxyParams.spiralArms.toString();
+    document.getElementById("actual-core-radius").textContent = galaxyParams.coreRadius.toFixed(2);
+    document.getElementById("actual-num-nebula-particles").textContent = galaxyParams.numNebulaParticles.toString();
+    document.getElementById("actual-num-smoke-particles").textContent = galaxyParams.numSmokeParticles.toString();
+    document.getElementById("actual-smoke-particle-size").textContent = galaxyParams.smokeParticleSize.toFixed(2);
+    document.getElementById("actual-smoke-noise-intensity").textContent = galaxyParams.smokeNoiseIntensity.toFixed(2);
+    document.getElementById("actual-smoke-density-factor").textContent = galaxyParams.smokeDensityFactor.toFixed(1);
+    document.getElementById("actual-smoke-diffuse-strength").textContent = galaxyParams.smokeDiffuseStrength.toFixed(1);
+    document.getElementById("actual-smoke-color1").textContent = "#" + galaxyParams.smokeColor1.getHexString().toUpperCase();
+    document.getElementById("actual-smoke-color2").textContent = "#" + galaxyParams.smokeColor2.getHexString().toUpperCase();
+    document.getElementById("actual-god-rays-intensity").textContent = godRayPass.uniforms.exposure.value.toFixed(2);
+    document.getElementById("actual-central-light-intensity").textContent = pointLight.intensity.toFixed(2);
+}
+
 function animate() {
     requestAnimationFrame(animate);
 
@@ -1397,10 +1428,50 @@ function animate() {
 
     controls.update();
     composer.render();
+
+    // Update camera coordinates display
+    document.getElementById('camera-coordinates').textContent = `x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}`;
+    document.getElementById('camera-rotation').textContent = `rx: ${camera.rotation.x.toFixed(2)}, ry: ${camera.rotation.y.toFixed(2)}, rz: ${camera.rotation.z.toFixed(2)}`;
+
+    // Update actual rendered parameters display
+    updateActualParametersDisplay();
 }
 
 // godRayPass.uniforms.lightPosition.value = new THREE.Vector2(0.5, 0.5);
 composer.addPass(godRayPass);
+
+// --- Ensure all params are set from defaults before first render ---
+// Set all uniforms and runtime values to match galaxyParams defaults
+
+godRayPass.uniforms.exposure.value = galaxyParams.godRaysIntensity;
+pointLight.intensity = galaxyParams.centralLightIntensity;
+
+// If you have other uniforms for smoke, stars, etc., set them here as well:
+galaxyGroup.children.forEach(child => {
+    if (child.material && child.material.uniforms) {
+        if (child.material.uniforms.uDensityFactor)
+            child.material.uniforms.uDensityFactor.value = galaxyParams.smokeDensityFactor;
+        if (child.material.uniforms.uDiffuseStrength)
+            child.material.uniforms.uDiffuseStrength.value = galaxyParams.smokeDiffuseStrength;
+        if (child.material.uniforms.uNoiseIntensity)
+            child.material.uniforms.uNoiseIntensity.value = galaxyParams.smokeNoiseIntensity;
+        if (child.material.uniforms.uSize)
+            child.material.uniforms.uSize.value = galaxyParams.smokeParticleSize;
+        if (child.material.uniforms.uColor1)
+            child.material.uniforms.uColor1.value = galaxyParams.smokeColor1;
+        if (child.material.uniforms.uColor2)
+            child.material.uniforms.uColor2.value = galaxyParams.smokeColor2;
+        if (child.material.uniforms.uCentralLightIntensity)
+            child.material.uniforms.uCentralLightIntensity.value = galaxyParams.centralLightIntensity;
+    }
+});
+
+// If you have any PointsMaterial for stars, set their size:
+galaxyGroup.children.forEach(child => {
+    if (child.isPoints && child.material && child.material.isPointsMaterial) {
+        child.material.size = galaxyParams.starSize;
+    }
+});
 
 window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
