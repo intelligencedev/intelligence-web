@@ -1258,9 +1258,9 @@ function applyGodRaysIntensityChange() {
 function applyNoiseIntensityChange() {
     const newNoiseIntensity = galaxyParams.smokeNoiseIntensity;
     galaxyGroup.children.forEach(child => {
-        // Check if it's the new smoke Points system
+        // Check if it's the smoke Points system
         if (child.isPoints && child.material.isShaderMaterial && 
-            child.material.uniforms.uNoiseIntensity && child.material.uniforms.uSunPosition) {
+            child.material.uniforms.uNoiseIntensity) {
             child.material.uniforms.uNoiseIntensity.value = newNoiseIntensity;
         }
     });
@@ -1438,7 +1438,7 @@ function animate() {
     }
 
     // Update actual rendered parameters display
-    updateActualParametersDisplay();
+    // updateActualParametersDisplay();
 }
 
 // godRayPass.uniforms.lightPosition.value = new THREE.Vector2(0.5, 0.5);
@@ -1502,94 +1502,6 @@ document.addEventListener("DOMContentLoaded", function() {
         "smoke-particle-size", "smoke-noise-intensity", "god-rays-intensity",
         "smoke-color1", "smoke-color2"
     ];
-
-    // Initialize value displays
-    initializeValueDisplays();
-
-    controlIds.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.addEventListener("input", function() {
-                handleParameterChange(this.id);
-            });
-        }
-    });
-    
-    const parametersButton = document.getElementById("parameters-button");
-    if(parametersButton) parametersButton.addEventListener("click", toggleParametersMenu);
-
-    // Effects parameters
-    const godRaysIntensitySlider = document.getElementById('god-rays-intensity');
-    const godRaysIntensityValue = document.getElementById('god-rays-intensity-value');
-    godRaysIntensitySlider.addEventListener('input', (event) => {
-        godRayPass.uniforms.exposure.value = parseFloat(event.target.value);
-        godRaysIntensityValue.textContent = parseFloat(event.target.value).toFixed(2);
-    });
-
-    const centralLightIntensitySlider = document.getElementById('central-light-intensity');
-    const centralLightIntensityValue = document.getElementById('central-light-intensity-value');
-    centralLightIntensitySlider.addEventListener('input', (event) => {
-        const newIntensity = parseFloat(event.target.value);
-        pointLight.intensity = newIntensity;
-        centralLightIntensityValue.textContent = newIntensity.toFixed(2);
-        // Update smoke shader uniform if smoke exists
-        if (galaxyGroup.children.find(child => child.material && child.material.uniforms && child.material.uniforms.uCentralLightIntensity)) {
-            galaxyGroup.children.forEach(child => {
-                if (child.material && child.material.uniforms && child.material.uniforms.uCentralLightIntensity) {
-                    child.material.uniforms.uCentralLightIntensity.value = newIntensity;
-                }
-            });
-        }
-    });
-    // Initialize central light slider and display to match pointLight intensity
-    centralLightIntensitySlider.value = pointLight.intensity;
-    centralLightIntensityValue.textContent = pointLight.intensity.toFixed(2);
-
-    // Smoke parameters
-    const smokeDensitySlider = document.getElementById('smoke-density-factor');
-    const smokeDensityValue = document.getElementById('smoke-density-factor-value');
-    smokeDensitySlider.value = galaxyParams.smokeDensityFactor;
-    smokeDensityValue.textContent = galaxyParams.smokeDensityFactor;
-    smokeDensitySlider.addEventListener('input', (event) => {
-        galaxyParams.smokeDensityFactor = parseFloat(event.target.value);
-        smokeDensityValue.textContent = event.target.value;
-        // Update shader uniforms if smoke particles exist
-        galaxyGroup.children.forEach(child => {
-            if (child.material && child.material.uniforms && child.material.uniforms.uDensityFactor) {
-                child.material.uniforms.uDensityFactor.value = galaxyParams.smokeDensityFactor;
-            }
-        });
-    });
-
-    const smokeDiffuseStrengthSlider = document.getElementById('smoke-diffuse-strength');
-    const smokeDiffuseStrengthValue = document.getElementById('smoke-diffuse-strength-value');
-    smokeDiffuseStrengthSlider.value = galaxyParams.smokeDiffuseStrength;
-    smokeDiffuseStrengthValue.textContent = galaxyParams.smokeDiffuseStrength;
-    smokeDiffuseStrengthSlider.addEventListener('input', (event) => {
-        galaxyParams.smokeDiffuseStrength = parseFloat(event.target.value);
-        smokeDiffuseStrengthValue.textContent = event.target.value;
-        // Update shader uniforms if smoke particles exist
-        galaxyGroup.children.forEach(child => {
-            if (child.material && child.material.uniforms && child.material.uniforms.uDiffuseStrength) {
-                child.material.uniforms.uDiffuseStrength.value = galaxyParams.smokeDiffuseStrength;
-            }
-        });
-    });
-
-    // Initial setup for sliders based on current values    document.getElementById("num-stars").value = galaxyParams.numStars;
-    document.getElementById("star-size").value = galaxyParams.starSize;
-    document.getElementById("galactic-radius").value = galaxyParams.galacticRadius;
-    document.getElementById("spiral-arms").value = galaxyParams.spiralArms;
-    document.getElementById("core-radius").value = galaxyParams.coreRadius;
-    document.getElementById("num-nebula-particles").value = galaxyParams.numNebulaParticles;
-    document.getElementById("num-smoke-particles").value = galaxyParams.numSmokeParticles;
-    document.getElementById("smoke-particle-size").value = galaxyParams.smokeParticleSize;
-    document.getElementById("smoke-noise-intensity").value = galaxyParams.smokeNoiseIntensity;
-    document.getElementById("god-rays-intensity").value = galaxyParams.godRaysIntensity;
-
-    // Set initial color values
-    document.getElementById("smoke-color1").value = "#" + galaxyParams.smokeColor1.getHexString();
-    document.getElementById("smoke-color2").value = "#" + galaxyParams.smokeColor2.getHexString();
 });
 
 animate();
