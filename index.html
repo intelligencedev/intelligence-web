@@ -151,24 +151,6 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
   <script src="script.js"></script>
-  <script>
-    // Update camera info display
-    function updateCameraInfoDiv() {
-      const cam = window.camera;
-      if (!cam) return;
-      const el = document.getElementById('camera-info');
-      if (!el) return;
-      el.innerHTML =
-        `Camera: x: ${cam.position.x.toFixed(2)}, y: ${cam.position.y.toFixed(2)}, z: ${cam.position.z.toFixed(2)}<br>` +
-        `Rotation: x: ${cam.rotation.x.toFixed(2)}, y: ${cam.rotation.y.toFixed(2)}, z: ${cam.rotation.z.toFixed(2)}`;
-    }
-
-    // Animate camera info update
-    (function animateCameraInfo() {
-      updateCameraInfoDiv();
-      requestAnimationFrame(animateCameraInfo);
-    })();
-  </script>
 
 </body>
 

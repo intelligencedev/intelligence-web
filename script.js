@@ -1429,9 +1429,13 @@ function animate() {
     controls.update();
     composer.render();
 
-    // Update camera coordinates display
-    document.getElementById('camera-coordinates').textContent = `x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}`;
-    document.getElementById('camera-rotation').textContent = `rx: ${camera.rotation.x.toFixed(2)}, ry: ${camera.rotation.y.toFixed(2)}, rz: ${camera.rotation.z.toFixed(2)}`;
+    // --- CAMERA INFO DISPLAY ---
+    const cameraInfoDiv = document.getElementById('camera-info');
+    if (cameraInfoDiv) {
+        cameraInfoDiv.innerHTML =
+            `Camera: x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}<br>` +
+            `Rotation: x: ${(THREE.MathUtils.radToDeg(camera.rotation.x)).toFixed(1)}°, y: ${(THREE.MathUtils.radToDeg(camera.rotation.y)).toFixed(1)}°, z: ${(THREE.MathUtils.radToDeg(camera.rotation.z)).toFixed(1)}°`;
+    }
 
     // Update actual rendered parameters display
     updateActualParametersDisplay();
@@ -1572,8 +1576,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
-    // Initial setup for sliders based on current values
-    document.getElementById("num-stars").value = galaxyParams.numStars;
+    // Initial setup for sliders based on current values    document.getElementById("num-stars").value = galaxyParams.numStars;
     document.getElementById("star-size").value = galaxyParams.starSize;
     document.getElementById("galactic-radius").value = galaxyParams.galacticRadius;
     document.getElementById("spiral-arms").value = galaxyParams.spiralArms;
