@@ -11,6 +11,8 @@ const starTypes = [
     { type: "Brown Dwarf", colorRange: { min: [0.3, 0.15, 0.1], max: [0.5, 0.3, 0.2] } }
 ];
 
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // Approx 137.5 degrees
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -46,7 +48,7 @@ const galaxyParams = {
     numStars: 70000,
     starSize: 0.02,
     galacticRadius: 6,
-    spiralArms: 2,
+    spiralArms: 1,
     coreRadius: 0.10,
     numNebulaParticles: 90000,
     numSmokeParticles: 20000,
@@ -633,6 +635,7 @@ function generateVolumetricSmoke() {
 
     // Use sharedGalaxyClusters for smoke distribution
     const smokeClusters = sharedGalaxyClusters;
+    let smokeSpiralCounter = 0; // Counter for golden angle spiral
 
     while (positions.length / 3 < galaxyParams.numSmokeParticles && attempts < maxAttempts) {
         attempts++;
@@ -656,11 +659,12 @@ function generateVolumetricSmoke() {
             angle = Math.atan2(y, x);
             radius = distanceFromCenter;
 
-        } else { // 25% spiral arm generation
-            const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
+        } else { // 25% golden ratio spiral generation for smoke
+            smokeSpiralCounter++;
+            const angle = smokeSpiralCounter * GOLDEN_ANGLE;
             distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2.0) * galaxyParams.galacticRadius); // Adjusted exponent for smoke spread
-            angle = armAngle - 3.2 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 0.8;
-            radius = distanceFromCenter;
+            // The 'angle' variable from the original 'armAngle - pitch + jitter' logic is replaced by the golden angle.
+            // 'radius' is effectively 'distanceFromCenter' for x,y calculation.
             
             x = distanceFromCenter * Math.cos(angle);
             y = distanceFromCenter * Math.sin(angle);
@@ -740,6 +744,7 @@ function generateGalaxyStars() {
     const colors = [];
     // Use sharedGalaxyClusters directly
     const starClusters = sharedGalaxyClusters;
+    let spiralStarCounter = 0; // Counter for golden angle spiral
     
     let attempts = 0;
     const maxAttempts = galaxyParams.numStars * 2;
@@ -763,17 +768,17 @@ function generateGalaxyStars() {
                 z = position.z;
                 distanceFromCenter = Math.sqrt(x * x + y * y);
         } else {
-            // 25% spiral arm generation with enhanced central concentration
-            const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
-            // Enhanced exponential distribution for higher central concentration
+            // 25% golden ratio spiral generation for stars
+            spiralStarCounter++;
+            const angle = spiralStarCounter * GOLDEN_ANGLE;
+            // Enhanced exponential distribution for higher central concentration (retained from original)
             distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2.8) * galaxyParams.galacticRadius);
-            // REVERSED spiral direction: negate the pitch term
-            const angle = armAngle - 3.2 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 0.8;
+            // The original 'armAngle' and 'pitch' logic is replaced by the golden angle.
             
             x = distanceFromCenter * Math.cos(angle);
             y = distanceFromCenter * Math.sin(angle);
             
-            // Enhanced vertical distribution - exponentially thicker at center
+            // Enhanced vertical distribution - exponentially thicker at center (retained from original)
             const normalizedDistance = distanceFromCenter / galaxyParams.galacticRadius;
             const thicknessMultiplier = Math.exp(-normalizedDistance * 2.0) * 1.5 + 0.05;
             z = (Math.random() - 0.5) * thicknessMultiplier;
