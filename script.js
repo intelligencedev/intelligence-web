@@ -39,31 +39,16 @@ let globalTime = 0;
 let lastFrameTime = 0;
 
 const galaxyParams = {
-    numStars: 102000,
-    starSize: 0.02,
-    galacticRadius: 9,
+    numStars: 50000,
+    starSize: 0.03,
+    galacticRadius: 11,
     spiralArms: 2,
-    coreRadius: 0.50,
-    numNebulaParticles: 28000,
-    // --- New parameters for volumetric smoke ---
-    numSmokeParticles: 4500, // Initial value, will be updated by control
-    smokeParticleSize: 2.0, // Initial value, will be updated by control
-    smokeColor1: new THREE.Color(0x1C1127), // Initial value, will be updated by control
-    smokeColor2: new THREE.Color(0x2D1710),  // Initial value, will be updated by control
-    smokeNoiseIntensity: 0.30, // New parameter for noise intensity
-    // --- New parameters for smoke rim lighting ---
-    smokeRimColor: new THREE.Color(0xffffff), // Color of the rim light
-    smokeRimIntensity: 2.0, // Intensity of the rim light (can be > 1 for HDR)
-    smokeRimPower: 3.0, // Power for the rim falloff (sharpness)
-    smokeRimInner: 0.35, // Inner edge of the rim (0.0 to 0.5)
-    smokeRimOuter: 0.5, // Outer edge of the rim (0.0 to 0.5)
-    smokeDensityFactor: 1.5,       // New: Controls overall smoke density
-    smokeMarchSteps: 12,           // New: Number of raymarching steps
-    smokeDiffuseStrength: 0.8,     // New: Strength of diffuse lighting
-    // --- End of new smoke rim lighting parameters ---
-    godRaysIntensity: 0.15, // New parameter for god rays intensity
+    coreRadius: 0.40,
+    numNebulaParticles: 57000,
+    numSmokeParticles: 5500,    smokeParticleSize: 0.50,    smokeColor1: new THREE.Color(0x101025),    smokeColor2: new THREE.Color(0x251510),    smokeNoiseIntensity: 0.65,    smokeRimColor: new THREE.Color(0xffffff),    smokeRimIntensity: 2.0,    smokeRimPower: 3.0,    smokeRimInner: 0.35,    smokeRimOuter: 0.5,    smokeDensityFactor: 2.0,    smokeMarchSteps: 12,    smokeDiffuseStrength: 1.8,    godRaysIntensity: 0.10,
     sunPosition: new THREE.Vector3(10.0, 10.0, 10.0),
-    anisotropyG: 0.8
+    anisotropyG: 0.8,
+    centralLightIntensity: 5.00 // Added centralLightIntensity
 };
 
 function getRandomColorInRange(range) {
@@ -406,12 +391,19 @@ const VolumetricRaymarchingInspiredSmokeShader = {
         uParticleTexture: { value: null },
         uDensityFactor: { value: galaxyParams.smokeDensityFactor },
         uMarchSteps: { value: galaxyParams.smokeMarchSteps },
-        uDiffuseStrength: { value: galaxyParams.smokeDiffuseStrength }
+        uDiffuseStrength: { value: galaxyParams.smokeDiffuseStrength },
+        time: { value: 0 },             // Add time uniform for rotation (matches original name)
+        rotationSpeed: { value: 0.1 }   // Add rotation speed uniform (matches original name)
     },
     vertexShader: `
         uniform float uSize;
+        uniform float time;          // Time for rotation
+        uniform float rotationSpeed; // Rotation speed
+        
         attribute float aParticleSize;
         attribute float aParticleOpacity;
+        attribute float angle;       // Original angle attribute
+        attribute float radius;      // Original radius attribute
         
         varying vec3 vWorldPosition;
         varying float vParticleOpacity;
@@ -419,10 +411,22 @@ const VolumetricRaymarchingInspiredSmokeShader = {
         varying vec3 vLocalPosition;
 
         void main() {
-            vec4 modelPosition = modelMatrix * vec4(position, 1.0);
+            // Apply rotation similar to the rotationShader
+            float wrappedTime = mod(time, 1000.0);
+            float rotationAngle = angle + wrappedTime * rotationSpeed;
+            
+            // Create rotated position
+            vec3 rotatedPosition = vec3(
+                radius * cos(rotationAngle),
+                radius * sin(rotationAngle),
+                position.z
+            );
+            
+            // Use the rotated position for the rest of the calculations
+            vec4 modelPosition = modelMatrix * vec4(rotatedPosition, 1.0);
             vWorldPosition = modelPosition.xyz;
             vParticleOpacity = aParticleOpacity;
-            vLocalPosition = position;
+            vLocalPosition = rotatedPosition;
 
             // View vector from camera to this vertex (used for raymarching direction)
             vViewVector = normalize(modelPosition.xyz - cameraPosition);
@@ -575,6 +579,9 @@ const VolumetricRaymarchingInspiredSmokeShader = {
 
             // Sample particle texture for basic shape
             vec4 texColor = texture2D(uParticleTexture, pointCoord);
+            if (texColor.a < 0.05) {
+                discard;
+            }
             
             // Ray starting at particle center facing towards camera
             vec3 rayOrigin = vWorldPosition;
@@ -597,6 +604,8 @@ function generateVolumetricSmoke() {
     const colors = [];
     const sizes = []; // For individual particle size variation if needed
     const opacities = []; // For individual particle opacity variation
+    const angles = []; // For rotation
+    const radii = []; // For rotation
 
     let attempts = 0;
     const maxAttempts = galaxyParams.numSmokeParticles * 20; // Increased attempts for better distribution
@@ -606,7 +615,7 @@ function generateVolumetricSmoke() {
 
     while (positions.length / 3 < galaxyParams.numSmokeParticles && attempts < maxAttempts) {
         attempts++;
-        let x, y, z, distanceFromCenter;
+        let x, y, z, distanceFromCenter, angle, radius;
 
         // Use the same distribution logic as generateGalaxyStars
         if (Math.random() < 0.75) { // 75% cluster-based generation
@@ -623,11 +632,14 @@ function generateVolumetricSmoke() {
             y = particlePosition.y;
             z = particlePosition.z;
             distanceFromCenter = Math.sqrt(x * x + y * y);
+            angle = Math.atan2(y, x);
+            radius = distanceFromCenter;
 
         } else { // 25% spiral arm generation
             const armAngle = (Math.random() * galaxyParams.spiralArms) * (2 * Math.PI / galaxyParams.spiralArms);
             distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2.0) * galaxyParams.galacticRadius); // Adjusted exponent for smoke spread
-            const angle = armAngle - 3.2 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 0.8;
+            angle = armAngle - 3.2 * distanceFromCenter / galaxyParams.galacticRadius + (Math.random() - 0.5) * 0.8;
+            radius = distanceFromCenter;
             
             x = distanceFromCenter * Math.cos(angle);
             y = distanceFromCenter * Math.sin(angle);
@@ -650,6 +662,8 @@ function generateVolumetricSmoke() {
 
         if (Math.random() < probability) {
             positions.push(x, y, z);
+            angles.push(angle);
+            radii.push(radius);
 
             const t = Math.random();
             const color = new THREE.Color().lerpColors(galaxyParams.smokeColor1, galaxyParams.smokeColor2, t);
@@ -673,6 +687,8 @@ function generateVolumetricSmoke() {
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geometry.setAttribute('aParticleSize', new THREE.Float32BufferAttribute(sizes, 1));
     geometry.setAttribute('aParticleOpacity', new THREE.Float32BufferAttribute(opacities, 1));
+    geometry.setAttribute('angle', new THREE.Float32BufferAttribute(angles, 1)); 
+    geometry.setAttribute('radius', new THREE.Float32BufferAttribute(radii, 1));
 
     const material = new THREE.ShaderMaterial({
         uniforms: VolumetricRaymarchingInspiredSmokeShader.uniforms,
@@ -692,6 +708,7 @@ function generateVolumetricSmoke() {
     material.uniforms.uMarchSteps.value = galaxyParams.smokeMarchSteps;
     material.uniforms.uDiffuseStrength.value = galaxyParams.smokeDiffuseStrength;
     material.uniforms.uNoiseIntensity.value = galaxyParams.smokeNoiseIntensity;
+    material.uniforms.rotationSpeed.value = controlParams.rotationSpeed;
 
     return new THREE.Points(geometry, material);
 }
@@ -999,7 +1016,7 @@ galacticCore.add(coreStars);
 
 scene.add(galacticCore);
 
-const pointLight = new THREE.PointLight(0xffffff, 1, 100); // Initial intensity 1, distance 100
+const pointLight = new THREE.PointLight(0xffffff, 5.0, 100); // Initial intensity 5, distance 100
 pointLight.position.set(0, 0, 0); // Positioned at the center
 scene.add(pointLight);
 
@@ -1355,25 +1372,23 @@ function animate() {
     const currentTime = performance.now() / 1000;
     const deltaTime = currentTime - lastFrameTime;
     lastFrameTime = currentTime;
-
-    // Update global time with constant rate
     globalTime += deltaTime;
 
-    // Update camera info in the UI
-    document.getElementById("camera-coordinates").textContent = `x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}`;
-    document.getElementById("camera-rotation").textContent = `rx: ${camera.rotation.x.toFixed(2)}, ry: ${camera.rotation.y.toFixed(2)}, rz: ${camera.rotation.z.toFixed(2)}`;
+    // Restore global galaxy rotation
+    galaxyGroup.rotation.z += controlParams.rotationSpeed;
 
-    // Update all rotation shaders
+    // Update all rotation shaders and smoke
     galaxyGroup.children.forEach(child => {
         if (child.material && child.material.uniforms) {
             if (child.material.uniforms.time) {
-                child.material.uniforms.time.value = globalTime * controlParams.rotationSpeed;
+                child.material.uniforms.time.value = globalTime;
             }
-            // Update time for volumetric smoke
+            if (child.material.uniforms.rotationSpeed) {
+                child.material.uniforms.rotationSpeed.value = controlParams.rotationSpeed;
+            }
             if (child.material.uniforms.uTime) {
                 child.material.uniforms.uTime.value = globalTime;
             }
-            // Update camera position for smoke shader
             if (child.material.uniforms.uCameraPosition) {
                 child.material.uniforms.uCameraPosition.value.copy(camera.position);
             }
@@ -1451,6 +1466,9 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         }
     });
+    // Initialize central light slider and display to match pointLight intensity
+    centralLightIntensitySlider.value = pointLight.intensity;
+    centralLightIntensityValue.textContent = pointLight.intensity.toFixed(2);
 
     // Smoke parameters
     const smokeDensitySlider = document.getElementById('smoke-density-factor');
