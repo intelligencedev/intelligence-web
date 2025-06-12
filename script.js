@@ -750,7 +750,7 @@ function generateGalaxyStars() {
     const colors = [];
     // Use sharedGalaxyClusters directly
     const starClusters = sharedGalaxyClusters;
-    let spiralStarCounter = 0; // Counter for golden angle spiral
+    let spiralStarCounter = 0;
     
     let attempts = 0;
     const maxAttempts = galaxyParams.numStars * 2;
@@ -996,7 +996,7 @@ const coreMaterial = new THREE.MeshBasicMaterial({
     opacity: 0.1
 });
 const centralCore = new THREE.Mesh(coreGeometry, coreMaterial);
-//galacticCore.add(centralCore);
+galacticCore.add(centralCore);
 
 // Core glow effect
 const glowGeometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 1.5, 16, 16);
@@ -1006,7 +1006,7 @@ const glowMaterial = new THREE.MeshBasicMaterial({
     opacity: 0.1
 });
 const coreGlow = new THREE.Mesh(glowGeometry, glowMaterial);
-//galacticCore.add(coreGlow);
+galacticCore.add(coreGlow);
 
 // Dense star cluster in core region
 const coreStarsGeometry = new THREE.BufferGeometry();
@@ -1014,18 +1014,18 @@ const coreStarsPositions = [];
 const coreStarsColors = [];
 
 for (let i = 0; i < 500; i++) {
-    const radius = Math.pow(Math.random(), 0.5) * galaxyParams.coreRadius * 2;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = (Math.random() - 0.5) * Math.PI * 0.3; // Flattened distribution
+    const radius = Math.pow(Math.random(), 0.9) * galaxyParams.coreRadius;
+    const theta = Math.random() * Math.PI * 9;
+    const phi = (Math.random() - 0.5) * Math.PI * 10.9;
     
     const x = radius * Math.cos(theta) * Math.cos(phi);
     const y = radius * Math.sin(theta) * Math.cos(phi);
-    const z = radius * Math.sin(phi) * 0.3; // Very flat central region
+    const z = radius * Math.sin(phi) * 0.3;
     
     coreStarsPositions.push(x, y, z);
     
     // Bright, hot stars in the core
-    const coreStarType = starTypes[Math.floor(Math.random() * 3)]; // O, B, A types
+    const coreStarType = starTypes[Math.floor(Math.random() * 10)]; // O, B, A types
     const color = getRandomColorInRange(coreStarType.colorRange);
     coreStarsColors.push(color.r, color.g, color.b);
 }
@@ -1047,68 +1047,22 @@ galacticCore.add(coreStars);
 
 scene.add(galacticCore);
 
-const pointLight = new THREE.PointLight(0xffffff, 5.0, 100); // Initial intensity 5, distance 100
-pointLight.position.set(0, 0, 0); // Positioned at the center
+const pointLight = new THREE.PointLight(0xffffff, 5.0, 100);
+pointLight.position.set(0, 0, 0);
 scene.add(pointLight);
 
 const composer = new THREE.EffectComposer(renderer);
 const renderPass = new THREE.RenderPass(scene, camera);
 composer.addPass(renderPass);
 
-const lensingShader = {
-    uniforms: {
-        tDiffuse: { value: null },
-        uTime: { value: 0 },
-        blackHolePosition: { value: new THREE.Vector2(0.5, 0.5) },
-        blackHoleRadius: { value: galaxyParams.coreRadius }
-    },
-    vertexShader: `
-        varying vec2 vUv;
-
-        void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-    `,
-    fragmentShader: `
-        uniform sampler2D tDiffuse;
-        uniform vec2 blackHolePosition;
-        uniform float blackHoleRadius;
-        varying vec2 vUv;
-
-        void main() {
-            vec2 coord = vUv;
-            float distance = length(blackHolePosition - vUv);
-            if (distance < blackHoleRadius) {
-                float distortion = 1.0 - smoothstep(0.0, blackHoleRadius, distance);
-                coord -= normalize(vUv - blackHolePosition) * distortion * 0.2;
-            }
-            gl_FragColor = texture2D(tDiffuse, coord);
-        }
-    `
-};
-
-function getCameraDistanceToBlackHole() {
-    return camera.position.length();
-}
-
-function updateLensingEffect() {
-    const distanceToBlackHole = getCameraDistanceToBlackHole();
-    lensingPass.uniforms.blackHoleRadius.value = galaxyParams.coreRadius / distanceToBlackHole;
-}
-
-const lensingPass = new THREE.ShaderPass(lensingShader);
-lensingPass.uniforms.blackHolePosition.value = new THREE.Vector2(0.5, 0.5);
-//composer.addPass(lensingPass);
-
-const prevFrameRenderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight); // ADDED
+const prevFrameRenderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
 
 const MotionBlurShader = {
     uniforms: {
         tDiffuse: { value: null },
         tPrevFrame: { value: null },
         deltaTime: { value: 0.0 },
-        motionBlurStrength: { value: 2.0 } // Controls the intensity of the blur
+        motionBlurStrength: { value: 2.0 }
     },
     vertexShader: `
         varying vec2 vUv;
@@ -1204,30 +1158,6 @@ function updateCameraRotation(event) {
     updateInfoPanel();
 }
 
-function updateInfoPanel() {
-    document.getElementById("info-content").innerHTML = `
-        <p><strong>Camera Position:</strong> x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}</p>
-        <p><strong>Camera Rotation:</strong> x: ${camera.rotation.x.toFixed(2)}, y: ${camera.rotation.y.toFixed(2)}, z: ${camera.rotation.z.toFixed(2)}</p>
-    `;
-}
-
-function toggleParametersMenu() {
-    const menu = document.getElementById("parameters-menu");
-    menu.style.display = (menu.style.display === "none" || menu.style.display === "") ? "block" : "none";
-}
-
-function toggleInfoPanel() {
-    const panel = document.getElementById("info-panel");
-    const button = document.getElementById("info-button");
-    if (panel.style.display === "none" || panel.style.display === "") {
-        panel.style.display = "block";
-        button.innerText = "Hide Info";
-    } else {
-        panel.style.display = "none";
-        button.innerText = "Show Info";
-    }
-}
-
 function updateBlackHoleSize() {
     // Update galactic core size instead of black hole
     galacticCore.children.forEach((child, index) => {
@@ -1272,185 +1202,6 @@ function regenerateGalaxy() {
     galaxyGroup.add(generateGalaxyStars());
     galaxyGroup.add(generateNebula());
     galaxyGroup.add(generateVolumetricSmoke());
-}
-
-
-// --- New Parameter Handling Logic ---
-
-function applyStarSizeChange() {
-    const newStarSize = galaxyParams.starSize;
-    galaxyGroup.children.forEach(child => {
-        if (child.isPoints && child.material.isPointsMaterial) { // Stars
-            child.material.size = newStarSize;
-        } else if (child.isGroup) { // Nebula group
-            child.children.forEach(nebulaLayer => {
-                // Check if it's a nebula layer (Points with rotationShader)
-                if (nebulaLayer.isPoints && nebulaLayer.material.isShaderMaterial && nebulaLayer.material.uniforms.rotationSpeed) {
-                    nebulaLayer.material.uniforms.size.value = newStarSize;
-                }
-            });
-        }
-    });
-}
-
-function applySmokeSizeChange() {
-    const newSmokeSize = galaxyParams.smokeParticleSize;
-    // Color uniforms (uColor1, uColor2) in volumetricSmokeShader point to galaxyParams.smokeColor1/2
-    // These are THREE.Color objects, so .set() on galaxyParams.smokeColor1/2 updates them directly.
-    // Only uSize needs explicit update here.
-    galaxyGroup.children.forEach(child => {
-        // Check if it's the smoke Points system (has uTime and uColor1 uniforms)
-        if (child.isPoints && child.material.isShaderMaterial && child.material.uniforms.uTime && child.material.uniforms.uColor1) {
-            child.material.uniforms.uSize.value = newSmokeSize;
-        }
-    });
-}
-
-function applyGodRaysIntensityChange() {
-    const newIntensity = galaxyParams.godRaysIntensity;
-    godRayPass.uniforms.exposure.value = newIntensity;
-}
-
-function applyNoiseIntensityChange() {
-    const newNoiseIntensity = galaxyParams.smokeNoiseIntensity;
-    galaxyGroup.children.forEach(child => {
-        // Check if it's the smoke Points system
-        if (child.isPoints && child.material.isShaderMaterial && 
-            child.material.uniforms.uNoiseIntensity) {
-            child.material.uniforms.uNoiseIntensity.value = newNoiseIntensity;
-        }
-    });
-}
-
-function handleParameterChange(inputId) {
-    const inputElement = document.getElementById(inputId);
-    let value;
-
-    if (inputElement.type === 'color') {
-        value = inputElement.value;
-    } else if (inputElement.type === 'range') {
-        // Ensure correct parsing for integer vs float based on step or typical use
-        if (["num-stars", "galactic-radius", "spiral-arms", "num-nebula-particles", "num-smoke-particles"].includes(inputId)) {
-            value = parseInt(inputElement.value);
-        } else {
-            value = parseFloat(inputElement.value);
-        }
-    } else {
-        value = inputElement.value; // Fallback, though not expected for current controls
-    }
-
-    // Update the corresponding value display
-    updateValueDisplay(inputId, value);
-
-    switch (inputId) {
-        case "num-stars":
-            galaxyParams.numStars = value;
-            regenerateGalaxy();
-            break;
-        case "star-size":
-            galaxyParams.starSize = value;
-            applyStarSizeChange();
-            break;
-        case "galactic-radius":
-            galaxyParams.galacticRadius = value;
-            regenerateGalaxy();
-            break;
-        case "spiral-arms":
-            galaxyParams.spiralArms = value;
-            regenerateGalaxy();
-            break;
-        case "core-radius":
-            galaxyParams.coreRadius = value;
-            updateBlackHoleSize();
-            updateLensingEffect(); 
-            regenerateGalaxy(); 
-            break;
-        case "num-nebula-particles":
-            galaxyParams.numNebulaParticles = value;
-            regenerateGalaxy();
-            break;
-        case "num-smoke-particles":
-            galaxyParams.numSmokeParticles = value;
-            regenerateGalaxy();
-            break;
-        case "smoke-particle-size":
-            galaxyParams.smokeParticleSize = value;
-            regenerateGalaxy();
-            break;
-        case "smoke-noise-intensity":
-            galaxyParams.smokeNoiseIntensity = value;
-            applyNoiseIntensityChange();
-            break;
-        case "god-rays-intensity":
-            galaxyParams.godRaysIntensity = value;
-            applyGodRaysIntensityChange();
-            break;
-        case "smoke-color1":
-            galaxyParams.smokeColor1.set(value);
-            break;
-        case "smoke-color2":
-            galaxyParams.smokeColor2.set(value);
-            break;
-    }
-}
-
-function updateValueDisplay(inputId, value) {
-    const valueElement = document.getElementById(inputId + '-value');
-    if (valueElement) {
-        // Format the value based on type
-        if (inputId.includes('color')) {
-            valueElement.textContent = value.toUpperCase();
-        } else if (Number.isInteger(value) || inputId.includes('num-') || inputId.includes('spiral-arms') || inputId.includes('galactic-radius')) {
-            valueElement.textContent = value.toString();
-        } else {
-            valueElement.textContent = value.toFixed(2);
-        }
-    }
-}
-
-function initializeValueDisplays() {
-    const controlIds = [
-        "num-stars", "star-size", "galactic-radius", "spiral-arms",
-        "core-radius", "num-nebula-particles", "num-smoke-particles",
-        "smoke-particle-size", "smoke-noise-intensity", "god-rays-intensity", 
-        "smoke-color1", "smoke-color2"
-    ];
-
-    controlIds.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            let value;
-            if (element.type === 'color') {
-                value = element.value;
-            } else if (element.type === 'range') {
-                if (["num-stars", "galactic-radius", "spiral-arms", "num-nebula-particles", "num-smoke-particles"].includes(id)) {
-                    value = parseInt(element.value);
-                } else {
-                    value = parseFloat(element.value);
-                }
-            }
-            updateValueDisplay(id, value);
-        }
-    });
-}
-
-// --- NEW: Function to update the display of actual rendered parameters ---
-function updateActualParametersDisplay() {
-    document.getElementById("actual-num-stars").textContent = galaxyParams.numStars.toString();
-    document.getElementById("actual-star-size").textContent = galaxyParams.starSize.toFixed(2);
-    document.getElementById("actual-galactic-radius").textContent = galaxyParams.galacticRadius.toString();
-    document.getElementById("actual-spiral-arms").textContent = galaxyParams.spiralArms.toString();
-    document.getElementById("actual-core-radius").textContent = galaxyParams.coreRadius.toFixed(2);
-    document.getElementById("actual-num-nebula-particles").textContent = galaxyParams.numNebulaParticles.toString();
-    document.getElementById("actual-num-smoke-particles").textContent = galaxyParams.numSmokeParticles.toString();
-    document.getElementById("actual-smoke-particle-size").textContent = galaxyParams.smokeParticleSize.toFixed(2);
-    document.getElementById("actual-smoke-noise-intensity").textContent = galaxyParams.smokeNoiseIntensity.toFixed(2);
-    document.getElementById("actual-smoke-density-factor").textContent = galaxyParams.smokeDensityFactor.toFixed(1);
-    document.getElementById("actual-smoke-diffuse-strength").textContent = galaxyParams.smokeDiffuseStrength.toFixed(1);
-    document.getElementById("actual-smoke-color1").textContent = "#" + galaxyParams.smokeColor1.getHexString().toUpperCase();
-    document.getElementById("actual-smoke-color2").textContent = "#" + galaxyParams.smokeColor2.getHexString().toUpperCase();
-    document.getElementById("actual-god-rays-intensity").textContent = godRayPass.uniforms.exposure.value.toFixed(2);
-    document.getElementById("actual-central-light-intensity").textContent = pointLight.intensity.toFixed(2);
 }
 
 function animate() {
@@ -1502,21 +1253,15 @@ function animate() {
             `Camera: x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}<br>` +
             `Rotation: x: ${(THREE.MathUtils.radToDeg(camera.rotation.x)).toFixed(1)}°, y: ${(THREE.MathUtils.radToDeg(camera.rotation.y)).toFixed(1)}°, z: ${(THREE.MathUtils.radToDeg(camera.rotation.z)).toFixed(1)}°`;
     }
-
-    // Update actual rendered parameters display
-    // updateActualParametersDisplay();
 }
 
-// godRayPass.uniforms.lightPosition.value = new THREE.Vector2(0.5, 0.5);
 composer.addPass(godRayPass);
 
 // --- Ensure all params are set from defaults before first render ---
-// Set all uniforms and runtime values to match galaxyParams defaults
 
 godRayPass.uniforms.exposure.value = galaxyParams.godRaysIntensity;
 pointLight.intensity = galaxyParams.centralLightIntensity;
 
-// If you have other uniforms for smoke, stars, etc., set them here as well:
 galaxyGroup.children.forEach(child => {
     if (child.material && child.material.uniforms) {
         if (child.material.uniforms.uDensityFactor)
@@ -1536,7 +1281,6 @@ galaxyGroup.children.forEach(child => {
     }
 });
 
-// If you have any PointsMaterial for stars, set their size:
 galaxyGroup.children.forEach(child => {
     if (child.isPoints && child.material && child.material.isPointsMaterial) {
         child.material.size = galaxyParams.starSize;
@@ -1552,10 +1296,6 @@ window.addEventListener("resize", () => {
         prevFrameRenderTarget.setSize(window.innerWidth, window.innerHeight);
     }
 });
-
-// REMOVE old event listeners for star-size and core-radius (previously lines 600-616)
-// document.getElementById("star-size").addEventListener("input", () => { ... }); // REMOVED
-// document.getElementById("core-radius").addEventListener("input", () => { ... }); // REMOVED
 
 document.addEventListener("DOMContentLoaded", function() {
     // Initialize time tracking
