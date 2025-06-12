@@ -48,18 +48,18 @@ const galaxyParams = {
     galacticRadius: 6,
     spiralArms: 2,
     coreRadius: 0.10,
-    numNebulaParticles: 30000,
+    numNebulaParticles: 90000,
     numSmokeParticles: 20000,
     smokeParticleSize: 0.90,
     smokeColor1: new THREE.Color(0x101025),
     smokeColor2: new THREE.Color(0x251510),
     smokeDensityFactor: 9.0,
-    smokeMarchSteps: 3,
-    smokeDiffuseStrength: 3.8,
-    godRaysIntensity: 0.3,
+    smokeMarchSteps: 6,
+    smokeDiffuseStrength: 9.0,
+    godRaysIntensity: 0.33,
     sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
     anisotropyG: 0.1,
-    centralLightIntensity: 1.0
+    centralLightIntensity: 0.3
 };
 
 function getRandomColorInRange(range) {
