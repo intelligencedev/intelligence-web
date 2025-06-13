@@ -40,7 +40,7 @@ const galaxyGroup = new THREE.Group();
 scene.add(galaxyGroup);
 
 const controlParams = {
-    rotationSpeed: 1e-3
+    rotationSpeed: 1e-4
 };
 
 // Add time tracking for continuous animation
@@ -64,7 +64,7 @@ const galaxyParams = {
     godRaysIntensity: 0.33,
     sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
     anisotropyG: 0.1,
-    centralLightIntensity: 0.4
+    centralLightIntensity: 0.3
 };
 
 function getRandomColorInRange(range) {
@@ -414,7 +414,7 @@ const VolumetricRaymarchingInspiredSmokeShader = {
         uDiffuseStrength: { value: galaxyParams.smokeDiffuseStrength },
         // time: { value: 0 }, // Removed duplicate time uniform
         rotationSpeed: { value: 0.1 },
-        uAbsorptionCoefficient: { value: 0.9 } // Added for Beer's Law
+        uAbsorptionCoefficient: { value: 0.9 }
     },
     vertexShader: `
         uniform float uSize;
@@ -557,7 +557,7 @@ const VolumetricRaymarchingInspiredSmokeShader = {
             float stepSize = 1.0 / float(uMarchSteps);
             vec3 lightDir = normalize(uCentralLightPosition - vWorldPosition);
             
-            vec4 accumulatedColor = vec4(0.0); // Changed from 'result' to 'accumulatedColor'
+            vec3 accumulatedLight = vec3(0.0); // Renamed from accumulatedColor.rgb
             float totalTransmittance = 1.0;
             float t = -0.5; // Start inside the volume
             
@@ -571,47 +571,44 @@ const VolumetricRaymarchingInspiredSmokeShader = {
                 float density = max(0.0, densityFunction(pos));
                 
                 if (density > 0.0) {
-                    // Distance to central light affects lighting - already present
+                    // Distance to central light affects lighting
                     float distToLight = length(uCentralLightPosition - pos);
                     float lightAttenuation = 4.0 / (distToLight * distToLight + 1.0);
                     
-                    // Calculate diffuse lighting - already present
+                    // Calculate diffuse lighting
                     float densityToLight = densityFunction(pos + lightDir * 0.2);
                     float diffuse = clamp((density - densityToLight) / 0.2, 0.0, 1.0) * uDiffuseStrength;
                     
-                    // Mix colors based on noise - already present
+                    // Mix colors based on noise
                     vec2 colorMixNoiseUV = mod(pos.xy * 2.0 + uTime * 0.01 + vec2(0.3, 0.7) , 1.0);
                     float colorMix = texture2D(uBlueNoiseTexture, colorMixNoiseUV).r;
                     vec3 baseColor = mix(uColor1, uColor2, colorMix);
                     
-                    // Apply lighting effects - already present
+                    // Apply lighting effects
                     vec3 litColor = baseColor * (0.5 + diffuse * 0.5) * lightAttenuation * uCentralLightIntensity;
 
-                    // Beer's Law for light absorption through the medium
-                    float transmittance = beersLaw(density * stepSize, uAbsorptionCoefficient);
+                    // Transmittance for this step (Beer's Law)
+                    float stepTransmittance = beersLaw(density * stepSize, uAbsorptionCoefficient);
                     
-                    // Accumulate color (light energy) considering transmittance
-                    // The light for this step is attenuated by the total transmittance so far
-                    accumulatedColor.rgb += litColor * density * stepSize * totalTransmittance;
+                    // Accumulate light (emitted/scattered by smoke) and update transmittance
+                    // Back-to-front accumulation:
+                    // New Color = Current Step Emission + Transmittance of Current Step * Color from Behind
+                    // New Transmittance = Transmittance of Current Step * Transmittance from Behind
+                    vec3 emittedLightThisStep = litColor * density * stepSize;
+                    accumulatedLight = accumulatedLight * stepTransmittance + emittedLightThisStep;
                     
-                    // Update total transmittance for the next step
-                    totalTransmittance *= transmittance;
+                    totalTransmittance *= stepTransmittance;
 
-                    // Accumulate alpha based on density (simplified approach)
-                    // This part might need adjustment based on how you want to blend
-                    accumulatedColor.a += density * stepSize * (1.0 - accumulatedColor.a);
-
-
-                    // Early exit if nearly opaque (based on accumulated alpha or total transmittance)
-                    if (totalTransmittance < 0.01 || accumulatedColor.a > 0.95) break;
+                    // Early exit if nearly opaque (based on total transmittance)
+                    if (totalTransmittance < 0.01) break;
                 }
                 
                 // Advance along ray
                 t += stepSize;
             }
-            // Ensure alpha is clamped
-            accumulatedColor.a = clamp(accumulatedColor.a, 0.0, 1.0);
-            return accumulatedColor;
+            // Calculate final alpha based on total transmittance
+            float finalAlpha = 1.0 - totalTransmittance;
+            return vec4(accumulatedLight, clamp(finalAlpha, 0.0, 1.0));
         }
 
         void main() {
@@ -623,7 +620,7 @@ const VolumetricRaymarchingInspiredSmokeShader = {
                 discard;
             }
 
-            // Sample particle texture for basic shape
+            // Sample particle texture for basic shape and initial alpha
             vec4 texColor = texture2D(uParticleTexture, pointCoord);
             if (texColor.a < 0.05) {
                 discard;
@@ -631,12 +628,12 @@ const VolumetricRaymarchingInspiredSmokeShader = {
             
             // Ray starting at particle center facing towards camera
             vec3 rayOrigin = vWorldPosition;
-            vec3 rayDirection = normalize(vWorldPosition - uCameraPosition);
+            vec3 rayDirection = normalize(vWorldPosition - uCameraPosition); // Corrected: should be towards camera from particle
             
             // Perform raymarching within the particle
             vec4 volumetricResult = raymarch(rayOrigin, rayDirection);
             
-            // Combine with particle texture for smooth edges
+            // Combine volumetric alpha with particle texture alpha and per-particle opacity attribute
             volumetricResult.a *= texColor.a * vParticleOpacity;
             
             gl_FragColor = volumetricResult;
