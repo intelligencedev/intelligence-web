@@ -40,7 +40,7 @@ const galaxyGroup = new THREE.Group();
 scene.add(galaxyGroup);
 
 const controlParams = {
-    rotationSpeed: 5e-4
+    rotationSpeed: 1e-3
 };
 
 // Add time tracking for continuous animation
@@ -51,9 +51,9 @@ const galaxyParams = {
     numStars: 70000,
     starSize: 0.02,
     galacticRadius: 6,
-    spiralArms: 1,
+    spiralArms: 2,
     coreRadius: 0.10,
-    numNebulaParticles: 30000,
+    numNebulaParticles: 20000,
     numSmokeParticles: 20000,
     smokeParticleSize: 0.90,
     smokeColor1: new THREE.Color(0x101025).multiplyScalar(1.5), // Example: Brighten smoke colors
@@ -64,7 +64,7 @@ const galaxyParams = {
     godRaysIntensity: 0.33,
     sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
     anisotropyG: 0.1,
-    centralLightIntensity: 0.4 // This might also need adjustment depending on desired effect
+    centralLightIntensity: 0.4
 };
 
 function getRandomColorInRange(range) {
@@ -399,7 +399,7 @@ function getClusterInfluence(position, clusters) {
 // --- NEW: Volumetric Raymarching Inspired Smoke Shader ---
 const VolumetricRaymarchingInspiredSmokeShader = {
     uniforms: {
-        uTime: { value: 0.0 },
+        uTime: { value: 0.0 }, // Renamed from time to uTime
         uColor1: { value: galaxyParams.smokeColor1 },
         uColor2: { value: galaxyParams.smokeColor2 },
         uSize: { value: galaxyParams.smokeParticleSize },
@@ -412,18 +412,20 @@ const VolumetricRaymarchingInspiredSmokeShader = {
         uDensityFactor: { value: galaxyParams.smokeDensityFactor },
         uMarchSteps: { value: galaxyParams.smokeMarchSteps },
         uDiffuseStrength: { value: galaxyParams.smokeDiffuseStrength },
-        time: { value: 0 },
-        rotationSpeed: { value: 0.1 }
+        // time: { value: 0 }, // Removed duplicate time uniform
+        rotationSpeed: { value: 0.1 },
+        uAbsorptionCoefficient: { value: 0.9 } // Added for Beer's Law
     },
     vertexShader: `
         uniform float uSize;
-        uniform float time;          // Time for rotation
+        uniform float uTime;          // Renamed from time to uTime
         uniform float rotationSpeed; // Rotation speed
         
         attribute float aParticleSize;
         attribute float aParticleOpacity;
         attribute float angle;       // Original angle attribute
         attribute float radius;      // Original radius attribute
+        attribute float speed;       // Added speed attribute
         
         varying vec3 vWorldPosition;
         varying float vParticleOpacity;
@@ -432,8 +434,8 @@ const VolumetricRaymarchingInspiredSmokeShader = {
 
         void main() {
             // Apply rotation similar to the rotationShader
-            float wrappedTime = mod(time, 1000.0);
-            float rotationAngle = angle + wrappedTime * rotationSpeed;
+            float wrappedTime = mod(uTime, 1000.0); // Use uTime
+            float rotationAngle = angle + wrappedTime * rotationSpeed * speed; // Use speed attribute
             
             // Create rotated position
             vec3 rotatedPosition = vec3(
@@ -471,6 +473,7 @@ const VolumetricRaymarchingInspiredSmokeShader = {
         uniform int uMarchSteps;
         uniform float uDiffuseStrength;
         uniform sampler2D uBlueNoiseTexture; // Added blue noise texture uniform
+        uniform float uAbsorptionCoefficient; // Added for Beer's Law
 
         varying vec3 vWorldPosition;
         varying float vParticleOpacity;
@@ -526,6 +529,11 @@ const VolumetricRaymarchingInspiredSmokeShader = {
             return length(p) - radius;
         }
         
+        // Beer's Law function
+        float beersLaw(float dist, float absorption) {
+            return exp(-dist * absorption);
+        }
+
         // Density function that combines SDF and noise
         float densityFunction(vec3 p) {
             // Transform from world to local particle space
@@ -549,7 +557,8 @@ const VolumetricRaymarchingInspiredSmokeShader = {
             float stepSize = 1.0 / float(uMarchSteps);
             vec3 lightDir = normalize(uCentralLightPosition - vWorldPosition);
             
-            vec4 result = vec4(0.0);
+            vec4 accumulatedColor = vec4(0.0); // Changed from 'result' to 'accumulatedColor'
+            float totalTransmittance = 1.0;
             float t = -0.5; // Start inside the volume
             
             for (int i = 0; i < 32; i++) { // Hard-code max steps for compatibility
@@ -562,39 +571,47 @@ const VolumetricRaymarchingInspiredSmokeShader = {
                 float density = max(0.0, densityFunction(pos));
                 
                 if (density > 0.0) {
-                    // Distance to central light affects lighting
+                    // Distance to central light affects lighting - already present
                     float distToLight = length(uCentralLightPosition - pos);
                     float lightAttenuation = 4.0 / (distToLight * distToLight + 1.0);
                     
-                    // Calculate diffuse lighting
-                    // Compare density at current point vs. point slightly offset toward light
+                    // Calculate diffuse lighting - already present
                     float densityToLight = densityFunction(pos + lightDir * 0.2);
                     float diffuse = clamp((density - densityToLight) / 0.2, 0.0, 1.0) * uDiffuseStrength;
                     
-                    // Mix colors based on noise
-                    // float colorMix = fbm(pos * 2.0, 2); // Old line
-                    // Sample blue noise texture for color mixing, animate with uTime and offset
+                    // Mix colors based on noise - already present
                     vec2 colorMixNoiseUV = mod(pos.xy * 2.0 + uTime * 0.01 + vec2(0.3, 0.7) , 1.0);
                     float colorMix = texture2D(uBlueNoiseTexture, colorMixNoiseUV).r;
-                    vec3 color = mix(uColor1, uColor2, colorMix);
+                    vec3 baseColor = mix(uColor1, uColor2, colorMix);
                     
-                    // Apply lighting effects
-                    vec3 lit = color * (0.5 + diffuse * 0.5) * lightAttenuation * uCentralLightIntensity;
+                    // Apply lighting effects - already present
+                    vec3 litColor = baseColor * (0.5 + diffuse * 0.5) * lightAttenuation * uCentralLightIntensity;
+
+                    // Beer's Law for light absorption through the medium
+                    float transmittance = beersLaw(density * stepSize, uAbsorptionCoefficient);
                     
-                    // Accumulate color and opacity
-                    vec4 newSample = vec4(lit, density * 0.15);
-                    newSample.rgb *= newSample.a;
-                    result += newSample * (1.0 - result.a);
+                    // Accumulate color (light energy) considering transmittance
+                    // The light for this step is attenuated by the total transmittance so far
+                    accumulatedColor.rgb += litColor * density * stepSize * totalTransmittance;
                     
-                    // Early exit if nearly opaque
-                    if (result.a > 0.95) break;
+                    // Update total transmittance for the next step
+                    totalTransmittance *= transmittance;
+
+                    // Accumulate alpha based on density (simplified approach)
+                    // This part might need adjustment based on how you want to blend
+                    accumulatedColor.a += density * stepSize * (1.0 - accumulatedColor.a);
+
+
+                    // Early exit if nearly opaque (based on accumulated alpha or total transmittance)
+                    if (totalTransmittance < 0.01 || accumulatedColor.a > 0.95) break;
                 }
                 
                 // Advance along ray
                 t += stepSize;
             }
-            
-            return result;
+            // Ensure alpha is clamped
+            accumulatedColor.a = clamp(accumulatedColor.a, 0.0, 1.0);
+            return accumulatedColor;
         }
 
         void main() {
@@ -635,6 +652,7 @@ function generateVolumetricSmoke() {
     const opacities = []; // For individual particle opacity variation
     const angles = []; // For rotation
     const radii = []; // For rotation
+    const speeds = []; // Added for individual speed variation
 
     let attempts = 0;
     const maxAttempts = galaxyParams.numSmokeParticles * 20; // Increased attempts for better distribution
@@ -695,6 +713,7 @@ function generateVolumetricSmoke() {
             positions.push(x, y, z);
             angles.push(angle);
             radii.push(radius);
+            speeds.push(0.5 + Math.random() * 0.8); // Add random speed
 
             const t = Math.random();
             const color = new THREE.Color().lerpColors(galaxyParams.smokeColor1, galaxyParams.smokeColor2, t);
@@ -720,6 +739,7 @@ function generateVolumetricSmoke() {
     geometry.setAttribute('aParticleOpacity', new THREE.Float32BufferAttribute(opacities, 1));
     geometry.setAttribute('angle', new THREE.Float32BufferAttribute(angles, 1)); 
     geometry.setAttribute('radius', new THREE.Float32BufferAttribute(radii, 1));
+    geometry.setAttribute('speed', new THREE.Float32BufferAttribute(speeds, 1)); // Set speed attribute
 
     const material = new THREE.ShaderMaterial({
         uniforms: VolumetricRaymarchingInspiredSmokeShader.uniforms,
