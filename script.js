@@ -554,6 +554,15 @@ function setupInstancedStars() {
 // Call the new setup function
 setupInstancedStars();
 
+// Debug: Log orbital periods for different radii to verify Keplerian motion
+console.log("Orbital Motion Debug:");
+const GM = 4.3e-6;
+for (let r = 0.5; r <= 4.0; r += 0.5) {
+    const omega = Math.sqrt(GM / Math.pow(r, 3.0));
+    const period = 2.0 * Math.PI / omega;
+    console.log(`r=${r.toFixed(1)} kpc: ω=${omega.toFixed(4)} rad/s, period=${period.toFixed(2)} s`);
+}
+
 // Generate cluster centers before density texture setup
 sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms);
 
