@@ -134,40 +134,39 @@ window.galaxyParams = {
 // --- START: GPU Instanced Stars ---
 
 const starVertexShader = `
-    attribute vec3 initPos;       // Initial position of the star (center of the quad)
+    uniform float GM;
+    attribute vec3 initPos;       // (r, theta0, z) for circular orbit
     attribute vec3 instanceColor; // Color of the star
     attribute float instanceSize;  // Size of the star
 
-    uniform float uTime;           // Combined globalTime * effective rotationSpeed
-    uniform float coreRadiusUniform; // To pass galaxyParams.coreRadius
+    uniform float uTime;
+    uniform float timeScale;
+    uniform float coreRadiusUniform;
 
     varying vec3 vColor;
-    varying vec2 vUv;              // UV for the texture on the quad (from PlaneGeometry's uv attribute)
+    varying vec2 vUv;
 
-    float angularVel(float r_val, float core_r_uniform) {
-        if (r_val < core_r_uniform * 0.75) {
-            return 5.0; 
-        } else if (r_val < core_r_uniform * 2.0) {
-            return mix(5.0, 1.0, smoothstep(core_r_uniform * 0.75, core_r_uniform * 2.0, r_val));
-        } else { 
-            return 1.0 / (r_val * 0.5 + 0.2); 
-        }
+    // Keplerian angular velocity
+    float angularVel(float r) { 
+        // Add safety check to prevent division by zero
+        if (r < 0.01) r = 0.01;
+        return sqrt(GM / pow(r, 3.0)); 
     }
 
     void main() {
         vColor = instanceColor;
-        vUv = uv; // 'uv' is the attribute from the PlaneGeometry of the quad
+        vUv = uv;
 
-        float r = length(initPos.xy); 
+        float r = initPos.x;
+        float baseAngle = initPos.y;
         
-        float currentAngularOffset = angularVel(r, coreRadiusUniform) * uTime;
-        float baseAngle = atan(initPos.y, initPos.x); 
-        float theta = baseAngle + currentAngularOffset; 
+        // Simple test: constant rotation
+        float theta = baseAngle + uTime * 2.0;
 
         vec3 rotatedWorldPos = vec3(r * cos(theta), r * sin(theta), initPos.z);
 
         vec4 mvPosition = modelViewMatrix * vec4(rotatedWorldPos, 1.0);
-        mvPosition.xy += position.xy * instanceSize; 
+        mvPosition.xy += position.xy * instanceSize;
 
         gl_Position = projectionMatrix * mvPosition;
     }
@@ -455,8 +454,10 @@ function setupInstancedStars() {
 
     const starMaterial = new THREE.ShaderMaterial({
         uniforms: {
+            GM: { value: 10000.0 },
             uTime: { value: 0.0 },
-            starTexture: { value: createCircularGradientTexture() }, 
+            timeScale: { value: 10.0 },
+            starTexture: { value: createCircularGradientTexture() },
             coreRadiusUniform: { value: galaxyParams.coreRadius }
         },
         vertexShader: starVertexShader,
@@ -465,6 +466,10 @@ function setupInstancedStars() {
         blending: THREE.AdditiveBlending, 
         depthWrite: false 
     });
+
+    // Check for shader compilation errors
+    starMaterial.needsUpdate = true;
+    console.log('Star material created:', starMaterial);
 
     starField = new THREE.InstancedMesh(starGeo, starMaterial, numStars);
 
@@ -511,8 +516,10 @@ function setupInstancedStars() {
             const z_rand = (Math.random() + Math.random() + Math.random() + Math.random() - 2) / 2; 
             z_pos = z_rand * (0.03 * galaxyParams.galacticRadius) * (1 - (r_disk / galaxyParams.galacticRadius) * 0.7); 
         }
-        initPositions[i * 3 + 0] = x_pos;
-        initPositions[i * 3 + 1] = y_pos;
+        const r_val = Math.sqrt(x_pos * x_pos + y_pos * y_pos);
+        const theta0 = Math.atan2(y_pos, x_pos);
+        initPositions[i * 3] = r_val;
+        initPositions[i * 3 + 1] = theta0;
         initPositions[i * 3 + 2] = z_pos;
 
         const colorObj = generateStarColorWithLuminosity(starType.colorRange, starType.luminosityRange);
@@ -951,7 +958,7 @@ function animate() {
 
     // Update shader uniforms that change each frame
     if (starField) {
-        starField.material.uniforms.uTime.value = globalTime * controlParams.rotationSpeed;
+        starField.material.uniforms.uTime.value = globalTime;
     }
 
     if (smokePass) {
