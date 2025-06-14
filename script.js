@@ -163,10 +163,10 @@ const starVertexShader = `
         float r = initPos.x;
         float theta0 = initPos.y;
         
-        // Physics-driven orbital motion: θ = θ₀ + ω·time
+        // Physics-driven orbital motion: θ = θ₀ - ω·time (clockwise rotation)
         // where ω = angularVel(r) is the Keplerian angular velocity
         float omega = angularVel(r);
-        float theta = theta0 + omega * uTime * timeScale;
+        float theta = theta0 - omega * uTime * timeScale;
 
         vec3 rotatedWorldPos = vec3(r * cos(theta), r * sin(theta), initPos.z);
 
