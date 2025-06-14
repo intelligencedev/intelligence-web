@@ -1,14 +1,14 @@
 const starTypes = [
-    { type: "O-type", colorRange: { min: [0.2, 0.2, 0.9], max: [0.4, 0.4, 1] } },
-    { type: "B-type", colorRange: { min: [0.6, 0.7, 1], max: [0.8, 0.9, 1] } },
-    { type: "A-type", colorRange: { min: [0.8, 0.8, 0.95], max: [0.9, 0.9, 1] } },
-    { type: "F-type", colorRange: { min: [0.95, 0.95, 0.8], max: [1, 1, 0.9] } },
-    { type: "G-type", colorRange: { min: [1, 0.95, 0.7], max: [1, 1, 0.8] } },
-    { type: "K-type", colorRange: { min: [1, 0.6, 0.4], max: [1, 0.8, 0.6] } },
-    { type: "M-type", colorRange: { min: [1, 0.3, 0.3], max: [1, 0.5, 0.5] } },
-    { type: "Red Giant", colorRange: { min: [1, 0.4, 0.2], max: [1, 0.6, 0.4] } },
-    { type: "White Dwarf", colorRange: { min: [0.7, 0.7, 0.9], max: [0.9, 0.9, 1] } },
-    { type: "Brown Dwarf", colorRange: { min: [0.3, 0.15, 0.1], max: [0.5, 0.3, 0.2] } }
+    { type: "O-type", colorRange: { min: [0.2, 0.2, 0.9], max: [0.4, 0.4, 1] }, luminosityRange: { min: 2.5, max: 5.0 } },
+    { type: "B-type", colorRange: { min: [0.6, 0.7, 1], max: [0.8, 0.9, 1] }, luminosityRange: { min: 2.0, max: 4.0 } },
+    { type: "A-type", colorRange: { min: [0.8, 0.8, 0.95], max: [0.9, 0.9, 1] }, luminosityRange: { min: 1.5, max: 2.5 } },
+    { type: "F-type", colorRange: { min: [0.95, 0.95, 0.8], max: [1, 1, 0.9] }, luminosityRange: { min: 1.2, max: 1.8 } },
+    { type: "G-type", colorRange: { min: [1, 0.95, 0.7], max: [1, 1, 0.8] }, luminosityRange: { min: 0.9, max: 1.3 } },
+    { type: "K-type", colorRange: { min: [1, 0.6, 0.4], max: [1, 0.8, 0.6] }, luminosityRange: { min: 0.6, max: 1.0 } },
+    { type: "M-type", colorRange: { min: [1, 0.3, 0.3], max: [1, 0.5, 0.5] }, luminosityRange: { min: 0.4, max: 0.7 } },
+    { type: "Red Giant", colorRange: { min: [1, 0.4, 0.2], max: [1, 0.6, 0.4] }, luminosityRange: { min: 2.0, max: 4.0 } },
+    { type: "White Dwarf", colorRange: { min: [0.7, 0.7, 0.9], max: [0.9, 0.9, 1] }, luminosityRange: { min: 0.8, max: 1.5 } },
+    { type: "Brown Dwarf", colorRange: { min: [0.3, 0.15, 0.1], max: [0.5, 0.3, 0.2] }, luminosityRange: { min: 0.1, max: 0.3 } }
 ];
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // Approx 137.5 degrees
@@ -67,14 +67,18 @@ const galaxyParams = {
     centralLightIntensity: 0.3
 };
 
-function getRandomColorInRange(range) {
-    const r = THREE.MathUtils.lerp(range.min[0], range.max[0], Math.random());
-    const g = THREE.MathUtils.lerp(range.min[1], range.max[1], Math.random());
-    const b = THREE.MathUtils.lerp(range.min[2], range.max[2], Math.random());
-    // For HDR, colors can exceed 1.0. Adjust multiplier as needed.
-    // For example, to make stars potentially brighter:
-    // return new THREE.Color(r, g, b).multiplyScalar(1.5); 
-    return new THREE.Color(r, g, b); // Keeping original for now, adjust if stars are too dim
+function generateStarColorWithLuminosity(colorRange, luminosityRange) {
+    const r = THREE.MathUtils.lerp(colorRange.min[0], colorRange.max[0], Math.random());
+    const g = THREE.MathUtils.lerp(colorRange.min[1], colorRange.max[1], Math.random());
+    const b = THREE.MathUtils.lerp(colorRange.min[2], colorRange.max[2], Math.random());
+    const baseColor = new THREE.Color(r, g, b);
+
+    // Apply luminosity multiplier
+    const luminosity = luminosityRange ?
+        THREE.MathUtils.lerp(luminosityRange.min, luminosityRange.max, Math.random()) :
+        1.0; // Default to 1.0 if no range provided
+
+    return baseColor.multiplyScalar(luminosity);
 }
 
 function createCircularGradientTexture() {
@@ -840,7 +844,8 @@ function generateGalaxyStars() {
             }
             
             const starType = starTypes[starTypeIndex];
-            const color = getRandomColorInRange(starType.colorRange);
+            // Use the new function to get color with luminosity
+            const color = generateStarColorWithLuminosity(starType.colorRange, starType.luminosityRange);
             colors.push(color.r, color.g, color.b);
         }
     }
@@ -1043,7 +1048,7 @@ for (let i = 0; i < 500; i++) {
     
     // Bright, hot stars in the core
     const coreStarType = starTypes[Math.floor(Math.random() * 10)]; // O, B, A types
-    const color = getRandomColorInRange(coreStarType.colorRange);
+    const color = generateStarColorWithLuminosity(coreStarType.colorRange, coreStarType.luminosityRange);
     coreStarsColors.push(color.r, color.g, color.b);
 }
 
@@ -1358,3 +1363,64 @@ function randomPointInEllipsoid(rx, ry, rz) {
         dir.z * magnitude * (rz / rx)  // Scale z to maintain ellipsoid aspect ratio
     );
 }
+
+// --- NEW: Function to generate the galactic core ---
+function generateGalaxyCore() {
+    const coreGeometry = new THREE.BufferGeometry();
+    const corePositions = [];
+    const coreColors = [];
+    const coreSizes = [];
+
+    const numCoreStars = 5000; // Number of stars in the core
+    const coreRadius = galaxyParams.coreRadius * 0.8; // Slightly smaller for a denser look
+
+    for (let i = 0; i < numCoreStars; i++) {
+        // Exponential distribution for higher density towards the center
+        const r = Math.pow(Math.random(), 2.5) * coreRadius;
+        const theta = Math.random() * 2 * Math.PI;
+        const phi = Math.acos(2 * Math.random() - 1); // Uniform spherical distribution
+
+        const x = r * Math.sin(phi) * Math.cos(theta);
+        const y = r * Math.sin(phi) * Math.sin(theta);
+        const z = r * Math.cos(phi);
+
+        corePositions.push(x, y, z);
+
+        // Core stars are generally hotter and more luminous
+        const coreStarTypeIndex = Math.floor(Math.random() * 3); // O, B, A types
+        const coreStarType = starTypes[coreStarTypeIndex];
+        // Use the new function name here
+        const color = generateStarColorWithLuminosity(coreStarType.colorRange, coreStarType.luminosityRange);
+        coreColors.push(color.r, color.g, color.b);
+
+        // Core stars can be slightly larger on average
+        coreSizes.push(galaxyParams.starSize * (1.0 + Math.random() * 0.5));
+    }
+
+    coreGeometry.setAttribute('position', new THREE.Float32BufferAttribute(corePositions, 3));
+    coreGeometry.setAttribute('color', new THREE.Float32BufferAttribute(coreColors, 3));
+    coreGeometry.setAttribute('size', new THREE.Float32BufferAttribute(coreSizes, 1)); // For custom sizes in shader
+
+    const coreMaterial = new THREE.PointsMaterial({
+        size: galaxyParams.starSize, // Base size, will be modulated by attribute
+        map: createCircularGradientTexture(),
+        vertexColors: true,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        // Optional: Use onBeforeCompile to customize size per particle if not using a custom shader
+        // For now, assuming a custom shader or that PointsMaterial handles 'size' attribute correctly
+    });
+
+    return new THREE.Points(coreGeometry, coreMaterial);
+}
+
+// --- INITIAL GALAXY SETUP ---
+// Generate shared cluster centers
+sharedGalaxyClusters = generateClusterCenters(35, galaxyParams.galacticRadius, galaxyParams.spiralArms);
+
+// Generate and add all components
+galaxyGroup.add(generateGalaxyStars());
+galaxyGroup.add(generateNebula());
+galaxyGroup.add(generateVolumetricSmoke());
+galaxyGroup.add(generateGalaxyCore());
