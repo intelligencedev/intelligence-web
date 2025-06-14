@@ -118,6 +118,12 @@ window.galaxyParams = {
     spiralArms: 2,
     coreRadius: 0.30,
     orbitalTimeScale: 10.0, // Time scaling factor for orbital motion
+    // Galaxy structure parameters
+    discScaleLength: 0.35, // h_r ≈ 0.35 R_gal
+    bulgeRadius: 0.2, // R < 0.2 R_gal
+    verticalScaleHeight: 0.06, // h_z ≈ 0.06 R_gal
+    spiralPitchAngle: 13.0, // degrees (12°-14°)
+    clusterInfluence: 0.20, // 20% of stars snap to clusters
     numNebulaParticles: 20000,
     numSmokeParticles: 20000,
     smokeParticleSize: 0.90,
@@ -478,61 +484,31 @@ function setupInstancedStars() {
 
     starField = new THREE.InstancedMesh(starGeo, starMaterial, numStars);
 
+    // Generate stars using accurate galaxy structure
+    const starData = generateAccurateGalaxyStars(numStars, galaxyParams, sharedGalaxyClusters || []);
+    
     const initPositions = new Float32Array(numStars * 3);
     const instanceColors = new Float32Array(numStars * 3);
     const instanceSizes = new Float32Array(numStars * 1);
     const tempColor = new THREE.Color();
 
     for (let i = 0; i < numStars; i++) {
-        const starTypeIndex = Math.floor(Math.random() * starTypes.length);
-        const starType = starTypes[starTypeIndex];
+        const star = starData[i];
+        const starType = starTypes[star.stellarType];
+        
+        // Store (r, theta, z) directly from accurate generation
+        initPositions[i * 3] = star.r;
+        initPositions[i * 3 + 1] = star.theta;
+        initPositions[i * 3 + 2] = star.z;
 
-        let x_pos, y_pos, z_pos;
-        const r_dist = Math.random(); 
-        const isInBulge = Math.random() < 0.20 && galaxyParams.coreRadius > 0.01;
-
-        if (isInBulge) {
-            const radius = Math.pow(Math.random(), 1.5) * galaxyParams.coreRadius;
-            const u = Math.random(); 
-            const v = Math.random(); 
-            const theta_bulge = 2 * Math.PI * u; 
-            const phi_bulge = Math.acos(2 * v - 1); 
-
-            x_pos = radius * Math.sin(phi_bulge) * Math.cos(theta_bulge);
-            y_pos = radius * Math.sin(phi_bulge) * Math.sin(theta_bulge);
-            z_pos = radius * Math.cos(phi_bulge) * 0.6; 
-        } else {
-            const armIndex = Math.floor(Math.random() * galaxyParams.spiralArms);
-            const angleOffsetPerArm = (Math.PI * 2) / galaxyParams.spiralArms;
-            const baseAngleForArm = armIndex * angleOffsetPerArm;
-
-            let r_disk = galaxyParams.coreRadius + Math.pow(r_dist, 1.8) * (galaxyParams.galacticRadius - galaxyParams.coreRadius);
-            r_disk = Math.min(r_disk, galaxyParams.galacticRadius); 
-
-            const spiralTightness = 2.5; 
-            const armSpread = 0.35; 
-            
-            let theta_disk = baseAngleForArm + (r_disk / galaxyParams.galacticRadius) * spiralTightness * Math.PI;
-            theta_disk += (Math.random() - 0.5) * armSpread * (galaxyParams.galacticRadius / (r_disk + 0.1)); 
-
-            x_pos = r_disk * Math.cos(theta_disk);
-            y_pos = r_disk * Math.sin(theta_disk);
-            
-            const z_rand = (Math.random() + Math.random() + Math.random() + Math.random() - 2) / 2; 
-            z_pos = z_rand * (0.03 * galaxyParams.galacticRadius) * (1 - (r_disk / galaxyParams.galacticRadius) * 0.7); 
-        }
-        const r_val = Math.sqrt(x_pos * x_pos + y_pos * y_pos);
-        const theta0 = Math.atan2(y_pos, x_pos);
-        initPositions[i * 3] = r_val;
-        initPositions[i * 3 + 1] = theta0;
-        initPositions[i * 3 + 2] = z_pos;
-
+        // Generate color based on stellar type
         const colorObj = generateStarColorWithLuminosity(starType.colorRange, starType.luminosityRange);
         tempColor.set(colorObj); 
         instanceColors[i * 3 + 0] = tempColor.r;
         instanceColors[i * 3 + 1] = tempColor.g;
         instanceColors[i * 3 + 2] = tempColor.b;
 
+        // Generate size based on stellar type and luminosity
         const luminosity = THREE.MathUtils.lerp(starType.luminosityRange.min, starType.luminosityRange.max, Math.random());
         let sizeFactor = 0.3 + luminosity * 0.25; 
         if (starType.type === "Red Giant") sizeFactor *= 2.0;
@@ -540,7 +516,7 @@ function setupInstancedStars() {
         else if (starType.type === "O-type" || starType.type === "B-type") sizeFactor *= 1.3;
         
         sizeFactor = Math.max(0.15, Math.min(sizeFactor, 3.0)); 
-        instanceSizes[i] = galaxyParams.starSize * sizeFactor * 15;                                                           
+        instanceSizes[i] = galaxyParams.starSize * sizeFactor * 15;
     }
 
     starField.geometry.setAttribute('initPos', new THREE.InstancedBufferAttribute(initPositions, 3));
@@ -548,7 +524,7 @@ function setupInstancedStars() {
     starField.geometry.setAttribute('instanceSize', new THREE.InstancedBufferAttribute(instanceSizes, 1));
     
     galaxyGroup.add(starField);
-    console.log("Instanced stars setup complete.");
+    console.log("Accurate galaxy structure stars setup complete.");
 }
 
 // Call the new setup function
@@ -788,7 +764,193 @@ function fractalNoise3D(vec, octaves = 4, scale = 0.1) {
     return (noiseVal + 1.0) * 0.5; // Remap from approx [-1, 1] to [0, 1]
 }
 
-// --- NEW: Advanced Clustering Functions ---
+// --- NEW: Accurate Galaxy Structure Functions ---
+
+// Exponential disc surface density: Σ(r) = Σ₀ · e^(-r/h_r)
+function exponentialDiscDensity(r, scaleLength) {
+    return Math.exp(-r / scaleLength);
+}
+
+// Sersic profile for bulge (n ≈ 2)
+function sersicProfile(r, effectiveRadius, sersicIndex = 2.0) {
+    const bn = 2.0 * sersicIndex - 1.0/3.0; // Approximation for n=2
+    const x = r / effectiveRadius;
+    return Math.exp(-bn * (Math.pow(x, 1.0/sersicIndex) - 1.0));
+}
+
+// Vertical density profile: ρ(z) = ρ₀ · e^(-|z|/h_z)
+function verticalDensity(z, scaleHeight) {
+    return Math.exp(-Math.abs(z) / scaleHeight);
+}
+
+// Logarithmic spiral arms: r = a · e^(b·θ) with pitch angle
+function spiralArmRadius(theta, armIndex, pitchAngleDeg, numArms, baseRadius = 0.5) {
+    const pitchAngleRad = (pitchAngleDeg * Math.PI) / 180.0;
+    const b = Math.tan(pitchAngleRad);
+    const armOffset = (armIndex * 2.0 * Math.PI) / numArms;
+    const adjustedTheta = theta - armOffset;
+    return baseRadius * Math.exp(b * adjustedTheta);
+}
+
+// Combined surface density including spiral arms
+function galaxySurfaceDensity(r, theta, params) {
+    const discDensity = exponentialDiscDensity(r, params.discScaleLength * params.galacticRadius);
+    
+    // Bulge contribution (Sersic profile)
+    const bulgeDensity = r < (params.bulgeRadius * params.galacticRadius) ? 
+        sersicProfile(r, params.bulgeRadius * params.galacticRadius * 0.5) : 0.0;
+    
+    // Spiral arm enhancement
+    let spiralEnhancement = 1.0;
+    const armWidth = 0.3; // Arm width parameter
+    
+    for (let arm = 0; arm < params.spiralArms; arm++) {
+        const expectedR = spiralArmRadius(theta, arm, params.spiralPitchAngle, params.spiralArms);
+        const armDistance = Math.abs(r - expectedR);
+        const armFactor = Math.exp(-Math.pow(armDistance / armWidth, 2.0));
+        spiralEnhancement += 2.0 * armFactor; // Arms are 3x denser
+    }
+    
+    return (discDensity + 3.0 * bulgeDensity) * spiralEnhancement;
+}
+
+// Generate star positions using accurate galaxy structure
+function generateAccurateGalaxyStars(numStars, params, clusters) {
+    const stars = [];
+    const clusterSnapCount = Math.floor(numStars * params.clusterInfluence);
+    
+    // Pre-compute cumulative distribution for radius sampling
+    const radiusSamples = 1000;
+    const cumulativeProb = new Float32Array(radiusSamples);
+    let totalDensity = 0;
+    
+    for (let i = 0; i < radiusSamples; i++) {
+        const r = (i / radiusSamples) * params.galacticRadius;
+        const thetaSamples = 32;
+        let avgDensity = 0;
+        
+        for (let j = 0; j < thetaSamples; j++) {
+            const theta = (j / thetaSamples) * 2.0 * Math.PI;
+            avgDensity += galaxySurfaceDensity(r, theta, params);
+        }
+        avgDensity /= thetaSamples;
+        
+        // Weight by circumference (2πr) for proper sampling
+        const weightedDensity = avgDensity * r;
+        totalDensity += weightedDensity;
+        cumulativeProb[i] = totalDensity;
+    }
+    
+    // Normalize cumulative probability
+    for (let i = 0; i < radiusSamples; i++) {
+        cumulativeProb[i] /= totalDensity;
+    }
+    
+    console.log("Generating", numStars, "stars with accurate galaxy structure...");
+    
+    for (let i = 0; i < numStars; i++) {
+        let r, theta, z;
+        let stellarType;
+        
+        // Determine if this star snaps to a cluster
+        const snapToCluster = (i < clusterSnapCount) && clusters.length > 0;
+        
+        if (snapToCluster) {
+            // Snap to nearest cluster with Gaussian jitter
+            const cluster = clusters[Math.floor(Math.random() * clusters.length)];
+            const jitterScale = cluster.radius * 0.3;
+            
+            r = Math.sqrt(cluster.center.x * cluster.center.x + cluster.center.y * cluster.center.y);
+            r += (Math.random() - 0.5) * jitterScale;
+            r = Math.max(0.1, Math.min(r, params.galacticRadius));
+            
+            theta = Math.atan2(cluster.center.y, cluster.center.x);
+            theta += (Math.random() - 0.5) * 0.5; // Angular jitter
+            
+            z = cluster.center.z + (Math.random() - 0.5) * jitterScale * 0.5;
+        } else {
+            // Sample radius using inverse transform sampling
+            const u = Math.random();
+            let radiusIndex = 0;
+            for (let j = 0; j < radiusSamples - 1; j++) {
+                if (cumulativeProb[j] <= u && u < cumulativeProb[j + 1]) {
+                    radiusIndex = j;
+                    break;
+                }
+            }
+            r = (radiusIndex / radiusSamples) * params.galacticRadius;
+            
+            // Sample theta uniformly but with spiral arm bias
+            theta = Math.random() * 2.0 * Math.PI;
+            
+            // Add spiral arm bias to theta
+            const spiralBias = 0.3;
+            for (let arm = 0; arm < params.spiralArms; arm++) {
+                const expectedR = spiralArmRadius(theta, arm, params.spiralPitchAngle, params.spiralArms);
+                if (Math.abs(r - expectedR) < 0.5) {
+                    // Adjust theta slightly toward spiral arm
+                    const armTheta = Math.log(r / 0.5) / Math.tan((params.spiralPitchAngle * Math.PI) / 180.0);
+                    const armOffset = (arm * 2.0 * Math.PI) / params.spiralArms;
+                    const targetTheta = armTheta + armOffset;
+                    theta = theta * (1.0 - spiralBias) + targetTheta * spiralBias;
+                    break;
+                }
+            }
+            
+            // Sample z using exponential vertical profile
+            const scaleHeight = params.verticalScaleHeight * params.galacticRadius;
+            // Use Box-Muller transform for Gaussian, then scale by exponential
+            const u1 = Math.random();
+            const u2 = Math.random();
+            const gaussian = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+            z = gaussian * scaleHeight * 0.5; // Scale factor for thickness
+        }
+        
+        // Select stellar type based on galactic position
+        stellarType = selectStellarType(r, params);
+        
+        stars.push({
+            r: r,
+            theta: theta,
+            z: z,
+            stellarType: stellarType
+        });
+    }
+    
+    return stars;
+}
+
+// Select stellar type based on galactic position (metallicity gradient, etc.)
+function selectStellarType(r, params) {
+    const normalizedRadius = r / params.galacticRadius;
+    
+    // Inner galaxy: more metal-rich, younger stars (O, B, A types)
+    // Outer galaxy: more metal-poor, older stars (K, M types)
+    let typeWeights;
+    
+    if (normalizedRadius < 0.3) {
+        // Inner galaxy - young stellar population
+        typeWeights = [0.02, 0.08, 0.15, 0.20, 0.25, 0.15, 0.10, 0.03, 0.01, 0.01]; // Favor hot stars
+    } else if (normalizedRadius < 0.7) {
+        // Middle galaxy - mixed population  
+        typeWeights = [0.01, 0.05, 0.10, 0.15, 0.25, 0.20, 0.15, 0.05, 0.03, 0.01];
+    } else {
+        // Outer galaxy - old stellar population
+        typeWeights = [0.005, 0.02, 0.05, 0.10, 0.20, 0.25, 0.25, 0.08, 0.05, 0.02]; // Favor cool stars
+    }
+    
+    const random = Math.random();
+    let cumulative = 0;
+    for (let i = 0; i < typeWeights.length; i++) {
+        cumulative += typeWeights[i];
+        if (random < cumulative) {
+            return i;
+        }
+    }
+    return typeWeights.length - 1; // Fallback
+}
+
+// --- END: Accurate Galaxy Structure Functions ---
 function generateClusterCenters(numClusters, galacticRadius, spiralArms) {
     const clusters = [];
     
@@ -1007,8 +1169,15 @@ window.handleParamChange = function(key, val) {
         case 'galacticRadius':
         case 'spiralArms':
         case 'coreRadius':
-            // Rebuild star field
+        case 'discScaleLength':
+        case 'bulgeRadius':
+        case 'verticalScaleHeight':
+        case 'spiralPitchAngle':
+        case 'clusterInfluence':
+            // Rebuild star field for structural changes
             if (starField) galaxyGroup.remove(starField);
+            // Regenerate cluster centers if needed
+            sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms);
             setupInstancedStars();
             break;
         case 'orbitalTimeScale':
