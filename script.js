@@ -117,6 +117,7 @@ window.galaxyParams = {
     galacticRadius: 4,
     spiralArms: 2,
     coreRadius: 0.30,
+    orbitalTimeScale: 10.0, // Time scaling factor for orbital motion
     numNebulaParticles: 20000,
     numSmokeParticles: 20000,
     smokeParticleSize: 0.90,
@@ -146,7 +147,9 @@ const starVertexShader = `
     varying vec3 vColor;
     varying vec2 vUv;
 
-    // Keplerian angular velocity
+    #define PI 3.14159265359
+
+    // Keplerian angular velocity - physics-driven orbital motion
     float angularVel(float r) { 
         // Add safety check to prevent division by zero
         if (r < 0.01) r = 0.01;
@@ -158,10 +161,12 @@ const starVertexShader = `
         vUv = uv;
 
         float r = initPos.x;
-        float baseAngle = initPos.y;
+        float theta0 = initPos.y;
         
-        // Simple test: constant rotation (reversed direction)
-        float theta = baseAngle - uTime * 2.0;
+        // Physics-driven orbital motion: θ = θ₀ + ω·time
+        // where ω = angularVel(r) is the Keplerian angular velocity
+        float omega = angularVel(r);
+        float theta = theta0 + omega * uTime * timeScale;
 
         vec3 rotatedWorldPos = vec3(r * cos(theta), r * sin(theta), initPos.z);
 
@@ -454,9 +459,9 @@ function setupInstancedStars() {
 
     const starMaterial = new THREE.ShaderMaterial({
         uniforms: {
-            GM: { value: 10000.0 },
+            GM: { value: 4.3e-6 }, // Gravitational parameter for ~10^11 solar masses (kpc³ s⁻²)
             uTime: { value: 0.0 },
-            timeScale: { value: 10.0 },
+            timeScale: { value: galaxyParams.orbitalTimeScale }, // Time scaling factor from parameters
             starTexture: { value: createCircularGradientTexture() },
             coreRadiusUniform: { value: galaxyParams.coreRadius }
         },
@@ -996,6 +1001,11 @@ window.handleParamChange = function(key, val) {
             // Rebuild star field
             if (starField) galaxyGroup.remove(starField);
             setupInstancedStars();
+            break;
+        case 'orbitalTimeScale':
+            if (starField && starField.material && starField.material.uniforms) {
+                starField.material.uniforms.timeScale.value = val;
+            }
             break;
         case 'smokeDensityFactor':
             volumetricSmokeShader.uniforms.densityFactor.value = val;
