@@ -838,6 +838,25 @@ function getClusterInfluence(position, clusters) {
 // Update EffectComposer - declare composer here
 var composer;
 
+// const VolumePass = {
+//     uniforms: {
+//         tScene:   { value: null },
+//         tDensity: { value: null },
+//         cameraMat:{ value: new THREE.Matrix4() },
+//         invProj:  { value: new THREE.Matrix4() },
+//         sunPos:   { value: galaxyParams.sunPosition.clone() },
+//         g:        { value: galaxyParams.anisotropyG },
+//         sigmaS:   { value: galaxyParams.smokeDiffuseStrength },
+//         sigmaA:   { value: galaxyParams.smokeDensityFactor },
+//         stepSz:   { value: 1.0 / 128.0 },
+//         maxSteps: { value: galaxyParams.smokeMarchSteps }
+//     },
+//     vertexShader: `varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);}`,
+//     fragmentShader: volumetricSmokeShader.fragmentShader
+// };
+
+// --- NEW: Volumetric Raymarching Inspired Smoke Shader ---
+
 function setupPostProcessing() {
     // Initialize composer here
     composer = new THREE.EffectComposer(renderer);
@@ -882,6 +901,25 @@ function setupPostProcessing() {
 
 // setupPostProcessing(); // Moved to after density texture setup
 
+// NEW: VolumePass for full-screen raymarch
+const VolumePass = {
+    uniforms: {
+        tScene:   { value: null },        // Scene color buffer
+        tDensity: { value: null },        // 3D density texture
+        cameraMat:{ value: new THREE.Matrix4() },
+        invProj:  { value: new THREE.Matrix4() },
+        sunPos:   { value: new THREE.Vector3() },
+        g:        { value: galaxyParams.anisotropyG },    // Henyey–Greenstein g
+        sigmaS:   { value: galaxyParams.smokeDiffuseStrength },
+        sigmaA:   { value: galaxyParams.smokeDensityFactor },
+        stepSz:   { value: 1.0 / 64.0 },   // Default step size
+        maxSteps: { value: galaxyParams.smokeMarchSteps }
+    },
+    vertexShader: `varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);}`,
+    fragmentShader: volumetricSmokeShader.fragmentShader // reuse our existing raymarch code
+};
+
+// --- NEW: Volumetric Raymarching Inspired Smoke Shader ---
 
 function animate() {
     requestAnimationFrame(animate);
