@@ -151,9 +151,135 @@
     Camera: x: 0.00, y: 0.00, z: 0.00<br>Rotation: x: 0.00, y: 0.00, z: 0.00
   </div>
 
+  <!-- Parameters Button -->
+  <button id="parameters-button">Parameters</button>
+  <div id="parameters-menu">
+    <div class="parameter-section">
+      <div class="section-title">Galaxy Parameters</div>
+      <div class="parameter-row">
+        <label for="numStars">Stars</label>
+        <input type="range" id="numStars" min="100" max="10000" step="100" value="1000">
+        <span class="parameter-value" id="numStars-value">1000</span>
+      </div>
+      <div class="parameter-row">
+        <label for="starSize">Star Size</label>
+        <input type="range" id="starSize" min="0.005" max="0.1" step="0.001" value="0.02">
+        <span class="parameter-value" id="starSize-value">0.02</span>
+      </div>
+      <div class="parameter-row">
+        <label for="galacticRadius">Galactic Radius</label>
+        <input type="range" id="galacticRadius" min="1" max="10" step="0.01" value="4">
+        <span class="parameter-value" id="galacticRadius-value">4</span>
+      </div>
+      <div class="parameter-row">
+        <label for="spiralArms">Spiral Arms</label>
+        <input type="range" id="spiralArms" min="1" max="8" step="1" value="2">
+        <span class="parameter-value" id="spiralArms-value">2</span>
+      </div>
+      <div class="parameter-row">
+        <label for="coreRadius">Core Radius</label>
+        <input type="range" id="coreRadius" min="0.05" max="2" step="0.01" value="0.3">
+        <span class="parameter-value" id="coreRadius-value">0.3</span>
+      </div>
+      <div class="parameter-row">
+        <label for="numNebulaParticles">Nebula Particles</label>
+        <input type="range" id="numNebulaParticles" min="1000" max="50000" step="1000" value="20000">
+        <span class="parameter-value" id="numNebulaParticles-value">20000</span>
+      </div>
+      <div class="parameter-row">
+        <label for="numSmokeParticles">Smoke Particles</label>
+        <input type="range" id="numSmokeParticles" min="1000" max="50000" step="1000" value="20000">
+        <span class="parameter-value" id="numSmokeParticles-value">20000</span>
+      </div>
+      <div class="parameter-row">
+        <label for="smokeParticleSize">Smoke Particle Size</label>
+        <input type="range" id="smokeParticleSize" min="0.1" max="2" step="0.01" value="0.9">
+        <span class="parameter-value" id="smokeParticleSize-value">0.9</span>
+      </div>
+      <div class="parameter-row">
+        <label for="smokeDensityFactor">Smoke Density Factor</label>
+        <input type="range" id="smokeDensityFactor" min="0.1" max="10" step="0.01" value="5">
+        <span class="parameter-value" id="smokeDensityFactor-value">5</span>
+      </div>
+      <div class="parameter-row">
+        <label for="smokeMarchSteps">Smoke March Steps</label>
+        <input type="range" id="smokeMarchSteps" min="1" max="64" step="1" value="6">
+        <span class="parameter-value" id="smokeMarchSteps-value">6</span>
+      </div>
+      <div class="parameter-row">
+        <label for="smokeDiffuseStrength">Smoke Diffuse Strength</label>
+        <input type="range" id="smokeDiffuseStrength" min="0.1" max="20" step="0.1" value="9">
+        <span class="parameter-value" id="smokeDiffuseStrength-value">9</span>
+      </div>
+      <div class="parameter-row">
+        <label for="godRaysIntensity">God Rays Intensity</label>
+        <input type="range" id="godRaysIntensity" min="0" max="2" step="0.01" value="0.33">
+        <span class="parameter-value" id="godRaysIntensity-value">0.33</span>
+      </div>
+      <div class="parameter-row">
+        <label for="anisotropyG">Anisotropy G</label>
+        <input type="range" id="anisotropyG" min="-1" max="1" step="0.01" value="0.1">
+        <span class="parameter-value" id="anisotropyG-value">0.1</span>
+      </div>
+      <div class="parameter-row">
+        <label for="centralLightIntensity">Central Light Intensity</label>
+        <input type="range" id="centralLightIntensity" min="0" max="2" step="0.01" value="0.3">
+        <span class="parameter-value" id="centralLightIntensity-value">0.3</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Load Three.js and additional scripts for post-processing -->
   <script type="module" src="script.js"></script>
+  <script>
+    // Parameter menu toggle
+    const paramBtn = document.getElementById('parameters-button');
+    const paramMenu = document.getElementById('parameters-menu');
+    paramBtn.addEventListener('click', () => {
+      paramMenu.style.display = paramMenu.style.display === 'block' ? 'none' : 'block';
+    });
 
+    // Slider bindings for galaxyParams
+    const paramDefs = [
+      { id: 'numStars', key: 'numStars', type: 'int' },
+      { id: 'starSize', key: 'starSize', type: 'float' },
+      { id: 'galacticRadius', key: 'galacticRadius', type: 'float' },
+      { id: 'spiralArms', key: 'spiralArms', type: 'int' },
+      { id: 'coreRadius', key: 'coreRadius', type: 'float' },
+      { id: 'numNebulaParticles', key: 'numNebulaParticles', type: 'int' },
+      { id: 'numSmokeParticles', key: 'numSmokeParticles', type: 'int' },
+      { id: 'smokeParticleSize', key: 'smokeParticleSize', type: 'float' },
+      { id: 'smokeDensityFactor', key: 'smokeDensityFactor', type: 'float' },
+      { id: 'smokeMarchSteps', key: 'smokeMarchSteps', type: 'int' },
+      { id: 'smokeDiffuseStrength', key: 'smokeDiffuseStrength', type: 'float' },
+      { id: 'godRaysIntensity', key: 'godRaysIntensity', type: 'float' },
+      { id: 'anisotropyG', key: 'anisotropyG', type: 'float' },
+      { id: 'centralLightIntensity', key: 'centralLightIntensity', type: 'float' },
+    ];
+
+    // Wait for script.js to load and galaxyParams to be available
+    function updateSliderBindings() {
+      if (typeof window.galaxyParams === 'undefined') {
+        setTimeout(updateSliderBindings, 100);
+        return;
+      }
+      paramDefs.forEach(def => {
+        const slider = document.getElementById(def.id);
+        const valueSpan = document.getElementById(def.id + '-value');
+        if (!slider || !valueSpan) return;
+        slider.addEventListener('input', e => {
+          let val = def.type === 'int' ? parseInt(e.target.value) : parseFloat(e.target.value);
+          window.galaxyParams[def.key] = val;
+          valueSpan.textContent = val;
+          if (window.handleParamChange) window.handleParamChange(def.key, val);
+        });
+      });
+    }
+    // Expose galaxyParams for menu
+    window.addEventListener('DOMContentLoaded', () => {
+      updateSliderBindings();
+    });
+  </script>
 </body>
 
 </html>

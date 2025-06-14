@@ -64,21 +64,32 @@ function createBlueNoiseTexture() {
     return texture;
 }
 
+// Create a procedural blue noise texture as fallback
+const proceduralBlueNoiseTexture = createBlueNoiseTexture();
+let blueNoiseTexture = proceduralBlueNoiseTexture; // Default to procedural
+
 // Try to load BlueNoise470.png, fallback to procedural texture
-const blueNoiseTexture = new THREE.TextureLoader().load(
+new THREE.TextureLoader().load(
     'BlueNoise470.png',
-    undefined, // onLoad
+    function(loadedTexture) {
+        blueNoiseTexture = loadedTexture;
+        blueNoiseTexture.wrapS = THREE.RepeatWrapping;
+        blueNoiseTexture.wrapT = THREE.RepeatWrapping;
+        blueNoiseTexture.needsUpdate = true;
+        // If smokePass already exists, update its uniform
+        if (smokePass && smokePass.uniforms && smokePass.uniforms.noiseTexture) {
+            smokePass.uniforms.noiseTexture.value = blueNoiseTexture;
+        }
+    },
     undefined, // onProgress
     function(error) {
         console.warn('Failed to load BlueNoise470.png, using procedural fallback:', error);
-        // Replace with procedural texture
-        const proceduralTexture = createBlueNoiseTexture();
-        blueNoiseTexture.image = proceduralTexture.image;
-        blueNoiseTexture.needsUpdate = true;
+        // blueNoiseTexture is already set to proceduralBlueNoiseTexture
     }
 );
 blueNoiseTexture.wrapS = THREE.RepeatWrapping;
 blueNoiseTexture.wrapT = THREE.RepeatWrapping;
+blueNoiseTexture.needsUpdate = true;
 
 camera.position.set(0.52, -7.77, 1.51);
 camera.rotation.set(THREE.MathUtils.degToRad(79.0), THREE.MathUtils.degToRad(3.9), THREE.MathUtils.degToRad(-18.7)); // Converted to radians
@@ -100,12 +111,12 @@ const controlParams = {
 let globalTime = 0;
 let lastFrameTime = performance.now(); // Initialize lastFrameTime
 
-const galaxyParams = {
-    numStars: 70000,
+window.galaxyParams = {
+    numStars: 1000,
     starSize: 0.02,
-    galacticRadius: 6,
+    galacticRadius: 4,
     spiralArms: 2,
-    coreRadius: 0.10,
+    coreRadius: 0.30,
     numNebulaParticles: 20000,
     numSmokeParticles: 20000,
     smokeParticleSize: 0.90,
@@ -967,6 +978,40 @@ function animate() {
 }
 animate();
 
+// Runtime parameter update handler
+window.handleParamChange = function(key, val) {
+    switch(key) {
+        case 'numStars':
+        case 'starSize':
+        case 'galacticRadius':
+        case 'spiralArms':
+        case 'coreRadius':
+            // Rebuild star field
+            if (starField) galaxyGroup.remove(starField);
+            setupInstancedStars();
+            break;
+        case 'smokeDensityFactor':
+            volumetricSmokeShader.uniforms.densityFactor.value = val;
+            break;
+        case 'smokeMarchSteps':
+            volumetricSmokeShader.uniforms.steps.value = val;
+            break;
+        case 'smokeDiffuseStrength':
+            volumetricSmokeShader.uniforms.scatteringCoefficient.value = val;
+            break;
+        case 'godRaysIntensity':
+            // Could adjust other uniforms if needed
+            break;
+        case 'anisotropyG':
+            volumetricSmokeShader.uniforms.phaseG.value = val;
+            break;
+        case 'centralLightIntensity':
+            volumetricSmokeShader.uniforms.lightIntensity.value.setScalar(val);
+            break;
+        // Add cases for nebula, smoke particles if implemented
+    }
+};
+
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -986,4 +1031,3 @@ window.addEventListener('resize', () => {
 }, false);
 
 // Parameter UI (Example - can be expanded)
-// ...existing code...
