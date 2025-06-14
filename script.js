@@ -23,7 +23,53 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
-const blueNoiseTexture = new THREE.TextureLoader().load('BlueNoise470.png');
+// Create a procedural blue noise texture as fallback
+function createBlueNoiseTexture() {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext('2d');
+    const imageData = context.createImageData(size, size);
+    
+    // Generate pseudo-blue noise using a simple algorithm
+    for (let i = 0; i < imageData.data.length; i += 4) {
+        const x = (i / 4) % size;
+        const y = Math.floor((i / 4) / size);
+        
+        // Use multiple offset hash functions to approximate blue noise distribution
+        const hash1 = ((x * 73856093) ^ (y * 19349663)) % 1000000;
+        const hash2 = ((x * 83492791) ^ (y * 57885161)) % 1000000;
+        const noise = (Math.sin(hash1 * 0.001) + Math.sin(hash2 * 0.001)) * 0.5;
+        
+        const value = Math.floor((noise + 1) * 127.5);
+        imageData.data[i] = value;     // R
+        imageData.data[i + 1] = value; // G  
+        imageData.data[i + 2] = value; // B
+        imageData.data[i + 3] = 255;   // A
+    }
+    
+    context.putImageData(imageData, 0, 0);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.needsUpdate = true;
+    return texture;
+}
+
+// Try to load BlueNoise470.png, fallback to procedural texture
+const blueNoiseTexture = new THREE.TextureLoader().load(
+    'BlueNoise470.png',
+    undefined, // onLoad
+    undefined, // onProgress
+    function(error) {
+        console.warn('Failed to load BlueNoise470.png, using procedural fallback:', error);
+        // Replace with procedural texture
+        const proceduralTexture = createBlueNoiseTexture();
+        blueNoiseTexture.image = proceduralTexture.image;
+        blueNoiseTexture.needsUpdate = true;
+    }
+);
 blueNoiseTexture.wrapS = THREE.RepeatWrapping;
 blueNoiseTexture.wrapT = THREE.RepeatWrapping;
 
@@ -122,7 +168,235 @@ const starFragmentShader = `
     }
 `;
 
-let starField; // Will hold the THREE.InstancedMesh
+let starField;
+
+// --- START: Volumetric Smoke ---
+let densityTexture = null;
+// Shared cluster centers must be initialized before setupDensityTexture is called
+let sharedGalaxyClusters = null;
+let densityWorker = null;
+const DENSITY_TEXTURE_SIZE = 128;
+
+function setupDensityTexture() {
+    // Allocate 3D Texture
+    densityTexture = new THREE.DataTexture3D(
+        new Uint8Array(DENSITY_TEXTURE_SIZE * DENSITY_TEXTURE_SIZE * DENSITY_TEXTURE_SIZE),
+        DENSITY_TEXTURE_SIZE,
+        DENSITY_TEXTURE_SIZE,
+        DENSITY_TEXTURE_SIZE
+    );
+    densityTexture.format = THREE.RedFormat;
+    densityTexture.type = THREE.UnsignedByteType;
+    densityTexture.minFilter = THREE.LinearFilter;
+    densityTexture.magFilter = THREE.LinearFilter;
+    densityTexture.unpackAlignment = 1;
+    densityTexture.needsUpdate = true;
+
+    // Initialize Web Worker
+    if (window.Worker) {
+        densityWorker = new Worker('densityWorker.js');
+        densityWorker.onmessage = function(e) {
+            const { textureData } = e.data;
+            densityTexture.image.data = new Uint8Array(textureData);
+            densityTexture.needsUpdate = true;
+            console.log("Density texture updated by worker.");
+
+            // Worker has done its job, can terminate if not needed for updates
+            // densityWorker.terminate(); 
+            // densityWorker = null;
+        };
+        densityWorker.onerror = function(error) {
+            console.error('Error from density worker:', error);
+        };
+
+        // Start computation
+        // Clusters should already be generated before this function is called
+        if (!sharedGalaxyClusters) {
+            console.error("sharedGalaxyClusters should be generated before setupDensityTexture!");
+            // Generate as fallback
+            sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms);
+        }
+
+        densityWorker.postMessage({
+            textureSize: DENSITY_TEXTURE_SIZE,
+            galaxyParams: { // Send relevant params
+                galacticRadius: galaxyParams.galacticRadius,
+                // Potentially other params like coreRadius, spiralArms if needed by worker's logic
+            },
+            noiseScale: 0.15, // Example scale for FBM
+            clusterCenters: sharedGalaxyClusters // Send cluster data
+        });
+
+    } else {
+        console.error('Web Workers are not supported in this browser.');
+        // Fallback or error message
+    }
+}
+
+
+const volumetricSmokeShader = {
+    uniforms: {
+        'tDiffuse': { value: null }, // Scene render
+        'tDensity': { value: null }, // Will be densityTexture
+        'cameraPos': { value: new THREE.Vector3() },
+        'invProjectionMatrix': { value: new THREE.Matrix4() },
+        'invModelViewMatrix': { value: new THREE.Matrix4() },
+        'screenResolution': { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+        'u_time': { value: 0.0 },
+        'absorptionCoefficient': { value: 2.0 }, // Beer-Lambert (reduced)
+        'scatteringCoefficient': { value: 8.0 }, // Increased scattering
+        'phaseG': { value: 0.1 }, // Henyey-Greenstein g
+        'lightPosition': { value: new THREE.Vector3(0, 0, 0) }, // Example: central light
+        'lightIntensity': { value: new THREE.Color(1.0, 0.9, 0.8).multiplyScalar(2.0) }, // Brighter light
+        'densityFactor': { value: 5.0 }, // Increased density factor
+        'steps': { value: 64 }, // Raymarching steps
+        'noiseTexture': { value: blueNoiseTexture }, // For dithering/jittering ray start
+        'noiseScale': { value: new THREE.Vector2(1, 1) }, // Placeholder, updated once texture loads
+        'boxMin': { value: new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.25) },
+        'boxMax': { value: new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.25) },
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        precision highp float;
+        precision highp sampler3D;
+        
+        uniform sampler2D tDiffuse; // Scene texture
+        uniform sampler3D tDensity;
+        uniform vec3 cameraPos; // World space camera position
+        uniform mat4 invProjectionMatrix;
+        uniform mat4 invModelViewMatrix; // Inverse of camera's modelViewMatrix (camera.matrixWorld)
+        uniform vec2 screenResolution;
+        uniform float u_time;
+        uniform float absorptionCoefficient;
+        uniform float scatteringCoefficient;
+        uniform float phaseG;
+        uniform vec3 lightPosition; // World space light position
+        uniform vec3 lightIntensity;
+        uniform float densityFactor;
+        uniform int steps;
+        uniform sampler2D noiseTexture;
+        uniform vec2 noiseScale;
+        uniform vec3 boxMin; // AABB of the smoke volume
+        uniform vec3 boxMax;
+
+        varying vec2 vUv;
+
+        #define PI 3.14159265359
+
+        // Henyey-Greenstein phase function
+        float henyeyGreenstein(float cosTheta, float g) {
+            float g2 = g * g;
+            return (1.0 - g2) / (4.0 * PI * pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5));
+        }
+
+        // Intersection of a ray with an AABB
+        // ro: ray origin, rd: ray direction
+        // boxMin, boxMax: AABB corners
+        // t0, t1: entry and exit distances
+        bool intersectBox(vec3 ro, vec3 rd, vec3 boxMin, vec3 boxMax, out float t0, out float t1) {
+            vec3 invDir = 1.0 / rd;
+            vec3 tbot = invDir * (boxMin - ro);
+            vec3 ttop = invDir * (boxMax - ro);
+            vec3 tmin = min(ttop, tbot);
+            vec3 tmax = max(ttop, tbot);
+            float t_enter = max(max(tmin.x, tmin.y), tmin.z);
+            float t_exit = min(min(tmax.x, tmax.y), tmax.z);
+            t0 = t_enter;
+            t1 = t_exit;
+            return t_exit > max(0.0, t_enter); // Ensure t_exit is positive and after t_enter
+        }
+
+
+        // Sample density from 3D texture
+        float sampleDensity(vec3 pos_world) {
+            // Transform world position to texture coordinates [0, 1]
+            vec3 texCoord = (pos_world - boxMin) / (boxMax - boxMin);
+            // Clamp to avoid sampling outside the texture
+            if (any(lessThan(texCoord, vec3(0.0))) || any(greaterThan(texCoord, vec3(1.0)))) {
+                return 0.0;
+            }
+            float rawDensity = texture(tDensity, texCoord).r;
+            return rawDensity * densityFactor; // Scale density by factor
+        }
+
+
+        void main() {
+            // Sample scene color
+            vec4 sceneColor = texture2D(tDiffuse, vUv);
+            // Calculate ray direction from camera through fragment
+            vec2 screenPos = vUv * 2.0 - 1.0; // Convert UV to NDC [-1, 1]
+            
+            // Create ray direction in view space
+            vec4 clipPos = vec4(screenPos, -1.0, 1.0); // Near plane
+            vec4 viewPos = invProjectionMatrix * clipPos;
+            viewPos /= viewPos.w;
+            
+            vec3 rayDir = normalize(viewPos.xyz); // Ray direction in view space
+            rayDir = (invModelViewMatrix * vec4(rayDir, 0.0)).xyz; // Transform to world space
+            vec3 rayOrigin = cameraPos;
+
+            float tNear, tFar;
+            if (!intersectBox(rayOrigin, rayDir, boxMin, boxMax, tNear, tFar)) {
+                gl_FragColor = sceneColor; // No volume contribution
+                return;
+            }
+            
+            tNear = max(tNear, 0.0); // Ensure tNear is not behind camera
+
+            if (tFar <= tNear) {
+                gl_FragColor = sceneColor;
+                return;
+            }
+
+            vec3 accumulatedColor = vec3(0.0);
+            float accumulatedAlpha = 0.0; // Transmittance
+
+            // Jitter ray start for noise reduction (using blue noise if available)
+            float noiseVal = texture(noiseTexture, gl_FragCoord.xy * noiseScale).r;
+            float stepSize = (tFar - tNear) / float(steps);
+            float currentT = tNear + noiseVal * stepSize; // Jittered start
+
+            for (int i = 0; i < steps; ++i) {
+                if (currentT >= tFar || accumulatedAlpha > 0.99) break;
+
+                vec3 currentPos = rayOrigin + rayDir * currentT;
+                float density = sampleDensity(currentPos);
+
+                if (density > 0.01) { // Only process if density is significant
+                    float effectiveStepSize = stepSize; // Could be adaptive: stepSize * clamp(0.1, 1.0/density, 1.0);
+                    
+                    // Beer-Lambert Law for absorption
+                    float transmittance = exp(-absorptionCoefficient * density * effectiveStepSize);
+                    accumulatedAlpha += (1.0 - transmittance) * (1.0 - accumulatedAlpha);
+
+
+                    // Scattering (simplified single scattering)
+                    vec3 lightDir = normalize(lightPosition - currentPos); // Direction to light
+                    float cosTheta = dot(rayDir, lightDir); // Angle between view ray and light ray
+                    float phase = henyeyGreenstein(cosTheta, phaseG);
+                    
+                    // Attenuation of light to this point (simplified, could also raymarch to light)
+                    float lightAttenuation = 1.0; // Placeholder for light raymarching or shadow map
+
+                    vec3 scatteredLight = lightIntensity * scatteringCoefficient * density * phase * lightAttenuation * effectiveStepSize;
+                    accumulatedColor += scatteredLight * (1.0 - accumulatedAlpha); // Add scattered light, attenuated by what's in front
+                }
+                currentT += stepSize; // Basic adaptive step: stepSize * clamp(0.1, 1.0 / (density * 10.0 + 1e-6), 1.0);
+            }
+            // Composite volumetric over scene
+            gl_FragColor = sceneColor + vec4(accumulatedColor, 1.0);
+        }
+    `
+};
+
+let smokePass;
+// --- END: Volumetric Smoke ---
 
 // --- END: GPU Instanced Stars ---
 
@@ -249,6 +523,15 @@ function setupInstancedStars() {
 
 // Call the new setup function
 setupInstancedStars();
+
+// Generate cluster centers before density texture setup
+sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms);
+
+// Hoist composer declaration before setup to avoid TDZ error
+
+
+setupDensityTexture(); // Initialize density texture and worker
+setupPostProcessing(); // Setup post-processing after density texture initialization
 
 
 // --- fractalNoise, snoiseJS, fbmJS, clustering, smoke shaders etc. below ---
@@ -467,8 +750,6 @@ function fractalNoise3D(vec, octaves = 4, scale = 0.1) {
 }
 
 // --- NEW: Advanced Clustering Functions ---
-let sharedGalaxyClusters = null; // Global variable to hold shared cluster centers
-
 function generateClusterCenters(numClusters, galacticRadius, spiralArms) {
     const clusters = [];
     
@@ -549,849 +830,88 @@ function getClusterInfluence(position, clusters) {
 // --- END: Advanced Clustering Functions ---
 
 // --- NEW: Volumetric Raymarching Inspired Smoke Shader ---
-const VolumetricRaymarchingInspiredSmokeShader = {
-    uniforms: {
-        uTime: { value: 0.0 }, // Renamed from time to uTime
-        uColor1: { value: galaxyParams.smokeColor1 },
-        uColor2: { value: galaxyParams.smokeColor2 },
-        uSize: { value: galaxyParams.smokeParticleSize },
-        uNoiseIntensity: { value: galaxyParams.smokeNoiseIntensity },
-        uCentralLightPosition: { value: new THREE.Vector3(0, 0, 0) },
-        uCentralLightIntensity: { value: 1.0 },
-        uCameraPosition: { value: new THREE.Vector3() },
-        uParticleTexture: { value: null },
-        uBlueNoiseTexture: { value: blueNoiseTexture },
-        uDensityFactor: { value: galaxyParams.smokeDensityFactor },
-        uMarchSteps: { value: galaxyParams.smokeMarchSteps },
-        uDiffuseStrength: { value: galaxyParams.smokeDiffuseStrength },
-        // time: { value: 0 }, // Removed duplicate time uniform
-        rotationSpeed: { value: 0.1 },
-        uAbsorptionCoefficient: { value: 0.9 }
-    },
-    vertexShader: `
-        uniform float uSize;
-        uniform float uTime;          // Renamed from time to uTime
-        uniform float rotationSpeed; // Rotation speed
+
+// Remove old smoke particle system related code if it exists
+// For example, if there was a 'createSmokeParticles' or similar, it should be removed.
+// And in the animate loop, any updates to that old system.
+
+// Update EffectComposer - declare composer here
+var composer;
+
+function setupPostProcessing() {
+    // Initialize composer here
+    composer = new THREE.EffectComposer(renderer);
+    const renderPass = new THREE.RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    // Volumetric Smoke Pass
+    if (densityTexture) { // Ensure texture is ready or at least initialized
+        volumetricSmokeShader.uniforms.tDensity.value = densityTexture;
+        volumetricSmokeShader.uniforms.cameraPos.value = camera.position;
+        // invProjectionMatrix and invModelViewMatrix will be updated in animate
+        volumetricSmokeShader.uniforms.screenResolution.value = new THREE.Vector2(window.innerWidth, window.innerHeight);
+        volumetricSmokeShader.uniforms.noiseTexture.value = blueNoiseTexture;
         
-        attribute float aParticleSize;
-        attribute float aParticleOpacity;
-        attribute float angle;       // Original angle attribute
-        attribute float radius;      // Original radius attribute
-        attribute float speed;       // Added speed attribute
+        const imgWidth = blueNoiseTexture.image && blueNoiseTexture.image.width ? blueNoiseTexture.image.width : 1;
+        const imgHeight = blueNoiseTexture.image && blueNoiseTexture.image.height ? blueNoiseTexture.image.height : 1;
+        volumetricSmokeShader.uniforms.noiseScale.value = new THREE.Vector2(
+            window.innerWidth / imgWidth,
+            window.innerHeight / imgHeight
+        );
         
-        varying vec3 vWorldPosition;
-        varying float vParticleOpacity;
-        varying vec3 vViewVector;
-        varying vec3 vLocalPosition;
+        volumetricSmokeShader.uniforms.boxMin.value = new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.25);
+        volumetricSmokeShader.uniforms.boxMax.value = new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.25);
 
-        void main() {
-            // Apply rotation similar to the rotationShader
-            float wrappedTime = mod(uTime, 1000.0); // Use uTime
-            float rotationAngle = angle + wrappedTime * rotationSpeed * speed; // Use speed attribute
-            
-            // Create rotated position
-            vec3 rotatedPosition = vec3(
-                radius * cos(rotationAngle),
-                radius * sin(rotationAngle),
-                position.z
-            );
-            
-            // Use the rotated position for the rest of the calculations
-            vec4 modelPosition = modelMatrix * vec4(rotatedPosition, 1.0);
-            vWorldPosition = modelPosition.xyz;
-            vParticleOpacity = aParticleOpacity;
-            vLocalPosition = rotatedPosition;
 
-            // View vector from camera to this vertex (used for raymarching direction)
-            vViewVector = normalize(modelPosition.xyz - cameraPosition);
-
-            vec4 viewPosition = viewMatrix * modelPosition;
-            vec4 projectedPosition = projectionMatrix * viewPosition;
-
-            gl_Position = projectedPosition;
-            gl_PointSize = (uSize * aParticleSize) * (300.0 / -viewPosition.z);
-        }
-    `,
-    fragmentShader: `
-        uniform vec3 uColor1;
-        uniform vec3 uColor2;
-        uniform float uTime;
-        uniform float uNoiseIntensity;
-        uniform vec3 uCentralLightPosition;
-        uniform float uCentralLightIntensity;
-        uniform vec3 uCameraPosition;
-        uniform sampler2D uParticleTexture;
-        uniform float uDensityFactor;
-        uniform int uMarchSteps;
-        uniform float uDiffuseStrength;
-        uniform sampler2D uBlueNoiseTexture; // Added blue noise texture uniform
-        uniform float uAbsorptionCoefficient; // Added for Beer's Law
-
-        varying vec3 vWorldPosition;
-        varying float vParticleOpacity;
-        varying vec3 vViewVector;
-        varying vec3 vLocalPosition;
-        
-        /* Removed hash, noise, and fbm GLSL functions as they are replaced by blue noise texture sampling
-        // Simple hash function for noise
-        float hash(vec3 p) {
-            p = fract(p * 0.3183099 + 0.1);
-            p *= 17.0;
-            return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-        }
-        
-        // Simple 3D noise function
-        float noise(vec3 x) {
-            vec3 p = floor(x);
-            vec3 f = fract(x);
-            f = f * f * (3.0 - 2.0 * f);
-            
-            return mix(mix(mix(hash(p + vec3(0, 0, 0)), 
-                               hash(p + vec3(1, 0, 0)), f.x),
-                           mix(hash(p + vec3(0, 1, 0)), 
-                               hash(p + vec3(1, 1, 0)), f.x), f.y),
-                       mix(mix(hash(p + vec3(0, 0, 1)), 
-                               hash(p + vec3(1, 0, 1)), f.x),
-                           mix(hash(p + vec3(0, 1, 1)), 
-                               hash(p + vec3(1, 1, 1)), f.x), f.y), f.z);
-        }
-        
-        // Fractal Brownian Motion (FBM) for more interesting noise
-        float fbm(vec3 p, int octaves) {
-            float value = 0.0;
-            float amplitude = 0.5;
-            float frequency = 1.0;
-            
-            // Animate noise over time for subtle movement
-            p += uTime * 0.05 * vec3(0.7, -0.4, 0.2);
-            
-            for (int i = 0; i < 6; i++) {
-                if (i >= octaves) break; // Honor the octaves parameter
-                value += amplitude * noise(p * frequency);
-                frequency *= 2.0;
-                amplitude *= 0.5;
-            }
-            
-            return value;
-        }
-        */
-
-        // Sphere signed distance function - returns negative inside, positive outside
-        float sdfSphere(vec3 p, float radius) {
-            return length(p) - radius;
-        }
-        
-        // Beer's Law function
-        float beersLaw(float dist, float absorption) {
-            return exp(-dist * absorption);
-        }
-
-        // Density function that combines SDF and noise
-        float densityFunction(vec3 p) {
-            // Transform from world to local particle space
-            vec3 localP = p - vWorldPosition;
-            
-            // Base sphere with radius 0.5
-            float base = sdfSphere(localP, 0.5);
-            
-            // Apply FBM noise
-            // float noiseValue = fbm(localP * 3.0, 4) * uNoiseIntensity; // Old line
-            // Sample blue noise texture for density, animate with uTime
-            vec2 densityNoiseUV = mod(localP.xy * 3.0 + uTime * 0.02, 1.0);
-            float noiseValue = texture2D(uBlueNoiseTexture, densityNoiseUV).r * uNoiseIntensity;
-            
-            // Higher density factor means thicker smoke
-            return (-base + noiseValue * 0.3) * uDensityFactor;
-        }
-
-        // Raymarching through the volume
-        vec4 raymarch(vec3 rayOrigin, vec3 rayDirection) {
-            float stepSize = 1.0 / float(uMarchSteps);
-            vec3 lightDir = normalize(uCentralLightPosition - vWorldPosition);
-            
-            vec3 accumulatedLight = vec3(0.0); // Renamed from accumulatedColor.rgb
-            float totalTransmittance = 1.0;
-            float t = -0.5; // Start inside the volume
-            
-            for (int i = 0; i < 32; i++) { // Hard-code max steps for compatibility
-                if (i >= uMarchSteps) break;
-                
-                // Current position along ray
-                vec3 pos = rayOrigin + rayDirection * t;
-                
-                // Sample density at this position
-                float density = max(0.0, densityFunction(pos));
-                
-                if (density > 0.0) {
-                    // Distance to central light affects lighting
-                    float distToLight = length(uCentralLightPosition - pos);
-                    float lightAttenuation = 4.0 / (distToLight * distToLight + 1.0);
-                    
-                    // Calculate diffuse lighting
-                    float densityToLight = densityFunction(pos + lightDir * 0.2);
-                    float diffuse = clamp((density - densityToLight) / 0.2, 0.0, 1.0) * uDiffuseStrength;
-                    
-                    // Mix colors based on noise
-                    vec2 colorMixNoiseUV = mod(pos.xy * 2.0 + uTime * 0.01 + vec2(0.3, 0.7) , 1.0);
-                    float colorMix = texture2D(uBlueNoiseTexture, colorMixNoiseUV).r;
-                    vec3 baseColor = mix(uColor1, uColor2, colorMix);
-                    
-                    // Apply lighting effects
-                    vec3 litColor = baseColor * (0.5 + diffuse * 0.5) * lightAttenuation * uCentralLightIntensity;
-
-                    // Transmittance for this step (Beer's Law)
-                    float stepTransmittance = beersLaw(density * stepSize, uAbsorptionCoefficient);
-                    
-                    // Accumulate light (emitted/scattered by smoke) and update transmittance
-                    // Back-to-front accumulation:
-                    // New Color = Current Step Emission + Transmittance of Current Step * Color from Behind
-                    // New Transmittance = Transmittance of Current Step * Transmittance from Behind
-                    vec3 emittedLightThisStep = litColor * density * stepSize;
-                    accumulatedLight = accumulatedLight * stepTransmittance + emittedLightThisStep;
-                    
-                    totalTransmittance *= stepTransmittance;
-
-                    // Early exit if nearly opaque (based on total transmittance)
-                    if (totalTransmittance < 0.01) break;
-                }
-                
-                // Advance along ray
-                t += stepSize;
-            }
-            // Calculate final alpha based on total transmittance
-            float finalAlpha = 1.0 - totalTransmittance;
-            return vec4(accumulatedLight, clamp(finalAlpha, 0.0, 1.0));
-        }
-
-        void main() {
-            vec2 pointCoord = gl_PointCoord;
-            float dist = length(pointCoord - vec2(0.5));
-            
-            // Discard pixels outside particle circle
-            if (dist > 0.5) {
-                discard;
-            }
-
-            // Sample particle texture for basic shape and initial alpha
-            vec4 texColor = texture2D(uParticleTexture, pointCoord);
-            if (texColor.a < 0.05) {
-                discard;
-            }
-            
-            // Ray starting at particle center facing towards camera
-            vec3 rayOrigin = vWorldPosition;
-            vec3 rayDirection = normalize(vWorldPosition - uCameraPosition); // Corrected: should be towards camera from particle
-            
-            // Perform raymarching within the particle
-            vec4 volumetricResult = raymarch(rayOrigin, rayDirection);
-            
-            // Combine volumetric alpha with particle texture alpha and per-particle opacity attribute
-            volumetricResult.a *= texColor.a * vParticleOpacity;
-            
-            gl_FragColor = volumetricResult;
-        }
-    `
-};
-
-// --- NEW: Function to generate volumetric smoke with clustering ---
-function generateVolumetricSmoke() {
-    const positions = [];
-    const colors = [];
-    const sizes = []; // For individual particle size variation if needed
-    const opacities = []; // For individual particle opacity variation
-    const angles = []; // For rotation
-    const radii = []; // For rotation
-    const speeds = []; // Added for individual speed variation
-
-    let attempts = 0;
-    const maxAttempts = galaxyParams.numSmokeParticles * 20; // Increased attempts for better distribution
-
-    // Use sharedGalaxyClusters for smoke distribution
-    const smokeClusters = sharedGalaxyClusters;
-    let smokeSpiralCounter = 0; // Counter for golden angle spiral
-
-    while (positions.length / 3 < galaxyParams.numSmokeParticles && attempts < maxAttempts) {
-        attempts++;
-        let x, y, z, distanceFromCenter, angle, radius;
-
-        // Use the same distribution logic as generateGalaxyStars
-        if (Math.random() < 0.75) { // 75% cluster-based generation
-            const cluster = smokeClusters[Math.floor(Math.random() * smokeClusters.length)];
-            // Adjust ellipsoid for smoke - potentially wider and flatter than star clusters
-            const clusterOffset = randomPointInEllipsoid(
-                cluster.radius * 2.0, // Smoke clusters might be more diffuse
-                cluster.radius * 2.0,
-                cluster.radius * 0.5 // Flatter distribution for smoke
-            );
-            
-            const particlePosition = cluster.center.clone().add(clusterOffset);
-            x = particlePosition.x;
-            y = particlePosition.y;
-            z = particlePosition.z;
-            distanceFromCenter = Math.sqrt(x * x + y * y);
-            angle = Math.atan2(y, x);
-            radius = distanceFromCenter;
-
-        } else { // 25% golden ratio spiral generation for smoke
-            smokeSpiralCounter++;
-            const angle = smokeSpiralCounter * GOLDEN_ANGLE;
-            distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2.0) * galaxyParams.galacticRadius); // Adjusted exponent for smoke spread
-            // The 'angle' variable from the original 'armAngle' - pitch + jitter' logic is replaced by the golden angle.
-            // 'radius' is effectively 'distanceFromCenter' for x,y calculation.
-            
-            x = distanceFromCenter * Math.cos(angle);
-            y = distanceFromCenter * Math.sin(angle);
-            
-            const normalizedDistance = distanceFromCenter / galaxyParams.galacticRadius;
-            // Smoke might be thicker or follow a different vertical profile than stars
-            const thicknessMultiplier = Math.exp(-normalizedDistance * 1.5) * 1.0 + 0.1; // Adjusted for smoke
-            z = (Math.random() - 0.5) * thicknessMultiplier * 0.75; // Flatter smoke overall
-        }
-
-        if (distanceFromCenter > galaxyParams.galacticRadius * 1.1) continue; // Allow smoke to extend slightly further
-
-        const positionVec = new THREE.Vector3(x, y, z);
-        const clusterInfluence = getClusterInfluence(positionVec, smokeClusters, 1.2); // Adjusted sensitivity for smoke
-        const noise = fractalNoise3D(positionVec, 3, 0.1); // Different noise profile for smoke
-
-        // Probability for smoke, potentially less dense than stars but following similar patterns
-        const centralBonus = Math.exp(-distanceFromCenter / (galaxyParams.galacticRadius * 0.3)) * 0.3; // Less central concentration for smoke
-        const probability = Math.min(1.0, clusterInfluence * 0.6 + noise * 0.3 + centralBonus + 0.05); // Adjusted weights
-
-        if (Math.random() < probability) {
-            positions.push(x, y, z);
-            angles.push(angle);
-            radii.push(radius);
-            speeds.push(0.5 + Math.random() * 0.8); // Add random speed
-
-            const t = Math.random();
-            const color = new THREE.Color().lerpColors(galaxyParams.smokeColor1, galaxyParams.smokeColor2, t);
-            colors.push(color.r, color.g, color.b);
-
-            sizes.push(galaxyParams.smokeParticleSize * (0.5 + Math.random() * 1.0)); // Wider size variation
-            opacities.push(0.15 + Math.random() * 0.25); // Generally lower opacity for softer smoke
-        }
+        smokePass = new THREE.ShaderPass(volumetricSmokeShader);
+        // Enable additive blending to overlay volumetric effect onto scene
+        smokePass.material.transparent = true;
+        smokePass.material.blending = THREE.AdditiveBlending;
+        smokePass.material.depthTest = false;
+        smokePass.material.depthWrite = false;
+        smokePass.renderToScreen = true; // Final pass renders to screen
+        composer.addPass(smokePass);
+    } else {
+        console.warn("Density texture not ready for post-processing pass setup.");
+        // Create a fallback pass if texture isn't ready
+        const copyPass = new THREE.ShaderPass(THREE.CopyShader);
+        copyPass.renderToScreen = true;
+        composer.addPass(copyPass);
     }
-
-    if (positions.length === 0) {
-        console.warn("No smoke particles generated. Check parameters or probability logic.");
-        // Create a dummy geometry to prevent errors if no particles are generated
-        const dummyGeometry = new THREE.BufferGeometry();
-        dummyGeometry.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0], 3));
-        return new THREE.Points(dummyGeometry, new THREE.PointsMaterial({size: 0.01, transparent: true, opacity: 0}));
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    geometry.setAttribute('aParticleSize', new THREE.Float32BufferAttribute(sizes, 1));
-    geometry.setAttribute('aParticleOpacity', new THREE.Float32BufferAttribute(opacities, 1));
-    geometry.setAttribute('angle', new THREE.Float32BufferAttribute(angles, 1)); 
-    geometry.setAttribute('radius', new THREE.Float32BufferAttribute(radii, 1));
-    geometry.setAttribute('speed', new THREE.Float32BufferAttribute(speeds, 1)); // Set speed attribute
-
-    const material = new THREE.ShaderMaterial({
-        uniforms: VolumetricRaymarchingInspiredSmokeShader.uniforms,
-        vertexShader: VolumetricRaymarchingInspiredSmokeShader.vertexShader,
-        fragmentShader: VolumetricRaymarchingInspiredSmokeShader.fragmentShader,
-        transparent: true,
-        blending: THREE.NormalBlending,
-        depthWrite: false,
-    });
-
-    // Set up uniforms
-    material.uniforms.uParticleTexture.value = createCircularGradientTexture();
-    material.uniforms.uCameraPosition.value.copy(camera.position);
-    material.uniforms.uCentralLightPosition.value.set(0, 0, 0); // Set central light position
-    material.uniforms.uCentralLightIntensity.value = pointLight.intensity; // Use pointLight's intensity
-    material.uniforms.uDensityFactor.value = galaxyParams.smokeDensityFactor;
-    material.uniforms.uMarchSteps.value = galaxyParams.smokeMarchSteps;
-    material.uniforms.uDiffuseStrength.value = galaxyParams.smokeDiffuseStrength;
-    material.uniforms.uNoiseIntensity.value = galaxyParams.smokeNoiseIntensity;
-    material.uniforms.rotationSpeed.value = controlParams.rotationSpeed;
-
-    return new THREE.Points(geometry, material);
 }
 
-function generateGalaxyStars() {
-    const geometry = new THREE.BufferGeometry();
-    const positions = [];
-    const colors = [];
-    // Use sharedGalaxyClusters directly
-    const starClusters = sharedGalaxyClusters;
-    let spiralStarCounter = 0;
-    
-    let attempts = 0;
-    const maxAttempts = galaxyParams.numStars * 2;
+// setupPostProcessing(); // Moved to after density texture setup
 
-    while (positions.length / 3 < galaxyParams.numStars && attempts < maxAttempts) {
-        attempts++;
-        let x, y, z, distanceFromCenter;
-        
-        if (Math.random() < 0.75) {
-            // 75% cluster-based generation
-            const cluster = starClusters[Math.floor(Math.random() * starClusters.length)];
-            const clusterOffset = randomPointInEllipsoid(
-                cluster.radius * 1.5,
-                cluster.radius * 1.5,
-                cluster.radius * 0.3
-            );
-                
-                const position = cluster.center.clone().add(clusterOffset);
-                x = position.x;
-                y = position.y;
-                z = position.z;
-                distanceFromCenter = Math.sqrt(x * x + y * y);
-        } else {
-            // 25% golden ratio spiral generation for stars
-            spiralStarCounter++;
-            const angle = spiralStarCounter * GOLDEN_ANGLE;
-            // Enhanced exponential distribution for higher central concentration (retained from original)
-            distanceFromCenter = Math.max(0.1, Math.pow(Math.random(), 2.8) * galaxyParams.galacticRadius);
-            // The original 'armAngle' and 'pitch' logic is replaced by the golden angle.
-            
-            x = distanceFromCenter * Math.cos(angle);
-            y = distanceFromCenter * Math.sin(angle);
-            
-            // Enhanced vertical distribution - exponentially thicker at center (retained from original)
-            const normalizedDistance = distanceFromCenter / galaxyParams.galacticRadius;
-            const thicknessMultiplier = Math.exp(-normalizedDistance * 2.0) * 1.5 + 0.05;
-            z = (Math.random() - 0.5) * thicknessMultiplier;
-        }
-
-        // Allow stars much closer to galactic center
-        if (distanceFromCenter > galaxyParams.galacticRadius) {
-            continue;
-        }
-
-        // Enhanced cluster influence and noise check
-        const position = new THREE.Vector3(x, y, z);
-        // Pass starClusters (which is sharedGalaxyClusters) to getClusterInfluence
-        const clusterInfluence = getClusterInfluence(position, starClusters);
-        const noise = fractalNoise3D(position, 5, 0.12);
-        
-        // Enhanced central density bonus for stars
-        const centralBonus = Math.exp(-distanceFromCenter / (galaxyParams.galacticRadius * 0.2)) * 0.5;
-        
-        const probability = Math.min(1.0, clusterInfluence * 0.7 + noise * 0.2 + centralBonus);
-        
-        if (Math.random() < probability * 0.9) {
-            positions.push(x, y, z);
-
-            // Enhanced star type selection based on distance from center
-            let starTypeIndex;
-            if (distanceFromCenter < galaxyParams.galacticRadius * 0.3) {
-                // More massive, hotter stars in the galactic center
-                starTypeIndex = Math.floor(Math.random() * 4); // O, B, A, F types
-            } else if (distanceFromCenter < galaxyParams.galacticRadius * 0.7) {
-                // Mixed population in mid-disc
-                starTypeIndex = Math.floor(Math.random() * 7); // O through K types
-            } else {
-                // Cooler stars in outer regions
-                starTypeIndex = Math.floor(Math.random() * 3) + 4; // G, K, M types
-            }
-            
-            const starType = starTypes[starTypeIndex];
-            // Use the new function to get color with luminosity
-            const color = generateStarColorWithLuminosity(starType.colorRange, starType.luminosityRange);
-            colors.push(color.r, color.g, color.b);
-        }
-    }
-
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-
-    const material = new THREE.PointsMaterial({
-        size: galaxyParams.starSize,
-        map: createCircularGradientTexture(),
-        vertexColors: true,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-    });
-
-    return new THREE.Points(geometry, material);
-}
-
-function generateNebula() {
-    const nebulaGroup = new THREE.Group();
-    // Use sharedGalaxyClusters directly
-    const nebulaClusters = sharedGalaxyClusters;
-
-    for (let layer = 0; layer < 3; layer++) {
-        const geometry = new THREE.BufferGeometry();
-        const positions = [];
-        const colors = [];
-        const angles = [];
-        const radii = [];
-        let currentLayerPositionsCount = 0;
-        const scaleFactor = 1 + 0.3 * layer;
-        const effectiveGalacticRadius = galaxyParams.galacticRadius * scaleFactor;
-
-        let attempts = 0;
-        const maxAttempts = (galaxyParams.numNebulaParticles / 3) * 2;
-
-        while (currentLayerPositionsCount < galaxyParams.numNebulaParticles / 3 && attempts < maxAttempts) {
-            attempts++;
-            
-            let angle, radius, x, y, z;
-            
-            if (Math.random() < 0.7) {
-                // Cluster-based generation
-                const cluster = nebulaClusters[Math.floor(Math.random() * nebulaClusters.length)];
-                const clusterOffset = randomPointInEllipsoid(
-                    cluster.radius * 2.5,
-                    cluster.radius * 2.5,
-                    cluster.radius * 1.2
-                );
-                
-                const position = cluster.center.clone().add(clusterOffset);
-                x = position.x;
-                y = position.y;
-                z = position.z;
-                radius = Math.sqrt(x * x + y * y);
-                angle = Math.atan2(y, x);
-            } else {
-                // Traditional generation
-                angle = Math.random() * 2 * Math.PI;
-                radius = Math.pow(Math.random(), 1.2) * effectiveGalacticRadius;
-                x = radius * Math.cos(angle);
-                y = radius * Math.sin(angle);
-                
-                const normalizedDistance = radius / effectiveGalacticRadius;
-                const thicknessMultiplier = Math.pow(Math.max(0, 1.0 - normalizedDistance), 0.6);
-                z = (Math.random() - 0.5) * 0.8 * thicknessMultiplier * (0.8 + layer * 0.3);
-            }
-
-            if (radius < galaxyParams.coreRadius * scaleFactor || radius > effectiveGalacticRadius) {
-                continue;
-            }
-
-            // Enhanced clustering check
-            const position = new THREE.Vector3(x, y, z);
-            // Pass nebulaClusters (which is sharedGalaxyClusters) to getClusterInfluence
-            const clusterInfluence = getClusterInfluence(position, nebulaClusters);
-            const noise = fractalNoise3D(position, 4, 0.1);
-            
-            const probability = Math.min(1.0, clusterInfluence * 0.6 + noise * 0.4);
-            
-            if (Math.random() < probability * 0.8) {
-                positions.push(x, y, z);
-                currentLayerPositionsCount++;
-                
-                const noiseVal = 0.55 + 0.3 * fractalNoise({ x: x, y: y }, 5, 0.5, 2);
-                const color = new THREE.Color().setHSL(noiseVal, 0.7, 0.5);
-                // Push angles and radii here as well, as they are associated with the particle
-                angles.push(angle);
-                radii.push(radius);
-                colors.push(color.r, color.g, color.b);
-            }
-        }
-
-        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-        geometry.setAttribute("angle", new THREE.Float32BufferAttribute(angles, 1));
-        geometry.setAttribute("radius", new THREE.Float32BufferAttribute(radii, 1));
-
-        const material = new THREE.ShaderMaterial({
-            uniforms: rotationShader.uniforms,
-            vertexShader: rotationShader.vertexShader,
-            fragmentShader: rotationShader.fragmentShader,
-            vertexColors: true,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-
-        const points = new THREE.Points(geometry, material);
-        nebulaGroup.add(points);
-    }
-    return nebulaGroup;
-}
-
-const rotationShader = {
-    uniforms: {
-        time: { value: 0 },
-        rotationSpeed: { value: 0.1 },
-        size: { value: galaxyParams.starSize }
-    },
-    vertexShader: `
-        uniform float time;
-        uniform float rotationSpeed;
-        uniform float size;
-
-        attribute float angle;
-        attribute float radius;
-        attribute float speed; // Assuming speed attribute might be added later or is implicitly handled
-
-        varying vec3 vColor;
-
-        void main() {
-            // Use modulo to prevent floating point precision issues
-            float wrappedTime = mod(time, 1000.0);
-            float rotationAngle = angle + wrappedTime * rotationSpeed * (speed > 0.0 ? speed : 1.0);
-            vec3 newPosition = vec3(
-                radius * cos(rotationAngle),
-                radius * sin(rotationAngle),
-                position.z
-            );
-
-            vColor = color; // Use the built-in color attribute
-
-            vec4 mvPosition = modelViewMatrix * vec4(newPosition, 1.0);
-            gl_Position = projectionMatrix * mvPosition;
-            
-            // Updated point size logic
-            gl_PointSize = size * (100.0 / -mvPosition.z); // Scale with distance
-        }
-    `,
-    fragmentShader: `
-        varying vec3 vColor;
-
-        void main() {
-            gl_FragColor = vec4(vColor, 1.0);
-        }
-    `
-};
-
-// --- Update galaxy generation to include galactic core ---
-// Create galactic core instead of black hole
-const galacticCore = new THREE.Group();
-
-// Central bright core
-const coreGeometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 0.8, 16, 16);
-const coreMaterial = new THREE.MeshBasicMaterial({ 
-    color: 0xFFDD88,
-    transparent: true,
-    opacity: 0.1
-});
-const centralCore = new THREE.Mesh(coreGeometry, coreMaterial);
-galacticCore.add(centralCore);
-
-// Core glow effect
-const glowGeometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 1.5, 16, 16);
-const glowMaterial = new THREE.MeshBasicMaterial({
-    color: 0xFFAA44,
-    transparent: true,
-    opacity: 0.1
-});
-const coreGlow = new THREE.Mesh(glowGeometry, glowMaterial);
-galacticCore.add(coreGlow);
-
-// Dense star cluster in core region
-const coreStarsGeometry = new THREE.BufferGeometry();
-const coreStarsPositions = [];
-const coreStarsColors = [];
-
-for (let i = 0; i < 500; i++) {
-    const radius = Math.pow(Math.random(), 0.9) * galaxyParams.coreRadius;
-    const theta = Math.random() * Math.PI * 9;
-    const phi = (Math.random() - 0.5) * Math.PI * 10.9;
-    
-    const x = radius * Math.cos(theta) * Math.cos(phi);
-    const y = radius * Math.sin(theta) * Math.cos(phi);
-    const z = radius * Math.sin(phi) * 0.3;
-    
-    coreStarsPositions.push(x, y, z);
-    
-    // Bright, hot stars in the core
-    const coreStarType = starTypes[Math.floor(Math.random() * 10)]; // O, B, A types
-    const color = generateStarColorWithLuminosity(coreStarType.colorRange, coreStarType.luminosityRange);
-    coreStarsColors.push(color.r, color.g, color.b);
-}
-
-coreStarsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(coreStarsPositions, 3));
-coreStarsGeometry.setAttribute("color", new THREE.Float32BufferAttribute(coreStarsColors, 3));
-
-const coreStarsMaterial = new THREE.PointsMaterial({
-    size: galaxyParams.starSize * 1.5,
-    map: createCircularGradientTexture(),
-    vertexColors: true,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false
-});
-
-const coreStars = new THREE.Points(coreStarsGeometry, coreStarsMaterial);
-galacticCore.add(coreStars);
-
-scene.add(galacticCore);
-
-const pointLight = new THREE.PointLight(0xffffff, 5.0, 100);
-pointLight.position.set(0, 0, 0);
-scene.add(pointLight);
-
-const composer = new THREE.EffectComposer(renderer);
-const renderPass = new THREE.RenderPass(scene, camera);
-composer.addPass(renderPass);
-
-const prevFrameRenderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
-
-const MotionBlurShader = {
-    uniforms: {
-        tDiffuse: { value: null },
-        tPrevFrame: { value: null },
-        deltaTime: { value: 0.0 },
-        motionBlurStrength: { value: 2.0 }
-    },
-    vertexShader: `
-        varying vec2 vUv;
-        void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-    `,
-    fragmentShader: `
-        uniform sampler2D tDiffuse;
-        uniform sampler2D tPrevFrame;
-        uniform float deltaTime;
-        uniform float motionBlurStrength;
-        varying vec2 vUv;
-
-        void main() {
-            vec4 currentColor = texture2D(tDiffuse, vUv);
-            vec4 prevColor = texture2D(tPrevFrame, vUv);
-            // Blend current and previous frame. Adjust 'motionBlurStrength' for more/less blur.
-            // A lower deltaTime (faster frame rate) will require a higher strength for the same blur effect.
-            gl_FragColor = mix(currentColor, prevColor, motionBlurStrength);
-        }
-    `
-};
-
-const motionBlurPass = new THREE.ShaderPass(MotionBlurShader, "tDiffuse");
-motionBlurPass.uniforms.tPrevFrame.value = prevFrameRenderTarget.texture;
-composer.addPass(motionBlurPass);
-
-const GodRayShader = {
-    uniforms: {
-        tDiffuse: { value: null },
-        lightPosition: { value: new THREE.Vector2(0.5, 0.5) },
-        exposure: { value: 0.45 },
-        decay: { value: 0.95 },
-        density: { value: 0.96 },
-        weight: { value: 0.5 },
-        samples: { value: 60 }
-    },
-    vertexShader: `
-        varying vec2 vUv;
-        void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-    `,
-    fragmentShader: `
-        uniform sampler2D tDiffuse;
-        uniform vec2 lightPosition;
-        uniform float exposure;
-        uniform float decay;
-        uniform float density;
-        uniform float weight;
-        uniform int samples;
-
-        varying vec2 vUv;
-
-        void main() {
-            vec2 texCoord = vUv;
-            vec2 deltaTextCoord = texCoord - lightPosition;
-            deltaTextCoord *= 1.0 / float(samples) * density;
-            vec4 originalColor = texture2D(tDiffuse, texCoord);
-            float illuminationDecay = 1.0;
-
-            vec4 shadowEffect = vec4(0.0);
-
-            for (int i = 0; i < samples; i++) {
-                texCoord -= deltaTextCoord;
-                vec4 sampleColor = texture2D(tDiffuse, texCoord);
-                sampleColor *= illuminationDecay * weight;
-                shadowEffect += sampleColor;
-                illuminationDecay *= decay;
-            }
-
-            // Apply exposure (controlled by slider) only to the god rays (shadowEffect)
-            vec3 godRaysComponent = shadowEffect.rgb * exposure;
-
-            // Combine the original scene color with the intensity-controlled god rays
-            vec3 finalColor = originalColor.rgb + godRaysComponent;
-
-            gl_FragColor = vec4(finalColor, originalColor.a);
-        }
-    `
-};
-
-const godRayPass = new THREE.ShaderPass(GodRayShader);
-
-function updateCameraRotation(event) {
-    console.log("Camera rotation updated:", event.target.id);
-    camera.rotation.x = parseFloat(document.getElementById("camera-rotation-x").value);
-    camera.rotation.y = parseFloat(document.getElementById("camera-rotation-y").value);
-    camera.rotation.z = parseFloat(document.getElementById("camera-rotation-z").value);
-    updateInfoPanel();
-}
-
-function updateBlackHoleSize() {
-    // Update galactic core size instead of black hole
-    galacticCore.children.forEach((child, index) => {
-        if (child.geometry) {
-            child.geometry.dispose();
-            if (index === 0) { // Central core
-                child.geometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 0.8, 16, 16);
-            } else if (index === 1) { // Glow
-                child.geometry = new THREE.SphereGeometry(galaxyParams.coreRadius * 1.5, 16, 16);
-            }
-            // Core stars (index 2) don't need geometry update as they're points
-        }
-    });
-}
-
-function regenerateGalaxy() {
-    // Clear all children from the group
-    while(galaxyGroup.children.length > 0){ 
-        const object = galaxyGroup.children[0];
-        if (object.isGroup) { // Handle groups like nebula
-            object.children.forEach(childInGroup => {
-                if (childInGroup.geometry) childInGroup.geometry.dispose();
-                if (childInGroup.material) {
-                    if (childInGroup.material.dispose) childInGroup.material.dispose();
-                    // If shader material, dispose textures in uniforms if any (not currently the case for nebula/smoke)
-                }
-            });
-        } else { // Handle individual Points objects like stars and smoke
-            if (object.geometry) object.geometry.dispose();
-            if (object.material) {
-                if (object.material.dispose) object.material.dispose();
-                if (object.material.map && object.material.map.dispose) object.material.map.dispose(); // Dispose star texture
-            }
-        }
-        galaxyGroup.remove(object);
-    }
-    
-    // Generate shared clusters ONCE for all components
-    sharedGalaxyClusters = generateClusterCenters(35, galaxyParams.galacticRadius, galaxyParams.spiralArms);
-    
-    // Regenerate and add all components. They will use the global sharedGalaxyClusters.
-    galaxyGroup.add(generateGalaxyStars());
-    galaxyGroup.add(generateNebula());
-    galaxyGroup.add(generateVolumetricSmoke());
-}
 
 function animate() {
     requestAnimationFrame(animate);
 
     const currentTime = performance.now();
-    const deltaTime = (currentTime - lastFrameTime) / 1000; // deltaTime in seconds
+    const deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
     lastFrameTime = currentTime;
-    globalTime += deltaTime; 
+    globalTime += deltaTime;
 
-    controls.update(); 
+    controls.update();
 
-    if (starField && starField.material.uniforms.uTime) {
+    // Update shader uniforms that change each frame
+    if (starField) {
         starField.material.uniforms.uTime.value = globalTime * controlParams.rotationSpeed;
     }
-    
-    // Update other animated components if any
-    // galaxyGroup.rotation.y += controlParams.rotationSpeed * deltaTime; // Example if overall rotation is still desired
 
-    renderer.render(scene, camera);
+    if (smokePass) {
+        smokePass.uniforms.u_time.value = globalTime;
+        smokePass.uniforms.cameraPos.value.copy(camera.position);
+        smokePass.uniforms.invProjectionMatrix.value.copy(camera.projectionMatrixInverse);
+        smokePass.uniforms.invModelViewMatrix.value.copy(camera.matrixWorld); // camera.matrixWorld is already the inverse of view matrix
+    }
+
+
+    // renderer.render(scene, camera); // Replace with composer.render()
+    if (composer) {
+        composer.render();
+    } else {
+        renderer.render(scene, camera); // Fallback if composer not ready
+    }
 
     const cameraInfo = document.getElementById('camera-info');
     if (cameraInfo) {
@@ -1400,123 +920,25 @@ function animate() {
             `Rotation: x: ${THREE.MathUtils.radToDeg(camera.rotation.x).toFixed(1)}, y: ${THREE.MathUtils.radToDeg(camera.rotation.y).toFixed(1)}, z: ${THREE.MathUtils.radToDeg(camera.rotation.z).toFixed(1)}`;
     }
 }
+animate();
 
-// Initialize lastFrameTime before starting animation - MOVED to global scope
-animate(); // Start the animation loop
-
-// Handle window resize
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    composer.setSize(window.innerWidth, window.innerHeight);
-    if (prevFrameRenderTarget) { // ADDED check for safety, though it should be defined
-        prevFrameRenderTarget.setSize(window.innerWidth, window.innerHeight);
+    if (composer) {
+        composer.setSize(window.innerWidth, window.innerHeight);
     }
-});
-
-document.addEventListener("DOMContentLoaded", function() {
-    // Initialize time tracking
-    lastFrameTime = performance.now();
-    globalTime = 0;
-    
-    // Initial population of the galaxy
-    regenerateGalaxy();
-
-    const controlIds = [
-        "num-stars", "star-size", "galactic-radius", "spiral-arms",
-        "core-radius", "num-nebula-particles", "num-smoke-particles",
-        "smoke-particle-size", "smoke-noise-intensity", "god-rays-intensity",
-        "smoke-color1", "smoke-color2"
-    ];
-});
-
-animate();
-
-// helper: random point inside ellipsoid to avoid cubic artifacts with Gaussian falloff
-function randomPointInEllipsoid(rx, ry, rz) {
-    // Get random direction using spherical coordinates
-    const u = Math.random();
-    const v = Math.random();
-    const theta = 2.0 * Math.PI * u;
-    const phi = Math.acos(2.0 * v - 1.0);
-    const sinPhi = Math.sin(phi);
-    
-    // Direction vector
-    const dir = new THREE.Vector3(
-        sinPhi * Math.cos(theta),
-        sinPhi * Math.sin(theta),
-        Math.cos(phi)
-    );
-    
-    // Gaussian magnitude using rx as the characteristic radius
-    const magnitude = rx * Math.sqrt(-2 * Math.log(Math.max(1e-9, Math.random())));
-    
-    // Apply magnitude and ellipsoid scaling
-    return new THREE.Vector3(
-        dir.x * magnitude,
-        dir.y * magnitude,
-        dir.z * magnitude * (rz / rx)  // Scale z to maintain ellipsoid aspect ratio
-    );
-}
-
-// --- NEW: Function to generate the galactic core ---
-function generateGalaxyCore() {
-    const coreGeometry = new THREE.BufferGeometry();
-    const corePositions = [];
-    const coreColors = [];
-    const coreSizes = [];
-
-    const numCoreStars = 5000; // Number of stars in the core
-    const coreRadius = galaxyParams.coreRadius * 0.8; // Slightly smaller for a denser look
-
-    for (let i = 0; i < numCoreStars; i++) {
-        // Exponential distribution for higher density towards the center
-        const r = Math.pow(Math.random(), 2.5) * coreRadius;
-        const theta = Math.random() * 2 * Math.PI;
-        const phi = Math.acos(2 * Math.random() - 1); // Uniform spherical distribution
-
-        const x = r * Math.sin(phi) * Math.cos(theta);
-        const y = r * Math.sin(phi) * Math.sin(theta);
-        const z = r * Math.cos(phi);
-
-        corePositions.push(x, y, z);
-
-        // Core stars are generally hotter and more luminous
-        const coreStarTypeIndex = Math.floor(Math.random() * 3); // O, B, A types
-        const coreStarType = starTypes[coreStarTypeIndex];
-        // Use the new function name here
-        const color = generateStarColorWithLuminosity(coreStarType.colorRange, coreStarType.luminosityRange);
-        coreColors.push(color.r, color.g, color.b);
-
-        // Core stars can be slightly larger on average
-        coreSizes.push(galaxyParams.starSize * (1.0 + Math.random() * 0.5));
+    if (smokePass) {
+        smokePass.uniforms.screenResolution.value.set(window.innerWidth, window.innerHeight);
+        const imgWidth = blueNoiseTexture.image && blueNoiseTexture.image.width ? blueNoiseTexture.image.width : 1;
+        const imgHeight = blueNoiseTexture.image && blueNoiseTexture.image.height ? blueNoiseTexture.image.height : 1;
+        smokePass.uniforms.noiseScale.value.set(
+            window.innerWidth / imgWidth,
+            window.innerHeight / imgHeight
+        );
     }
+}, false);
 
-    coreGeometry.setAttribute('position', new THREE.Float32BufferAttribute(corePositions, 3));
-    coreGeometry.setAttribute('color', new THREE.Float32BufferAttribute(coreColors, 3));
-    coreGeometry.setAttribute('size', new THREE.Float32BufferAttribute(coreSizes, 1)); // For custom sizes in shader
-
-    const coreMaterial = new THREE.PointsMaterial({
-        size: galaxyParams.starSize, // Base size, will be modulated by attribute
-        map: createCircularGradientTexture(),
-        vertexColors: true,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        // Optional: Use onBeforeCompile to customize size per particle if not using a custom shader
-        // For now, assuming a custom shader or that PointsMaterial handles 'size' attribute correctly
-    });
-
-    return new THREE.Points(coreGeometry, coreMaterial);
-}
-
-// --- INITIAL GALAXY SETUP ---
-// Generate shared cluster centers
-sharedGalaxyClusters = generateClusterCenters(35, galaxyParams.galacticRadius, galaxyParams.spiralArms);
-
-// Generate and add all components
-galaxyGroup.add(generateGalaxyStars());
-galaxyGroup.add(generateNebula());
-galaxyGroup.add(generateVolumetricSmoke());
-galaxyGroup.add(generateGalaxyCore());
+// Parameter UI (Example - can be expanded)
+// ...existing code...
