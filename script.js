@@ -18,9 +18,9 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputEncoding = THREE.sRGBEncoding; // Enable sRGB encoding for HDR
-renderer.toneMapping = THREE.ACESFilmicToneMapping; // Add tone mapping
-renderer.toneMappingExposure = 1.0; // Adjust exposure as needed
+renderer.outputEncoding = THREE.sRGBEncoding; // Corrected from sRGBEncoding
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
 const blueNoiseTexture = new THREE.TextureLoader().load('BlueNoise470.png');
@@ -28,7 +28,7 @@ blueNoiseTexture.wrapS = THREE.RepeatWrapping;
 blueNoiseTexture.wrapT = THREE.RepeatWrapping;
 
 camera.position.set(0.52, -7.77, 1.51);
-camera.rotation.set(79.0, 3.9, -18.7);
+camera.rotation.set(THREE.MathUtils.degToRad(79.0), THREE.MathUtils.degToRad(3.9), THREE.MathUtils.degToRad(-18.7)); // Converted to radians
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -45,7 +45,7 @@ const controlParams = {
 
 // Add time tracking for continuous animation
 let globalTime = 0;
-let lastFrameTime = 0;
+let lastFrameTime = performance.now(); // Initialize lastFrameTime
 
 const galaxyParams = {
     numStars: 70000,
@@ -67,43 +67,191 @@ const galaxyParams = {
     centralLightIntensity: 0.3
 };
 
+// --- START: GPU Instanced Stars ---
+
+const starVertexShader = `
+    attribute vec3 initPos;       // Initial position of the star (center of the quad)
+    attribute vec3 instanceColor; // Color of the star
+    attribute float instanceSize;  // Size of the star
+
+    uniform float uTime;           // Combined globalTime * effective rotationSpeed
+    uniform float coreRadiusUniform; // To pass galaxyParams.coreRadius
+
+    varying vec3 vColor;
+    varying vec2 vUv;              // UV for the texture on the quad (from PlaneGeometry's uv attribute)
+
+    float angularVel(float r_val, float core_r_uniform) {
+        if (r_val < core_r_uniform * 0.75) {
+            return 5.0; 
+        } else if (r_val < core_r_uniform * 2.0) {
+            return mix(5.0, 1.0, smoothstep(core_r_uniform * 0.75, core_r_uniform * 2.0, r_val));
+        } else { 
+            return 1.0 / (r_val * 0.5 + 0.2); 
+        }
+    }
+
+    void main() {
+        vColor = instanceColor;
+        vUv = uv; // 'uv' is the attribute from the PlaneGeometry of the quad
+
+        float r = length(initPos.xy); 
+        
+        float currentAngularOffset = angularVel(r, coreRadiusUniform) * uTime;
+        float baseAngle = atan(initPos.y, initPos.x); 
+        float theta = baseAngle + currentAngularOffset; 
+
+        vec3 rotatedWorldPos = vec3(r * cos(theta), r * sin(theta), initPos.z);
+
+        vec4 mvPosition = modelViewMatrix * vec4(rotatedWorldPos, 1.0);
+        mvPosition.xy += position.xy * instanceSize; 
+
+        gl_Position = projectionMatrix * mvPosition;
+    }
+`;
+
+const starFragmentShader = `
+    uniform sampler2D starTexture; 
+    varying vec3 vColor;
+    varying vec2 vUv;
+
+    void main() {
+        vec4 texColor = texture2D(starTexture, vUv);
+        if (texColor.a < 0.05) discard; 
+
+        gl_FragColor = texColor * vec4(vColor, 1.0); 
+    }
+`;
+
+let starField; // Will hold the THREE.InstancedMesh
+
+// --- END: GPU Instanced Stars ---
+
 function generateStarColorWithLuminosity(colorRange, luminosityRange) {
     const r = THREE.MathUtils.lerp(colorRange.min[0], colorRange.max[0], Math.random());
     const g = THREE.MathUtils.lerp(colorRange.min[1], colorRange.max[1], Math.random());
     const b = THREE.MathUtils.lerp(colorRange.min[2], colorRange.max[2], Math.random());
-    const baseColor = new THREE.Color(r, g, b);
-
-    // Apply luminosity multiplier
-    const luminosity = luminosityRange ?
-        THREE.MathUtils.lerp(luminosityRange.min, luminosityRange.max, Math.random()) :
-        1.0; // Default to 1.0 if no range provided
-
-    return baseColor.multiplyScalar(luminosity);
+    return new THREE.Color(r, g, b);
 }
 
 function createCircularGradientTexture() {
-    const size = 256;
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
+    const size = 128; // Texture size
     canvas.width = size;
     canvas.height = size;
+    const context = canvas.getContext('2d');
+    const centerX = size / 2;
+    const centerY = size / 2;
+    const radius = size / 2;
 
-    const context = canvas.getContext("2d");
-    const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
-    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+    const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+    gradient.addColorStop(0, 'rgba(255,255,255,1)');
+    gradient.addColorStop(0.2, 'rgba(255,255,220,0.8)');
+    gradient.addColorStop(0.5, 'rgba(255,220,200,0.4)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
 
-    context.clearRect(0, 0, size, size);
     context.fillStyle = gradient;
     context.fillRect(0, 0, size, size);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
-    texture.minFilter = THREE.LinearFilter;
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.format = THREE.RGBAFormat;
     return texture;
 }
+
+function setupInstancedStars() {
+    const numStars = galaxyParams.numStars;
+    const starGeo = new THREE.PlaneGeometry(1, 1); 
+
+    const starMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTime: { value: 0.0 },
+            starTexture: { value: createCircularGradientTexture() }, 
+            coreRadiusUniform: { value: galaxyParams.coreRadius }
+        },
+        vertexShader: starVertexShader,
+        fragmentShader: starFragmentShader,
+        transparent: true,
+        blending: THREE.AdditiveBlending, 
+        depthWrite: false 
+    });
+
+    starField = new THREE.InstancedMesh(starGeo, starMaterial, numStars);
+
+    const initPositions = new Float32Array(numStars * 3);
+    const instanceColors = new Float32Array(numStars * 3);
+    const instanceSizes = new Float32Array(numStars * 1);
+    const tempColor = new THREE.Color();
+
+    for (let i = 0; i < numStars; i++) {
+        const starTypeIndex = Math.floor(Math.random() * starTypes.length);
+        const starType = starTypes[starTypeIndex];
+
+        let x_pos, y_pos, z_pos;
+        const r_dist = Math.random(); 
+        const isInBulge = Math.random() < 0.20 && galaxyParams.coreRadius > 0.01;
+
+        if (isInBulge) {
+            const radius = Math.pow(Math.random(), 1.5) * galaxyParams.coreRadius;
+            const u = Math.random(); 
+            const v = Math.random(); 
+            const theta_bulge = 2 * Math.PI * u; 
+            const phi_bulge = Math.acos(2 * v - 1); 
+
+            x_pos = radius * Math.sin(phi_bulge) * Math.cos(theta_bulge);
+            y_pos = radius * Math.sin(phi_bulge) * Math.sin(theta_bulge);
+            z_pos = radius * Math.cos(phi_bulge) * 0.6; 
+        } else {
+            const armIndex = Math.floor(Math.random() * galaxyParams.spiralArms);
+            const angleOffsetPerArm = (Math.PI * 2) / galaxyParams.spiralArms;
+            const baseAngleForArm = armIndex * angleOffsetPerArm;
+
+            let r_disk = galaxyParams.coreRadius + Math.pow(r_dist, 1.8) * (galaxyParams.galacticRadius - galaxyParams.coreRadius);
+            r_disk = Math.min(r_disk, galaxyParams.galacticRadius); 
+
+            const spiralTightness = 2.5; 
+            const armSpread = 0.35; 
+            
+            let theta_disk = baseAngleForArm + (r_disk / galaxyParams.galacticRadius) * spiralTightness * Math.PI;
+            theta_disk += (Math.random() - 0.5) * armSpread * (galaxyParams.galacticRadius / (r_disk + 0.1)); 
+
+            x_pos = r_disk * Math.cos(theta_disk);
+            y_pos = r_disk * Math.sin(theta_disk);
+            
+            const z_rand = (Math.random() + Math.random() + Math.random() + Math.random() - 2) / 2; 
+            z_pos = z_rand * (0.03 * galaxyParams.galacticRadius) * (1 - (r_disk / galaxyParams.galacticRadius) * 0.7); 
+        }
+        initPositions[i * 3 + 0] = x_pos;
+        initPositions[i * 3 + 1] = y_pos;
+        initPositions[i * 3 + 2] = z_pos;
+
+        const colorObj = generateStarColorWithLuminosity(starType.colorRange, starType.luminosityRange);
+        tempColor.set(colorObj); 
+        instanceColors[i * 3 + 0] = tempColor.r;
+        instanceColors[i * 3 + 1] = tempColor.g;
+        instanceColors[i * 3 + 2] = tempColor.b;
+
+        const luminosity = THREE.MathUtils.lerp(starType.luminosityRange.min, starType.luminosityRange.max, Math.random());
+        let sizeFactor = 0.3 + luminosity * 0.25; 
+        if (starType.type === "Red Giant") sizeFactor *= 2.0;
+        else if (starType.type === "White Dwarf") sizeFactor *= 0.3;
+        else if (starType.type === "O-type" || starType.type === "B-type") sizeFactor *= 1.3;
+        
+        sizeFactor = Math.max(0.15, Math.min(sizeFactor, 3.0)); 
+        instanceSizes[i] = galaxyParams.starSize * sizeFactor * 15;                                                           
+    }
+
+    starField.geometry.setAttribute('initPos', new THREE.InstancedBufferAttribute(initPositions, 3));
+    starField.geometry.setAttribute('instanceColor', new THREE.InstancedBufferAttribute(instanceColors, 3));
+    starField.geometry.setAttribute('instanceSize', new THREE.InstancedBufferAttribute(instanceSizes, 1));
+    
+    galaxyGroup.add(starField);
+    console.log("Instanced stars setup complete.");
+}
+
+// Call the new setup function
+setupInstancedStars();
+
+
+// --- fractalNoise, snoiseJS, fbmJS, clustering, smoke shaders etc. below ---
 
 function fractalNoise(vec, octaves, persistence, lacunarity) {
     let total = 0;
@@ -1229,87 +1377,35 @@ function regenerateGalaxy() {
 function animate() {
     requestAnimationFrame(animate);
 
-    const currentTime = performance.now() / 1000;
-    const deltaTime = currentTime - lastFrameTime;
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - lastFrameTime) / 1000; // deltaTime in seconds
     lastFrameTime = currentTime;
-    globalTime += deltaTime;
+    globalTime += deltaTime; 
 
-    // Update motion blur pass uniforms
-    motionBlurPass.uniforms.deltaTime.value = deltaTime;
+    controls.update(); 
 
+    if (starField && starField.material.uniforms.uTime) {
+        starField.material.uniforms.uTime.value = globalTime * controlParams.rotationSpeed;
+    }
+    
+    // Update other animated components if any
+    // galaxyGroup.rotation.y += controlParams.rotationSpeed * deltaTime; // Example if overall rotation is still desired
 
-    // Render scene to the prevFrameRenderTarget for motion blur
-    renderer.setRenderTarget(prevFrameRenderTarget); // MODIFIED
     renderer.render(scene, camera);
-    renderer.setRenderTarget(null);
 
-
-    // Restore global galaxy rotation
-    galaxyGroup.rotation.z += controlParams.rotationSpeed;
-
-    // Update all rotation shaders and smoke
-    galaxyGroup.children.forEach(child => {
-        if (child.material && child.material.uniforms) {
-            if (child.material.uniforms.time) {
-                child.material.uniforms.time.value = globalTime;
-            }
-            if (child.material.uniforms.rotationSpeed) {
-                child.material.uniforms.rotationSpeed.value = controlParams.rotationSpeed;
-            }
-            if (child.material.uniforms.uTime) {
-                child.material.uniforms.uTime.value = globalTime;
-            }
-            if (child.material.uniforms.uCameraPosition) {
-                child.material.uniforms.uCameraPosition.value.copy(camera.position);
-            }
-        }
-    });
-
-    controls.update();
-    composer.render();
-
-    // --- CAMERA INFO DISPLAY ---
-    const cameraInfoDiv = document.getElementById('camera-info');
-    if (cameraInfoDiv) {
-        cameraInfoDiv.innerHTML =
+    const cameraInfo = document.getElementById('camera-info');
+    if (cameraInfo) {
+        cameraInfo.innerHTML =
             `Camera: x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}<br>` +
-            `Rotation: x: ${(THREE.MathUtils.radToDeg(camera.rotation.x)).toFixed(1)}°, y: ${(THREE.MathUtils.radToDeg(camera.rotation.y)).toFixed(1)}°, z: ${(THREE.MathUtils.radToDeg(camera.rotation.z)).toFixed(1)}°`;
+            `Rotation: x: ${THREE.MathUtils.radToDeg(camera.rotation.x).toFixed(1)}, y: ${THREE.MathUtils.radToDeg(camera.rotation.y).toFixed(1)}, z: ${THREE.MathUtils.radToDeg(camera.rotation.z).toFixed(1)}`;
     }
 }
 
-composer.addPass(godRayPass);
+// Initialize lastFrameTime before starting animation - MOVED to global scope
+animate(); // Start the animation loop
 
-// --- Ensure all params are set from defaults before first render ---
-
-godRayPass.uniforms.exposure.value = galaxyParams.godRaysIntensity;
-pointLight.intensity = galaxyParams.centralLightIntensity;
-
-galaxyGroup.children.forEach(child => {
-    if (child.material && child.material.uniforms) {
-        if (child.material.uniforms.uDensityFactor)
-            child.material.uniforms.uDensityFactor.value = galaxyParams.smokeDensityFactor;
-        if (child.material.uniforms.uDiffuseStrength)
-            child.material.uniforms.uDiffuseStrength.value = galaxyParams.smokeDiffuseStrength;
-        if (child.material.uniforms.uNoiseIntensity)
-            child.material.uniforms.uNoiseIntensity.value = galaxyParams.smokeNoiseIntensity;
-        if (child.material.uniforms.uSize)
-            child.material.uniforms.uSize.value = galaxyParams.smokeParticleSize;
-        if (child.material.uniforms.uColor1)
-            child.material.uniforms.uColor1.value = galaxyParams.smokeColor1;
-        if (child.material.uniforms.uColor2)
-            child.material.uniforms.uColor2.value = galaxyParams.smokeColor2;
-        if (child.material.uniforms.uCentralLightIntensity)
-            child.material.uniforms.uCentralLightIntensity.value = galaxyParams.centralLightIntensity;
-    }
-});
-
-galaxyGroup.children.forEach(child => {
-    if (child.isPoints && child.material && child.material.isPointsMaterial) {
-        child.material.size = galaxyParams.starSize;
-    }
-});
-
-window.addEventListener("resize", () => {
+// Handle window resize
+window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
