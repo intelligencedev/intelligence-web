@@ -1,3 +1,10 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+
 const starTypes = [
     { type: "O-type", colorRange: { min: [0.2, 0.2, 0.9], max: [0.4, 0.4, 1] }, luminosityRange: { min: 2.5, max: 5.0 } },
     { type: "B-type", colorRange: { min: [0.6, 0.7, 1], max: [0.8, 0.9, 1] }, luminosityRange: { min: 2.0, max: 4.0 } },
@@ -76,7 +83,7 @@ blueNoiseTexture.wrapT = THREE.RepeatWrapping;
 camera.position.set(0.52, -7.77, 1.51);
 camera.rotation.set(THREE.MathUtils.degToRad(79.0), THREE.MathUtils.degToRad(3.9), THREE.MathUtils.degToRad(-18.7)); // Converted to radians
 
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.25;
 controls.enableZoom = true;
@@ -179,7 +186,7 @@ const DENSITY_TEXTURE_SIZE = 128;
 
 function setupDensityTexture() {
     // Allocate 3D Texture
-    densityTexture = new THREE.DataTexture3D(
+    densityTexture = new THREE.Data3DTexture(
         new Uint8Array(DENSITY_TEXTURE_SIZE * DENSITY_TEXTURE_SIZE * DENSITY_TEXTURE_SIZE),
         DENSITY_TEXTURE_SIZE,
         DENSITY_TEXTURE_SIZE,
@@ -859,8 +866,8 @@ var composer;
 
 function setupPostProcessing() {
     // Initialize composer here
-    composer = new THREE.EffectComposer(renderer);
-    const renderPass = new THREE.RenderPass(scene, camera);
+    composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
 
     // Volumetric Smoke Pass
@@ -882,7 +889,7 @@ function setupPostProcessing() {
         volumetricSmokeShader.uniforms.boxMax.value = new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.25);
 
 
-        smokePass = new THREE.ShaderPass(volumetricSmokeShader);
+        smokePass = new ShaderPass(volumetricSmokeShader);
         // Enable additive blending to overlay volumetric effect onto scene
         smokePass.material.transparent = true;
         smokePass.material.blending = THREE.AdditiveBlending;
@@ -893,7 +900,7 @@ function setupPostProcessing() {
     } else {
         console.warn("Density texture not ready for post-processing pass setup.");
         // Create a fallback pass if texture isn't ready
-        const copyPass = new THREE.ShaderPass(THREE.CopyShader);
+        const copyPass = new ShaderPass(CopyShader);
         copyPass.renderToScreen = true;
         composer.addPass(copyPass);
     }
