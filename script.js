@@ -124,14 +124,11 @@ window.galaxyParams = {
     verticalScaleHeight: 0.06, // h_z ≈ 0.06 R_gal
     spiralPitchAngle: 13.0, // degrees (12°-14°)
     clusterInfluence: 0.20, // 20% of stars snap to clusters
-    numNebulaParticles: 20000,
-    numSmokeParticles: 20000,
-    smokeParticleSize: 0.90,
-    smokeColor1: new THREE.Color(0x101025).multiplyScalar(1.5), // Example: Brighten smoke colors
-    smokeColor2: new THREE.Color(0x251510).multiplyScalar(1.5), // Example: Brighten smoke colors
-    smokeDensityFactor: 5.0,
-    smokeMarchSteps: 6,
-    smokeDiffuseStrength: 9.0,
+    // Volumetric nebula parameters (replacing old smoke particles)
+    densityFactor: 15.0, // Increased for better visibility
+    absorptionCoefficient: 0.5, // Reduced for better visibility
+    scatteringCoefficient: 6.0,
+    rayMarchSteps: 96,
     godRaysIntensity: 0.33,
     sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
     anisotropyG: 0.1,
@@ -206,17 +203,21 @@ let densityWorker = null;
 const DENSITY_TEXTURE_SIZE = 128;
 
 function setupDensityTexture() {
-    // Allocate 3D Texture
+    // Allocate 3D Texture with RG16F format for HDR density data
+    const dataSize = DENSITY_TEXTURE_SIZE * DENSITY_TEXTURE_SIZE * DENSITY_TEXTURE_SIZE * 2; // 2 components (RG)
     densityTexture = new THREE.Data3DTexture(
-        new Uint8Array(DENSITY_TEXTURE_SIZE * DENSITY_TEXTURE_SIZE * DENSITY_TEXTURE_SIZE),
+        new Float32Array(dataSize),
         DENSITY_TEXTURE_SIZE,
         DENSITY_TEXTURE_SIZE,
         DENSITY_TEXTURE_SIZE
     );
-    densityTexture.format = THREE.RedFormat;
-    densityTexture.type = THREE.UnsignedByteType;
+    densityTexture.format = THREE.RGFormat;
+    densityTexture.type = THREE.FloatType;
     densityTexture.minFilter = THREE.LinearFilter;
     densityTexture.magFilter = THREE.LinearFilter;
+    densityTexture.wrapS = THREE.ClampToEdgeWrapping;
+    densityTexture.wrapT = THREE.ClampToEdgeWrapping;
+    densityTexture.wrapR = THREE.ClampToEdgeWrapping;
     densityTexture.unpackAlignment = 1;
     densityTexture.needsUpdate = true;
 
@@ -225,9 +226,36 @@ function setupDensityTexture() {
         densityWorker = new Worker('densityWorker.js');
         densityWorker.onmessage = function(e) {
             const { textureData } = e.data;
-            densityTexture.image.data = new Uint8Array(textureData);
+            console.log("Received density data from worker, size:", textureData.byteLength);
+            
+            // Create new Float32Array from the transferred buffer
+            const densityData = new Float32Array(textureData);
+            console.log("First few density values:", densityData.slice(0, 10));
+            
+            // Check for non-zero values
+            let nonZeroCount = 0;
+            let maxValue = 0;
+            for (let i = 0; i < densityData.length; i += 2) {
+                if (densityData[i] > 0.01) nonZeroCount++;
+                maxValue = Math.max(maxValue, densityData[i]);
+            }
+            console.log(`Density validation: ${nonZeroCount} non-zero voxels, max value: ${maxValue.toFixed(3)}`);
+            
+            densityTexture.image.data = densityData;
             densityTexture.needsUpdate = true;
-            console.log("Density texture updated by worker.");
+            console.log("HDR density texture updated by worker.");
+            
+            // Setup post-processing now that texture is ready
+            if (!composer) {
+                console.log("Setting up post-processing with density texture");
+                setupPostProcessing();
+            } else {
+                // Update existing smokePass with new texture
+                if (smokePass && smokePass.uniforms) {
+                    smokePass.uniforms.tDensity.value = densityTexture;
+                    console.log("Updated existing smokePass with new density texture");
+                }
+            }
 
             // Worker has done its job, can terminate if not needed for updates
             // densityWorker.terminate(); 
@@ -249,10 +277,13 @@ function setupDensityTexture() {
             textureSize: DENSITY_TEXTURE_SIZE,
             galaxyParams: { // Send relevant params
                 galacticRadius: galaxyParams.galacticRadius,
-                // Potentially other params like coreRadius, spiralArms if needed by worker's logic
+                verticalScaleHeight: galaxyParams.verticalScaleHeight,
+                discScaleLength: galaxyParams.discScaleLength,
+                spiralArms: galaxyParams.spiralArms,
+                spiralPitchAngle: galaxyParams.spiralPitchAngle
             },
-            noiseScale: 0.15, // Example scale for FBM
-            clusterCenters: sharedGalaxyClusters // Send cluster data
+            noiseScale: 0.08, // Finer noise scale for better detail
+            clusterCenters: sharedGalaxyClusters
         });
 
     } else {
@@ -265,23 +296,23 @@ function setupDensityTexture() {
 const volumetricSmokeShader = {
     uniforms: {
         'tDiffuse': { value: null }, // Scene render
-        'tDensity': { value: null }, // Will be densityTexture
+        'tDensity': { value: null }, // RG16F density texture
         'cameraPos': { value: new THREE.Vector3() },
         'invProjectionMatrix': { value: new THREE.Matrix4() },
         'invModelViewMatrix': { value: new THREE.Matrix4() },
         'screenResolution': { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
         'u_time': { value: 0.0 },
-        'absorptionCoefficient': { value: 2.0 }, // Beer-Lambert (reduced)
-        'scatteringCoefficient': { value: 8.0 }, // Increased scattering
+        'absorptionCoefficient': { value: 0.5 }, // Reduced for better visibility
+        'scatteringCoefficient': { value: 6.0 },
         'phaseG': { value: 0.1 }, // Henyey-Greenstein g
-        'lightPosition': { value: new THREE.Vector3(0, 0, 0) }, // Example: central light
-        'lightIntensity': { value: new THREE.Color(1.0, 0.9, 0.8).multiplyScalar(2.0) }, // Brighter light
-        'densityFactor': { value: 5.0 }, // Increased density factor
-        'steps': { value: 64 }, // Raymarching steps
-        'noiseTexture': { value: blueNoiseTexture }, // For dithering/jittering ray start
-        'noiseScale': { value: new THREE.Vector2(1, 1) }, // Placeholder, updated once texture loads
-        'boxMin': { value: new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.25) },
-        'boxMax': { value: new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.25) },
+        'lightPosition': { value: new THREE.Vector3(0, 0, 0) },
+        'lightIntensity': { value: new THREE.Color(1.0, 0.9, 0.8).multiplyScalar(3.0) },
+        'densityFactor': { value: 15.0 }, // Increased for better visibility
+        'steps': { value: 96 }, // Increased for better quality
+        'noiseTexture': { value: blueNoiseTexture },
+        'noiseScale': { value: new THREE.Vector2(1, 1) },
+        'boxMin': { value: new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.5) },
+        'boxMax': { value: new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.5) },
     },
     vertexShader: `
         varying vec2 vUv;
@@ -295,27 +326,29 @@ const volumetricSmokeShader = {
         precision highp sampler3D;
         
         uniform sampler2D tDiffuse; // Scene texture
-        uniform sampler3D tDensity;
-        uniform vec3 cameraPos; // World space camera position
+        uniform sampler3D tDensity;  // RG format: R=density, G=temperature
+        uniform vec3 cameraPos;
         uniform mat4 invProjectionMatrix;
-        uniform mat4 invModelViewMatrix; // Inverse of camera's modelViewMatrix (camera.matrixWorld)
+        uniform mat4 invModelViewMatrix;
         uniform vec2 screenResolution;
         uniform float u_time;
         uniform float absorptionCoefficient;
         uniform float scatteringCoefficient;
         uniform float phaseG;
-        uniform vec3 lightPosition; // World space light position
+        uniform vec3 lightPosition;
         uniform vec3 lightIntensity;
         uniform float densityFactor;
         uniform int steps;
         uniform sampler2D noiseTexture;
         uniform vec2 noiseScale;
-        uniform vec3 boxMin; // AABB of the smoke volume
+        uniform vec3 boxMin;
         uniform vec3 boxMax;
 
         varying vec2 vUv;
 
         #define PI 3.14159265359
+        #define MAX_STEPS 128
+        #define EMPTY_SPACE_THRESHOLD 0.001 // Reduced threshold for better visibility
 
         // Henyey-Greenstein phase function
         float henyeyGreenstein(float cosTheta, float g) {
@@ -324,9 +357,6 @@ const volumetricSmokeShader = {
         }
 
         // Intersection of a ray with an AABB
-        // ro: ray origin, rd: ray direction
-        // boxMin, boxMax: AABB corners
-        // t0, t1: entry and exit distances
         bool intersectBox(vec3 ro, vec3 rd, vec3 boxMin, vec3 boxMax, out float t0, out float t1) {
             vec3 invDir = 1.0 / rd;
             vec3 tbot = invDir * (boxMin - ro);
@@ -337,88 +367,139 @@ const volumetricSmokeShader = {
             float t_exit = min(min(tmax.x, tmax.y), tmax.z);
             t0 = t_enter;
             t1 = t_exit;
-            return t_exit > max(0.0, t_enter); // Ensure t_exit is positive and after t_enter
+            return t_exit > max(0.0, t_enter);
         }
 
-
-        // Sample density from 3D texture
-        float sampleDensity(vec3 pos_world) {
+        // Sample density with early exit optimization
+        vec2 sampleDensity(vec3 pos_world) {
             // Transform world position to texture coordinates [0, 1]
             vec3 texCoord = (pos_world - boxMin) / (boxMax - boxMin);
-            // Clamp to avoid sampling outside the texture
+            
+            // Early exit if outside volume bounds
             if (any(lessThan(texCoord, vec3(0.0))) || any(greaterThan(texCoord, vec3(1.0)))) {
-                return 0.0;
+                return vec2(0.0);
             }
-            float rawDensity = texture(tDensity, texCoord).r;
-            return rawDensity * densityFactor; // Scale density by factor
+            
+            vec2 densityData = texture(tDensity, texCoord).rg;
+            return densityData * densityFactor;
         }
 
+        // Temperature-based color mixing
+        vec3 getNebulaColor(float temperature) {
+            // Map temperature to color palette (blue -> white -> red -> yellow)
+            vec3 coolColor = vec3(0.1, 0.3, 1.0);   // Blue
+            vec3 warmColor = vec3(1.0, 0.6, 0.2);   // Orange
+            vec3 hotColor = vec3(1.0, 0.9, 0.7);    // White-yellow
+            
+            if (temperature < 0.5) {
+                return mix(coolColor, warmColor, temperature * 2.0);
+            } else {
+                return mix(warmColor, hotColor, (temperature - 0.5) * 2.0);
+            }
+        }
 
         void main() {
             // Sample scene color
             vec4 sceneColor = texture2D(tDiffuse, vUv);
+            
             // Calculate ray direction from camera through fragment
-            vec2 screenPos = vUv * 2.0 - 1.0; // Convert UV to NDC [-1, 1]
+            vec2 screenPos = vUv * 2.0 - 1.0;
+            screenPos.x *= screenResolution.x / screenResolution.y; // Correct aspect ratio
             
             // Create ray direction in view space
-            vec4 clipPos = vec4(screenPos, -1.0, 1.0); // Near plane
+            vec4 clipPos = vec4(screenPos, 1.0, 1.0);
             vec4 viewPos = invProjectionMatrix * clipPos;
             viewPos /= viewPos.w;
             
-            vec3 rayDir = normalize(viewPos.xyz); // Ray direction in view space
-            rayDir = (invModelViewMatrix * vec4(rayDir, 0.0)).xyz; // Transform to world space
+            // Transform to world space
+            vec3 rayDir = normalize((invModelViewMatrix * vec4(viewPos.xyz, 0.0)).xyz);
             vec3 rayOrigin = cameraPos;
 
             float tNear, tFar;
             if (!intersectBox(rayOrigin, rayDir, boxMin, boxMax, tNear, tFar)) {
-                gl_FragColor = sceneColor; // No volume contribution
+                gl_FragColor = sceneColor;
                 return;
             }
             
-            tNear = max(tNear, 0.0); // Ensure tNear is not behind camera
-
+            tNear = max(tNear, 0.0);
+            
             if (tFar <= tNear) {
                 gl_FragColor = sceneColor;
                 return;
             }
 
-            vec3 accumulatedColor = vec3(0.0);
-            float accumulatedAlpha = 0.0; // Transmittance
+            // Debug: Add a simple color tint to verify ray-box intersection is working
+            // Remove this after debugging
+            if (gl_FragCoord.x < 10.0 && gl_FragCoord.y < 10.0) {
+                gl_FragColor = vec4(sceneColor.rgb + vec3(0.1, 0.0, 0.0), 1.0); // Red tint in corner
+                return;
+            }
 
-            // Jitter ray start for noise reduction (using blue noise if available)
+            // HDR accumulation
+            vec3 accumulatedColor = vec3(0.0);
+            float transmittance = 1.0;
+            float maxDensitySampled = 0.0; // Debug: track max density
+            
+            // Jitter ray start for noise reduction
             float noiseVal = texture(noiseTexture, gl_FragCoord.xy * noiseScale).r;
             float stepSize = (tFar - tNear) / float(steps);
-            float currentT = tNear + noiseVal * stepSize; // Jittered start
-
-            for (int i = 0; i < steps; ++i) {
-                if (currentT >= tFar || accumulatedAlpha > 0.99) break;
+            float currentT = tNear + noiseVal * stepSize;
+            
+            int actualSteps = min(steps, MAX_STEPS);
+            
+            for (int i = 0; i < MAX_STEPS; ++i) {
+                if (i >= actualSteps || currentT >= tFar || transmittance < 0.01) break;
 
                 vec3 currentPos = rayOrigin + rayDir * currentT;
-                float density = sampleDensity(currentPos);
+                vec2 densityData = sampleDensity(currentPos);
+                float density = densityData.r;
+                float temperature = densityData.g;
+                
+                maxDensitySampled = max(maxDensitySampled, density); // Debug: track max density
 
-                if (density > 0.01) { // Only process if density is significant
-                    float effectiveStepSize = stepSize; // Could be adaptive: stepSize * clamp(0.1, 1.0/density, 1.0);
+                if (density > EMPTY_SPACE_THRESHOLD) {
+                    // Adaptive step size based on density
+                    float adaptiveStepSize = stepSize * clamp(0.1, 1.0 / (density * 8.0 + 1.0), 1.0);
                     
                     // Beer-Lambert Law for absorption
-                    float transmittance = exp(-absorptionCoefficient * density * effectiveStepSize);
-                    accumulatedAlpha += (1.0 - transmittance) * (1.0 - accumulatedAlpha);
-
-
-                    // Scattering (simplified single scattering)
-                    vec3 lightDir = normalize(lightPosition - currentPos); // Direction to light
-                    float cosTheta = dot(rayDir, lightDir); // Angle between view ray and light ray
+                    float absorption = absorptionCoefficient * density * adaptiveStepSize;
+                    float stepTransmittance = exp(-absorption);
+                    
+                    // Scattering calculation
+                    vec3 lightDir = normalize(lightPosition - currentPos);
+                    float cosTheta = dot(-rayDir, lightDir);
                     float phase = henyeyGreenstein(cosTheta, phaseG);
                     
-                    // Attenuation of light to this point (simplified, could also raymarch to light)
-                    float lightAttenuation = 1.0; // Placeholder for light raymarching or shadow map
-
-                    vec3 scatteredLight = lightIntensity * scatteringCoefficient * density * phase * lightAttenuation * effectiveStepSize;
-                    accumulatedColor += scatteredLight * (1.0 - accumulatedAlpha); // Add scattered light, attenuated by what's in front
+                    // Simple light attenuation (could be improved with shadow raymarching)
+                    float lightDistance = length(lightPosition - currentPos);
+                    float lightAttenuation = 1.0 / (1.0 + lightDistance * lightDistance * 0.01);
+                    
+                    // Nebula color based on temperature
+                    vec3 nebulaColor = getNebulaColor(temperature);
+                    
+                    // Scattered light contribution
+                    vec3 scatteredLight = lightIntensity * nebulaColor * scatteringCoefficient * 
+                                         density * phase * lightAttenuation * adaptiveStepSize;
+                    
+                    accumulatedColor += scatteredLight * transmittance;
+                    transmittance *= stepTransmittance;
+                    
+                    currentT += adaptiveStepSize;
+                } else {
+                    // Empty space - take larger steps
+                    currentT += stepSize * 2.0;
                 }
-                currentT += stepSize; // Basic adaptive step: stepSize * clamp(0.1, 1.0 / (density * 10.0 + 1e-6), 1.0);
             }
-            // Composite volumetric over scene
-            gl_FragColor = sceneColor + vec4(accumulatedColor, 1.0);
+            
+            // Debug: Visualize density sampling
+            if (maxDensitySampled > 0.0) {
+                // Add green tint where density was found
+                accumulatedColor += vec3(0.0, maxDensitySampled * 0.5, 0.0);
+            }
+            
+            // Composite volumetric over scene with HDR
+            vec3 finalColor = sceneColor.rgb * transmittance + accumulatedColor;
+            gl_FragColor = vec4(finalColor, 1.0);
         }
     `
 };
@@ -543,10 +624,10 @@ for (let r = 0.5; r <= 4.0; r += 0.5) {
 sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms);
 
 // Hoist composer declaration before setup to avoid TDZ error
-
+var composer;
 
 setupDensityTexture(); // Initialize density texture and worker
-setupPostProcessing(); // Setup post-processing after density texture initialization
+// setupPostProcessing(); // Setup post-processing after density texture initialization - moved to worker callback
 
 
 // --- fractalNoise, snoiseJS, fbmJS, clustering, smoke shaders etc. below ---
@@ -1036,8 +1117,7 @@ function getClusterInfluence(position, clusters) {
 // For example, if there was a 'createSmokeParticles' or similar, it should be removed.
 // And in the animate loop, any updates to that old system.
 
-// Update EffectComposer - declare composer here
-var composer;
+// Update EffectComposer - remove duplicate declaration since we hoisted it above
 
 // const VolumePass = {
 //     uniforms: {
@@ -1059,18 +1139,40 @@ var composer;
 // --- NEW: Volumetric Raymarching Inspired Smoke Shader ---
 
 function setupPostProcessing() {
-    // Initialize composer here
-    composer = new EffectComposer(renderer);
+    console.log("Setting up post-processing...");
+    
+    // Initialize composer with HDR render target
+    const renderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+        format: THREE.RGBAFormat,
+        type: THREE.FloatType,
+        magFilter: THREE.LinearFilter,
+        minFilter: THREE.LinearFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping
+    });
+    
+    composer = new EffectComposer(renderer, renderTarget);
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
+    
+    console.log("Created composer and render pass");
 
     // Volumetric Smoke Pass
-    if (densityTexture) { // Ensure texture is ready or at least initialized
+    if (densityTexture) {
+        console.log("Density texture available, setting up volumetric pass");
+        console.log("Density texture details:", {
+            size: DENSITY_TEXTURE_SIZE,
+            format: densityTexture.format,
+            type: densityTexture.type,
+            needsUpdate: densityTexture.needsUpdate
+        });
+        
         volumetricSmokeShader.uniforms.tDensity.value = densityTexture;
         volumetricSmokeShader.uniforms.cameraPos.value = camera.position;
-        // invProjectionMatrix and invModelViewMatrix will be updated in animate
         volumetricSmokeShader.uniforms.screenResolution.value = new THREE.Vector2(window.innerWidth, window.innerHeight);
         volumetricSmokeShader.uniforms.noiseTexture.value = blueNoiseTexture;
+        
+        console.log("Setting up volumetric shader with density texture:", densityTexture);
         
         const imgWidth = blueNoiseTexture.image && blueNoiseTexture.image.width ? blueNoiseTexture.image.width : 1;
         const imgHeight = blueNoiseTexture.image && blueNoiseTexture.image.height ? blueNoiseTexture.image.height : 1;
@@ -1079,18 +1181,15 @@ function setupPostProcessing() {
             window.innerHeight / imgHeight
         );
         
-        volumetricSmokeShader.uniforms.boxMin.value = new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.25);
-        volumetricSmokeShader.uniforms.boxMax.value = new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.25);
-
+        volumetricSmokeShader.uniforms.boxMin.value = new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.5);
+        volumetricSmokeShader.uniforms.boxMax.value = new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.5);
 
         smokePass = new ShaderPass(volumetricSmokeShader);
-        // Enable additive blending to overlay volumetric effect onto scene
-        smokePass.material.transparent = true;
-        smokePass.material.blending = THREE.AdditiveBlending;
-        smokePass.material.depthTest = false;
-        smokePass.material.depthWrite = false;
-        smokePass.renderToScreen = true; // Final pass renders to screen
+        smokePass.renderToScreen = true; // Final pass renders to screen with ACES tonemapping
         composer.addPass(smokePass);
+        
+        console.log("✓ Volumetric pass added to composer");
+        console.log("  Box bounds:", volumetricSmokeShader.uniforms.boxMin.value, "to", volumetricSmokeShader.uniforms.boxMax.value);
     } else {
         console.warn("Density texture not ready for post-processing pass setup.");
         // Create a fallback pass if texture isn't ready
@@ -1132,6 +1231,10 @@ function animate() {
 
     controls.update();
 
+    // Update camera matrices for volumetric rendering
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+
     // Update shader uniforms that change each frame
     if (starField) {
         starField.material.uniforms.uTime.value = globalTime;
@@ -1142,6 +1245,29 @@ function animate() {
         smokePass.uniforms.cameraPos.value.copy(camera.position);
         smokePass.uniforms.invProjectionMatrix.value.copy(camera.projectionMatrixInverse);
         smokePass.uniforms.invModelViewMatrix.value.copy(camera.matrixWorld); // camera.matrixWorld is already the inverse of view matrix
+        
+        // Debug: Check if density texture is bound and log important values occasionally
+        if (Math.floor(globalTime * 60) % 120 === 0) { // Every 2 seconds
+            if (smokePass.uniforms.tDensity && smokePass.uniforms.tDensity.value) {
+                console.log("✓ Density texture bound to shader");
+                console.log("  Density factor:", smokePass.uniforms.densityFactor.value);
+                console.log("  Ray march steps:", smokePass.uniforms.steps.value);
+                console.log("  Box bounds:", smokePass.uniforms.boxMin.value, "to", smokePass.uniforms.boxMax.value);
+                console.log("  Camera position:", camera.position);
+                
+                // Check if camera is inside or outside the galaxy volume
+                const boxMin = smokePass.uniforms.boxMin.value;
+                const boxMax = smokePass.uniforms.boxMax.value;
+                const isInsideBox = (
+                    camera.position.x >= boxMin.x && camera.position.x <= boxMax.x &&
+                    camera.position.y >= boxMin.y && camera.position.y <= boxMax.y &&
+                    camera.position.z >= boxMin.z && camera.position.z <= boxMax.z
+                );
+                console.log("  Camera inside volume:", isInsideBox);
+            } else {
+                console.log("❌ Density texture NOT bound to shader!");
+            }
+        }
     }
 
 
@@ -1150,6 +1276,7 @@ function animate() {
         composer.render();
     } else {
         renderer.render(scene, camera); // Fallback if composer not ready
+        console.log("Using fallback renderer - composer not ready yet");
     }
 
     const cameraInfo = document.getElementById('camera-info');
@@ -1185,23 +1312,38 @@ window.handleParamChange = function(key, val) {
                 starField.material.uniforms.timeScale.value = val;
             }
             break;
-        case 'smokeDensityFactor':
-            volumetricSmokeShader.uniforms.densityFactor.value = val;
+        case 'densityFactor':
+            if (smokePass && smokePass.uniforms) {
+                smokePass.uniforms.densityFactor.value = val;
+            }
             break;
-        case 'smokeMarchSteps':
-            volumetricSmokeShader.uniforms.steps.value = val;
+        case 'rayMarchSteps':
+            if (smokePass && smokePass.uniforms) {
+                smokePass.uniforms.steps.value = val;
+            }
             break;
-        case 'smokeDiffuseStrength':
-            volumetricSmokeShader.uniforms.scatteringCoefficient.value = val;
+        case 'absorptionCoefficient':
+            if (smokePass && smokePass.uniforms) {
+                smokePass.uniforms.absorptionCoefficient.value = val;
+            }
+            break;
+        case 'scatteringCoefficient':
+            if (smokePass && smokePass.uniforms) {
+                smokePass.uniforms.scatteringCoefficient.value = val;
+            }
             break;
         case 'godRaysIntensity':
             // Could adjust other uniforms if needed
             break;
         case 'anisotropyG':
-            volumetricSmokeShader.uniforms.phaseG.value = val;
+            if (smokePass && smokePass.uniforms) {
+                smokePass.uniforms.phaseG.value = val;
+            }
             break;
         case 'centralLightIntensity':
-            volumetricSmokeShader.uniforms.lightIntensity.value.setScalar(val);
+            if (smokePass && smokePass.uniforms && smokePass.uniforms.lightIntensity) {
+                smokePass.uniforms.lightIntensity.value.setScalar(val);
+            }
             break;
         // Add cases for nebula, smoke particles if implemented
     }

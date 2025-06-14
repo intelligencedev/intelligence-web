@@ -116,50 +116,107 @@ function getExponentialDiscDensity(x, y, z, galaxyRadius, galaxyHeightScale) {
 
 self.onmessage = function(e) {
     const { textureSize, galaxyParams, noiseScale, clusterCenters } = e.data;
-    const { galacticRadius } = galaxyParams; // Assuming galacticRadius is part of galaxyParams
+    const { galacticRadius, verticalScaleHeight, discScaleLength, spiralArms, spiralPitchAngle } = galaxyParams;
 
-    const data = new Uint8Array(textureSize * textureSize * textureSize); // Use Uint8Array for better compatibility
+    // Use Float32Array for RG16F format (2 components per voxel)
+    const dataSize = textureSize * textureSize * textureSize * 2; // 2 components (RG)
+    const data = new Float32Array(dataSize);
     
     // Shim for THREE.Vector3 if not available
-    const Vec3 = (x,y,z) => ({x,y,z, clone: function(){ return Vec3(this.x,this.y,this.z)}, multiplyScalar: function(s){this.x*=s;this.y*=s;this.z*=s; return this;}, addScalar: function(s){this.x+=s;this.y+=s;this.z+=s; return this;}, sub: function(v){this.x-=v.x;this.y-=v.y;this.z-=v.z; return this;}, dot: function(v){return this.x*v.x+this.y*v.y+this.z*v.z;}, divideScalar: function(s){this.x/=s;this.y/=s;this.z/=s; return this;}, floor: function(){this.x=Math.floor(this.x); this.y=Math.floor(this.y); this.z=Math.floor(this.z); return this;}});
+    const Vec3 = (x,y,z) => ({
+        x,y,z, 
+        clone: function(){ return Vec3(this.x,this.y,this.z)}, 
+        multiplyScalar: function(s){this.x*=s;this.y*=s;this.z*=s; return this;}, 
+        addScalar: function(s){this.x+=s;this.y+=s;this.z+=s; return this;}, 
+        sub: function(v){this.x-=v.x;this.y-=v.y;this.z-=v.z; return this;}, 
+        dot: function(v){return this.x*v.x+this.y*v.y+this.z*v.z;}, 
+        divideScalar: function(s){this.x/=s;this.y/=s;this.z/=s; return this;}, 
+        floor: function(){this.x=Math.floor(this.x); this.y=Math.floor(this.y); this.z=Math.floor(this.z); return this;}
+    });
 
-    // Pre-normalize coordinates to be [-0.5, 0.5] for texture lookup mapping to world space later
-    // Or map world coordinates to texture voxel coordinates
     const halfSize = textureSize / 2;
-    const worldToVoxelScale = textureSize / (galacticRadius * 2); // Map world units to voxel units
 
     for (let z = 0; z < textureSize; z++) {
         for (let y = 0; y < textureSize; y++) {
             for (let x = 0; x < textureSize; x++) {
-                const index = (x + y * textureSize + z * textureSize * textureSize);
+                const index = (x + y * textureSize + z * textureSize * textureSize) * 2; // 2 components
 
-                // Convert voxel coordinates to world-like coordinates for noise and profile
-                // Assuming the 3D texture covers a cubic region of space, e.g., [-galaxyRadius, +galaxyRadius]
+                // Convert voxel coordinates to world coordinates
                 const worldX = (x - halfSize) / halfSize * galacticRadius;
                 const worldY = (y - halfSize) / halfSize * galacticRadius;
-                const worldZ = (z - halfSize) / halfSize * (galacticRadius * 0.25); // Flatter distribution for Z
+                const worldZ = (z - halfSize) / halfSize * (galacticRadius * 0.5); // Match box bounds
 
                 const posVec = Vec3(worldX, worldY, worldZ);
+                const r = Math.sqrt(worldX*worldX + worldY*worldY);
                 
-                // 1. FBM Noise
-                let noiseVal = fbmJS(posVec.clone().multiplyScalar(noiseScale || 0.1), 4, 0.5, 2.0); // (pos * scale, octaves, persistence, lacunarity)
+                // 1. Multi-octave FBM Noise (6 octaves for more detail)
+                let noiseVal = fbmJS(posVec.clone().multiplyScalar(noiseScale || 0.08), 6, 0.5, 2.0);
                 noiseVal = (noiseVal + 1.0) / 2.0; // Normalize to [0, 1]
 
-                // 2. Cluster Influence
+                // Add second layer of finer noise for detail
+                let detailNoise = fbmJS(posVec.clone().multiplyScalar(noiseScale * 3.0), 4, 0.4, 2.2);
+                detailNoise = (detailNoise + 1.0) / 2.0;
+                noiseVal = noiseVal * 0.7 + detailNoise * 0.3;
+
+                // 2. Spiral arm enhancement
+                let spiralDensity = 1.0;
+                if (r > galacticRadius * 0.1) { // Don't apply in core
+                    const theta = Math.atan2(worldY, worldX);
+                    const pitchRad = (spiralPitchAngle || 13.0) * Math.PI / 180.0;
+                    
+                    for (let arm = 0; arm < (spiralArms || 2); arm++) {
+                        const armOffset = (arm * 2.0 * Math.PI) / (spiralArms || 2);
+                        const spiralTheta = theta - armOffset - r * Math.tan(pitchRad);
+                        const armDist = Math.abs(Math.sin(spiralTheta * (spiralArms || 2) / 2.0));
+                        spiralDensity += Math.exp(-armDist * 8.0) * 0.8;
+                    }
+                    spiralDensity = Math.min(spiralDensity, 2.5);
+                }
+
+                // 3. Cluster Influence
                 const clusterInfluence = getClusterInfluence(posVec, clusterCenters);
 
-                // 3. Exponential Disc Profile
-                const discDensity = getExponentialDiscDensity(worldX, worldY, worldZ, galacticRadius, galacticRadius * 0.1); // galaxyHeightScale
+                // 4. Exponential Disc Profile (more realistic)
+                const verticalDensity = Math.exp(-Math.abs(worldZ) / (verticalScaleHeight || galacticRadius * 0.06));
+                const radialDensity = Math.exp(-r / (discScaleLength || galacticRadius * 0.35));
+                const discDensity = verticalDensity * radialDensity;
 
-                // Combine them: Modulate FBM by disc profile and cluster influence
-                let density = noiseVal * discDensity * (0.2 + clusterInfluence * 0.8); // Ensure some base density
-                density = Math.max(0, Math.min(density, 1.0)); // Clamp
+                // 5. Central bulge enhancement
+                const bulgeFactor = r < galacticRadius * 0.2 ? 
+                    Math.exp(-r / (galacticRadius * 0.08)) * 1.5 : 1.0;
 
-                data[index] = Math.floor(density * 255); // Convert to 8-bit value
+                // Combine all factors with enhanced multipliers for visibility
+                let finalDensity = noiseVal * discDensity * spiralDensity * bulgeFactor * (0.5 + clusterInfluence * 1.5) * 3.0; // Increased multiplier
+                
+                // Add temperature/color variation (R = density, G = temperature)
+                let temperature = 0.5 + noiseVal * 0.3 + clusterInfluence * 0.2;
+                temperature *= (1.0 + spiralDensity * 0.2); // Hotter in spiral arms
+                
+                // Clamp values for HDR storage
+                finalDensity = Math.max(0, Math.min(finalDensity * 2.0, 8.0)); // Increased max HDR value
+                temperature = Math.max(0, Math.min(temperature, 2.0));
+
+                data[index] = finalDensity;     // R channel - density
+                data[index + 1] = temperature;  // G channel - temperature/color
             }
         }
     }
+    
     self.postMessage({ textureData: data.buffer }, [data.buffer]);
+    
+    // Debug: Log some statistics about the generated data
+    let nonZeroCount = 0;
+    let maxDensity = 0;
+    let totalDensity = 0;
+    for (let i = 0; i < data.length; i += 2) {
+        const density = data[i];
+        if (density > 0.01) nonZeroCount++;
+        if (density > maxDensity) maxDensity = density;
+        totalDensity += density;
+    }
+    const avgDensity = totalDensity / (data.length / 2);
+    console.log(`Density Worker: Generated ${data.length/2} voxels, ${nonZeroCount} non-zero, max: ${maxDensity.toFixed(3)}, avg: ${avgDensity.toFixed(3)}`);
+    console.log(`World coordinate range: X[${-galacticRadius},${galacticRadius}] Y[${-galacticRadius},${galacticRadius}] Z[${-galacticRadius*0.5},${galacticRadius*0.5}]`);
 };
 
 // Minimal THREE.Vector shim for worker if THREE is not imported

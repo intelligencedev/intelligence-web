@@ -217,29 +217,24 @@
         <span class="parameter-value" id="numNebulaParticles-value">20000</span>
       </div>
       <div class="parameter-row">
-        <label for="numSmokeParticles">Smoke Particles</label>
-        <input type="range" id="numSmokeParticles" min="1000" max="50000" step="1000" value="20000">
-        <span class="parameter-value" id="numSmokeParticles-value">20000</span>
+        <label for="densityFactor">Nebula Density</label>
+        <input type="range" id="densityFactor" min="0.1" max="50" step="0.5" value="15">
+        <span class="parameter-value" id="densityFactor-value">15</span>
       </div>
       <div class="parameter-row">
-        <label for="smokeParticleSize">Smoke Particle Size</label>
-        <input type="range" id="smokeParticleSize" min="0.1" max="2" step="0.01" value="0.9">
-        <span class="parameter-value" id="smokeParticleSize-value">0.9</span>
+        <label for="rayMarchSteps">Ray March Steps</label>
+        <input type="range" id="rayMarchSteps" min="32" max="128" step="8" value="96">
+        <span class="parameter-value" id="rayMarchSteps-value">96</span>
       </div>
       <div class="parameter-row">
-        <label for="smokeDensityFactor">Smoke Density Factor</label>
-        <input type="range" id="smokeDensityFactor" min="0.1" max="10" step="0.01" value="5">
-        <span class="parameter-value" id="smokeDensityFactor-value">5</span>
+        <label for="absorptionCoefficient">Absorption</label>
+        <input type="range" id="absorptionCoefficient" min="0.1" max="5" step="0.1" value="0.5">
+        <span class="parameter-value" id="absorptionCoefficient-value">0.5</span>
       </div>
       <div class="parameter-row">
-        <label for="smokeMarchSteps">Smoke March Steps</label>
-        <input type="range" id="smokeMarchSteps" min="1" max="64" step="1" value="6">
-        <span class="parameter-value" id="smokeMarchSteps-value">6</span>
-      </div>
-      <div class="parameter-row">
-        <label for="smokeDiffuseStrength">Smoke Diffuse Strength</label>
-        <input type="range" id="smokeDiffuseStrength" min="0.1" max="20" step="0.1" value="9">
-        <span class="parameter-value" id="smokeDiffuseStrength-value">9</span>
+        <label for="scatteringCoefficient">Scattering</label>
+        <input type="range" id="scatteringCoefficient" min="1" max="20" step="0.5" value="6">
+        <span class="parameter-value" id="scatteringCoefficient-value">6</span>
       </div>
       <div class="parameter-row">
         <label for="godRaysIntensity">God Rays Intensity</label>
@@ -277,12 +272,16 @@
       { id: 'spiralArms', key: 'spiralArms', type: 'int' },
       { id: 'coreRadius', key: 'coreRadius', type: 'float' },
       { id: 'orbitalTimeScale', key: 'orbitalTimeScale', type: 'float' },
+      { id: 'discScaleLength', key: 'discScaleLength', type: 'float' },
+      { id: 'bulgeRadius', key: 'bulgeRadius', type: 'float' },
+      { id: 'verticalScaleHeight', key: 'verticalScaleHeight', type: 'float' },
+      { id: 'spiralPitchAngle', key: 'spiralPitchAngle', type: 'float' },
+      { id: 'clusterInfluence', key: 'clusterInfluence', type: 'float' },
       { id: 'numNebulaParticles', key: 'numNebulaParticles', type: 'int' },
-      { id: 'numSmokeParticles', key: 'numSmokeParticles', type: 'int' },
-      { id: 'smokeParticleSize', key: 'smokeParticleSize', type: 'float' },
-      { id: 'smokeDensityFactor', key: 'smokeDensityFactor', type: 'float' },
-      { id: 'smokeMarchSteps', key: 'smokeMarchSteps', type: 'int' },
-      { id: 'smokeDiffuseStrength', key: 'smokeDiffuseStrength', type: 'float' },
+      { id: 'densityFactor', key: 'densityFactor', type: 'float' },
+      { id: 'rayMarchSteps', key: 'rayMarchSteps', type: 'int' },
+      { id: 'absorptionCoefficient', key: 'absorptionCoefficient', type: 'float' },
+      { id: 'scatteringCoefficient', key: 'scatteringCoefficient', type: 'float' },
       { id: 'godRaysIntensity', key: 'godRaysIntensity', type: 'float' },
       { id: 'anisotropyG', key: 'anisotropyG', type: 'float' },
       { id: 'centralLightIntensity', key: 'centralLightIntensity', type: 'float' },
