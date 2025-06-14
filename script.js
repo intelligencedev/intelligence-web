@@ -160,8 +160,8 @@ const starVertexShader = `
         float r = initPos.x;
         float baseAngle = initPos.y;
         
-        // Simple test: constant rotation
-        float theta = baseAngle + uTime * 2.0;
+        // Simple test: constant rotation (reversed direction)
+        float theta = baseAngle - uTime * 2.0;
 
         vec3 rotatedWorldPos = vec3(r * cos(theta), r * sin(theta), initPos.z);
 
