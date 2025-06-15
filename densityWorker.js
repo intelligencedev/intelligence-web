@@ -56,6 +56,34 @@ function fbmJS(p_vec3, octaves = 6, persistence = 0.5, lacunarity = 2.0) {
 }
 // --- END: Noise functions ---
 
+// Helper for GLSL-style mix
+function mix(x, y, a) {
+    return x * (1.0 - a) + y * a;
+}
+
+function armFalloff(r, theta, params) {
+    const pitch = (params.spiralPitchAngle * Math.PI) / 180.0;
+    const b = Math.tan(pitch);            // ln-spiral coefficient
+    let minD2 = 1e9;
+
+    // Ensure params have defaults if not provided
+    const baseRadius = params.baseRadius || 0.5;
+    const armWidth = params.armWidth || 0.35;
+    const numArms = params.spiralArms || 2;
+
+    for (let arm = 0; arm < numArms; ++arm) {
+        const offset = arm * (2.0 * Math.PI / numArms);
+        const rOnArm = baseRadius * Math.exp(b * (theta - offset));
+        const d = Math.abs(r - rOnArm);  // radial distance to arm's centre-line
+        minD2 = Math.min(minD2, d * d);
+    }
+
+    // Gaussian profile – width ≈ params.armWidth
+    const sigma2 = armWidth * armWidth;
+    if (sigma2 === 0) return 0; // Avoid division by zero if armWidth is 0
+    return Math.exp(-minD2 / (2.0 * sigma2));
+}
+
 // --- START: Clustering functions ---
 // These would be simplified versions or require THREE.Vector3 if not shimmed
 function generateClusterCenters(numClusters, galacticRadius, spiralArms, armOffsetStrength = 2.0, heightMax = 0.5) {
@@ -116,7 +144,7 @@ function getExponentialDiscDensity(x, y, z, galaxyRadius, galaxyHeightScale) {
 
 self.onmessage = function(e) {
     const { textureSize, galaxyParams, noiseScale, clusterCenters } = e.data;
-    const { galacticRadius, verticalScaleHeight, discScaleLength, spiralArms, spiralPitchAngle } = galaxyParams;
+    const { galacticRadius, verticalScaleHeight, discScaleLength, spiralArms, spiralPitchAngle, baseRadius, armWidth, armDensityMultiplier } = galaxyParams;
 
     // Use Float32Array for RG16F format (2 components per voxel)
     const dataSize = textureSize * textureSize * textureSize * 2; // 2 components (RG)
@@ -129,6 +157,7 @@ self.onmessage = function(e) {
         multiplyScalar: function(s){this.x*=s;this.y*=s;this.z*=s; return this;}, 
         addScalar: function(s){this.x+=s;this.y+=s;this.z+=s; return this;}, 
         sub: function(v){this.x-=v.x;this.y-=v.y;this.z-=v.z; return this;}, 
+        add: function(v){this.x+=v.x;this.y+=v.y;this.z+=v.z; return this;}, 
         dot: function(v){return this.x*v.x+this.y*v.y+this.z*v.z;}, 
         divideScalar: function(s){this.x/=s;this.y/=s;this.z/=s; return this;}, 
         floor: function(){this.x=Math.floor(this.x); this.y=Math.floor(this.y); this.z=Math.floor(this.z); return this;}
@@ -148,31 +177,21 @@ self.onmessage = function(e) {
 
                 const posVec = Vec3(worldX, worldY, worldZ);
                 const r = Math.sqrt(worldX*worldX + worldY*worldY);
+                const theta = Math.atan2(worldY, worldX);      // Calculate theta here
                 
-                // 1. Multi-octave FBM Noise (6 octaves for more detail)
-                let noiseVal = fbmJS(posVec.clone().multiplyScalar(noiseScale || 0.08), 6, 0.5, 2.0);
+                // 1. Anisotropic FBM Noise
+                const armMaskForNoise = armFalloff(r, theta, galaxyParams); // Calculate armMask for noise
+                const tangent = Vec3(-Math.sin(theta), Math.cos(theta), 0);
+                const armAlignedPos = posVec.clone().add(tangent.clone().multiplyScalar(armMaskForNoise * 2.0));
+                
+                let noiseVal = fbmJS(armAlignedPos.multiplyScalar(noiseScale || 0.08), 5, 0.5, 2.0); // Using 5 octaves
                 noiseVal = (noiseVal + 1.0) / 2.0; // Normalize to [0, 1]
 
-                // Add second layer of finer noise for detail
-                let detailNoise = fbmJS(posVec.clone().multiplyScalar(noiseScale * 3.0), 4, 0.4, 2.2);
-                detailNoise = (detailNoise + 1.0) / 2.0;
-                noiseVal = noiseVal * 0.7 + detailNoise * 0.3;
-
-                // 2. Spiral arm enhancement
-                let spiralDensity = 1.0;
-                if (r > galacticRadius * 0.1) { // Don't apply in core
-                    const theta = Math.atan2(worldY, worldX);
-                    const pitchRad = (spiralPitchAngle || 13.0) * Math.PI / 180.0;
-                    
-                    for (let arm = 0; arm < (spiralArms || 2); arm++) {
-                        const armOffset = (arm * 2.0 * Math.PI) / (spiralArms || 2);
-                        const spiralTheta = theta - armOffset - r * Math.tan(pitchRad);
-                        const armDist = Math.abs(Math.sin(spiralTheta * (spiralArms || 2) / 2.0));
-                        spiralDensity += Math.exp(-armDist * 8.0) * 0.8;
-                    }
-                    spiralDensity = Math.min(spiralDensity, 2.5);
-                }
-
+                // 2. Spiral arm enhancement (replaces old spiralDensity)
+                const armMask = armFalloff(r, theta, galaxyParams); // Re-calculate or use armMaskForNoise if appropriate
+                const currentArmDensityMultiplier = armDensityMultiplier || 4.0; // Default if not provided
+                const armGain = mix(1.0, currentArmDensityMultiplier, armMask);   // as much as 4× denser right on the arm axis
+                
                 // 3. Cluster Influence
                 const clusterInfluence = getClusterInfluence(posVec, clusterCenters);
 
@@ -186,11 +205,11 @@ self.onmessage = function(e) {
                     Math.exp(-r / (galacticRadius * 0.08)) * 1.5 : 1.0;
 
                 // Combine all factors with enhanced multipliers for visibility
-                let finalDensity = noiseVal * discDensity * spiralDensity * bulgeFactor * (0.5 + clusterInfluence * 1.5) * 3.0; // Increased multiplier
+                let finalDensity = noiseVal * discDensity * bulgeFactor * armGain * (0.4 + clusterInfluence * 1.6); // Adjusted multipliers
                 
                 // Add temperature/color variation (R = density, G = temperature)
-                let temperature = 0.5 + noiseVal * 0.3 + clusterInfluence * 0.2;
-                temperature *= (1.0 + spiralDensity * 0.2); // Hotter in spiral arms
+                let temperature = mix(0.35, 0.7, armMask);          // cool blue knots on the arms
+                temperature += noiseVal * 0.15 + clusterInfluence * 0.15;
                 
                 // Clamp values for HDR storage
                 finalDensity = Math.max(0, Math.min(finalDensity * 2.0, 8.0)); // Increased max HDR value

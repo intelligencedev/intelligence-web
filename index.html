@@ -211,8 +211,26 @@
         <input type="range" id="clusterInfluence" min="0" max="0.5" step="0.01" value="0.2">
         <span class="parameter-value" id="clusterInfluence-value">0.2</span>
       </div>
+    </div>
+    <div class="parameter-section">
+      <div class="section-title">Nebula Parameters</div>
       <div class="parameter-row">
-        <label for="numNebulaParticles">Nebula Particles</label>
+        <label for="baseRadius">Nebula Base Radius</label>
+        <input type="range" id="baseRadius" min="0.1" max="2.0" step="0.05" value="0.5">
+        <span class="parameter-value" id="baseRadius-value">0.5</span>
+      </div>
+      <div class="parameter-row">
+        <label for="armWidth">Nebula Arm Width</label>
+        <input type="range" id="armWidth" min="0.05" max="1.0" step="0.01" value="0.35">
+        <span class="parameter-value" id="armWidth-value">0.35</span>
+      </div>
+      <div class="parameter-row">
+        <label for="armDensityMultiplier">Nebula Arm Density</label>
+        <input type="range" id="armDensityMultiplier" min="1.0" max="10.0" step="0.1" value="4.0">
+        <span class="parameter-value" id="armDensityMultiplier-value">4.0</span>
+      </div>
+      <div class="parameter-row">
+        <label for="numNebulaParticles">Nebula Particles (Legacy)</label>
         <input type="range" id="numNebulaParticles" min="1000" max="50000" step="1000" value="20000">
         <span class="parameter-value" id="numNebulaParticles-value">20000</span>
       </div>
@@ -277,7 +295,12 @@
       { id: 'verticalScaleHeight', key: 'verticalScaleHeight', type: 'float' },
       { id: 'spiralPitchAngle', key: 'spiralPitchAngle', type: 'float' },
       { id: 'clusterInfluence', key: 'clusterInfluence', type: 'float' },
-      { id: 'numNebulaParticles', key: 'numNebulaParticles', type: 'int' },
+      // New Nebula Params
+      { id: 'baseRadius', key: 'baseRadius', type: 'float' },
+      { id: 'armWidth', key: 'armWidth', type: 'float' },
+      { id: 'armDensityMultiplier', key: 'armDensityMultiplier', type: 'float' },
+      // Existing Nebula/Volume Params
+      { id: 'numNebulaParticles', key: 'numNebulaParticles', type: 'int' }, // Legacy, but keep if used elsewhere
       { id: 'densityFactor', key: 'densityFactor', type: 'float' },
       { id: 'rayMarchSteps', key: 'rayMarchSteps', type: 'int' },
       { id: 'absorptionCoefficient', key: 'absorptionCoefficient', type: 'float' },

@@ -124,6 +124,10 @@ window.galaxyParams = {
     verticalScaleHeight: 0.06, // h_z ≈ 0.06 R_gal
     spiralPitchAngle: 13.0, // degrees (12°-14°)
     clusterInfluence: 0.20, // 20% of stars snap to clusters
+    // New spiral arm parameters
+    baseRadius: 0.5, // For spiral calculations (stars and nebula)
+    armWidth: 0.35, // Width of nebula arms
+    armDensityMultiplier: 4.0, // Max density boost on nebula arms
     // Volumetric nebula parameters (replacing old smoke particles)
     densityFactor: 15.0, // Increased for better visibility
     absorptionCoefficient: 0.5, // Reduced for better visibility
@@ -272,7 +276,7 @@ function setupDensityTexture() {
         if (!sharedGalaxyClusters) {
             console.error("sharedGalaxyClusters should be generated before setupDensityTexture!");
             // Generate as fallback
-            sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms);
+            sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms, galaxyParams.baseRadius, galaxyParams.spiralPitchAngle);
         }
 
         densityWorker.postMessage({
@@ -282,7 +286,10 @@ function setupDensityTexture() {
                 verticalScaleHeight: galaxyParams.verticalScaleHeight,
                 discScaleLength: galaxyParams.discScaleLength,
                 spiralArms: galaxyParams.spiralArms,
-                spiralPitchAngle: galaxyParams.spiralPitchAngle
+                spiralPitchAngle: galaxyParams.spiralPitchAngle,
+                baseRadius: galaxyParams.baseRadius, // New
+                armWidth: galaxyParams.armWidth,         // New
+                armDensityMultiplier: galaxyParams.armDensityMultiplier // New
             },
             noiseScale: 0.08, // Finer noise scale for better detail
             clusterCenters: sharedGalaxyClusters
@@ -314,7 +321,7 @@ const volumetricSmokeShader = {
         'noiseTexture': { value: blueNoiseTexture },
         'noiseScale': { value: new THREE.Vector2(1, 1) },
         'boxMin': { value: new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.5) },
-        'boxMax': { value: new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.5) },
+        'boxMax': { value: new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 1.5) },
     },
     vertexShader: `
         varying vec2 vUv;
@@ -388,15 +395,15 @@ const volumetricSmokeShader = {
 
         // Temperature-based color mixing
         vec3 getNebulaColor(float temperature) {
-            // Map temperature to color palette (blue -> white -> red -> yellow)
-            vec3 coolColor = vec3(0.1, 0.3, 1.0);   // Blue
-            vec3 warmColor = vec3(1.0, 0.6, 0.2);   // Orange
-            vec3 hotColor = vec3(1.0, 0.9, 0.7);    // White-yellow
+            // Enhanced color palette for better blue knots / red dust lanes
+            vec3 coolColor  = vec3(0.15, 0.35, 1.0);  // brighter blue for knots
+            vec3 dustColor  = vec3(0.6, 0.3, 0.1);    // brownish absorption/dust lanes
+            vec3 warmColor  = vec3(1.0, 0.9, 0.75);   // core light / warmer regions
             
-            if (temperature < 0.5) {
-                return mix(coolColor, warmColor, temperature * 2.0);
+            if (temperature < 0.4) {
+                return mix(dustColor, coolColor, smoothstep(0.05, 0.4, temperature));
             } else {
-                return mix(warmColor, hotColor, (temperature - 0.5) * 2.0);
+                return mix(coolColor, warmColor, smoothstep(0.4, 1.0, temperature));
             }
         }
 
@@ -465,6 +472,8 @@ const volumetricSmokeShader = {
                     
                     // Beer-Lambert Law for absorption
                     float absorption = absorptionCoefficient * density * adaptiveStepSize;
+                    // Modulate extinction by density and temperature for dust lanes
+                    absorption *= mix(1.0, 2.0, 1.0 - clamp(temperature, 0.0, 1.0)); // Extra dust if temperature low
                     float stepTransmittance = exp(-absorption);
                     
                     // Scattering calculation
@@ -528,14 +537,39 @@ function createCircularGradientTexture() {
     const centerY = size / 2;
     const radius = size / 2;
 
+    // Create radial gradient for star glow
     const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
     gradient.addColorStop(0, 'rgba(255,255,255,1)');
-    gradient.addColorStop(0.2, 'rgba(255,255,220,0.8)');
-    gradient.addColorStop(0.5, 'rgba(255,220,200,0.4)');
+    gradient.addColorStop(0.1, 'rgba(255,255,220,0.8)');
+    gradient.addColorStop(0.3, 'rgba(255,220,200,0.4)');
     gradient.addColorStop(1, 'rgba(255,255,255,0)');
 
     context.fillStyle = gradient;
     context.fillRect(0, 0, size, size);
+
+    // Add softened cross lens flare streaks
+    context.strokeStyle = 'rgba(255,255,255,0.2)';  // Reduced opacity
+    context.lineWidth = radius * 0.02;               // Thinner streaks
+    context.beginPath();
+    // Horizontal streak
+    context.moveTo(0, centerY);
+    context.lineTo(size, centerY);
+    // Vertical streak
+    context.moveTo(centerX, 0);
+    context.lineTo(centerX, size);
+    context.stroke();
+
+    // Angled streaks (optional, currently disabled)
+    /*
+    context.strokeStyle = 'rgba(255,255,255,0.1)';  // Even lower opacity
+    context.lineWidth = radius * 0.015;
+    context.beginPath();
+    context.moveTo(centerX - radius, centerY - radius);
+    context.lineTo(centerX + radius, centerY + radius);
+    context.moveTo(centerX - radius, centerY + radius);
+    context.lineTo(centerX + radius, centerY - radius);
+    context.stroke();
+    */
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
@@ -623,7 +657,7 @@ for (let r = 0.5; r <= 4.0; r += 0.5) {
 }
 
 // Generate cluster centers before density texture setup
-sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms);
+sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms, galaxyParams.baseRadius, galaxyParams.spiralPitchAngle);
 
 // Hoist composer declaration before setup to avoid TDZ error
 var composer;
@@ -1034,35 +1068,46 @@ function selectStellarType(r, params) {
 }
 
 // --- END: Accurate Galaxy Structure Functions ---
-function generateClusterCenters(numClusters, galacticRadius, spiralArms) {
+function generateClusterCenters(numClusters, galacticRadius, spiralArms, baseRadius = 0.5, spiralPitchAngleDeg = 13.0) {
     const clusters = [];
-    
+    const pitchRad = (spiralPitchAngleDeg * Math.PI) / 180.0;
+    const b = Math.tan(pitchRad); // ln-spiral coefficient
+
     // Generate spiral arm clusters
+    const clustersPerArm = Math.floor(numClusters * 0.7 / Math.max(1, spiralArms));
     for (let arm = 0; arm < spiralArms; arm++) {
-        const armAngle = (arm / spiralArms) * 2 * Math.PI;
-        const clustersPerArm = Math.floor(numClusters * 0.7 / spiralArms); // 70% in spiral arms
+        const armBaseAngle = (arm / spiralArms) * 2 * Math.PI;
         
         for (let i = 0; i < clustersPerArm; i++) {
-            const t = (i + 1) / (clustersPerArm + 1); // Parameter along arm
-            const radius = Math.pow(t, 0.8) * galacticRadius * 0.9; // Non-linear distribution
-            // REVERSED spiral direction: negate the pitch term
-            const angle = armAngle - 3.0 * radius / galacticRadius + (Math.random() - 0.5) * 0.8;
+            // Distribute clusters along the arm; ensure radius is within bounds
+            const progressAlongArm = (i + 0.5) / clustersPerArm; // 0 to 1
+            let radius = baseRadius + progressAlongArm * (galacticRadius * 0.8 - baseRadius); // Spread from baseRadius outwards
+            radius = Math.max(baseRadius * 0.5, Math.min(radius, galacticRadius * 0.9));
+
+            // Stronger arm-following, deterministic theta based on radius
+            let angleOnArm = armBaseAngle;
+            if (b !== 0 && radius > 0 && baseRadius > 0) { // Avoid Math.log(0) or division by zero
+                 angleOnArm = Math.log(radius / baseRadius) / b + armBaseAngle;
+            }
+
+            const x = radius * Math.cos(angleOnArm);
+            const y = radius * Math.sin(angleOnArm);
             
-            const x = radius * Math.cos(angle);
-            const y = radius * Math.sin(angle);
+            // Vertical position with some randomness, scaled by distance from center
+            const z_scale = (1.0 - radius / galacticRadius) * 0.4 + 0.05; // Thicker towards center
+            const z = (Math.random() - 0.5) * galacticRadius * z_scale;
             
-            // Enhanced vertical distribution - much thicker at center, thinner at edges
-            const normalizedRadius = radius / galacticRadius;
-            const verticalScale = Math.pow(1.0 - normalizedRadius, 1.2) * 0.8 + 0.1;
-            const z = (Math.random() - 0.5) * verticalScale;
-            
-            // Add 3D noise perturbation to cluster centers
-            const noiseOffset = fractalNoise3D(new THREE.Vector3(x, y, z), 3, 0.08) - 0.5;
+            const jitterScale = (0.5 + Math.random() * 0.8) * 0.15; // Smaller jitter
+
             clusters.push({
-                center: new THREE.Vector3(x + noiseOffset, y + noiseOffset, z),
-                radius: 0.8 + Math.random() * 1.2, // Cluster size variation
-                density: 0.6 + Math.random() * 0.4, // Density variation
-                armIndex: arm
+                center: new THREE.Vector3(
+                    x + (Math.random() - 0.5) * jitterScale * radius, // Jitter relative to radius
+                    y + (Math.random() - 0.5) * jitterScale * radius,
+                    z + (Math.random() - 0.5) * jitterScale * galacticRadius * 0.1
+                ),
+                radius: (0.2 + Math.random() * 0.3) * (galacticRadius / 10), // Smaller cluster radius
+                density: 0.3 + Math.random() * 0.4, // Density can be used by worker
+                armIndex: arm 
             });
         }
     }
@@ -1265,62 +1310,78 @@ animate();
 
 // Runtime parameter update handler
 window.handleParamChange = function(key, val) {
-    switch(key) {
-        case 'numStars':
-        case 'starSize':
-        case 'galacticRadius':
-        case 'spiralArms':
-        case 'coreRadius':
-        case 'discScaleLength':
-        case 'bulgeRadius':
-        case 'verticalScaleHeight':
-        case 'spiralPitchAngle':
-        case 'clusterInfluence':
-            // Rebuild star field for structural changes
-            if (starField) galaxyGroup.remove(starField);
-            // Regenerate cluster centers if needed
-            sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms);
-            setupInstancedStars();
-            break;
-        case 'orbitalTimeScale':
-            if (starField && starField.material && starField.material.uniforms) {
-                starField.material.uniforms.timeScale.value = val;
-            }
-            break;
-        case 'densityFactor':
-            if (smokePass && smokePass.uniforms) {
-                smokePass.uniforms.densityFactor.value = val;
-            }
-            break;
-        case 'rayMarchSteps':
-            if (smokePass && smokePass.uniforms) {
-                smokePass.uniforms.steps.value = val;
-            }
-            break;
-        case 'absorptionCoefficient':
-            if (smokePass && smokePass.uniforms) {
-                smokePass.uniforms.absorptionCoefficient.value = val;
-            }
-            break;
-        case 'scatteringCoefficient':
-            if (smokePass && smokePass.uniforms) {
-                smokePass.uniforms.scatteringCoefficient.value = val;
-            }
-            break;
-        case 'godRaysIntensity':
-            // Could adjust other uniforms if needed
-            break;
-        case 'anisotropyG':
-            if (smokePass && smokePass.uniforms) {
-                smokePass.uniforms.phaseG.value = val;
-            }
-            break;
-        case 'centralLightIntensity':
-            if (smokePass && smokePass.uniforms && smokePass.uniforms.lightIntensity) {
-                smokePass.uniforms.lightIntensity.value.setScalar(val);
-            }
-            break;
-        // Add cases for nebula, smoke particles if implemented
+    // galaxyParams[key] is already updated by the UI script in index.html
+
+    const densityRegenKeys = [
+        'galacticRadius', 'verticalScaleHeight', 'discScaleLength', 
+        'spiralArms', 'spiralPitchAngle', 'baseRadius', 'armWidth', 
+        'armDensityMultiplier', 'clusterInfluence' // clusterInfluence affects star distribution which might be tied to nebula
+    ];
+    const starRegenKeys = [
+        'numStars', 'starSize', 'coreRadius', 'galacticRadius', 'spiralArms',
+        'discScaleLength', 'bulgeRadius', 'verticalScaleHeight', 'spiralPitchAngle',
+        'clusterInfluence', 'baseRadius'
+    ];
+
+    let needsDensityRegen = densityRegenKeys.includes(key);
+    let needsStarRegen = starRegenKeys.includes(key);
+
+    if (needsDensityRegen || needsStarRegen) { // Some params (e.g. galacticRadius) affect both
+        // Regenerate cluster centers if parameters they depend on change
+        // This should happen before star or density regeneration if they use the new clusters
+        if (['galacticRadius', 'spiralArms', 'baseRadius', 'spiralPitchAngle'].includes(key)) {
+             console.log("Regenerating shared galaxy clusters due to parameter change:", key);
+             sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms, galaxyParams.baseRadius, galaxyParams.spiralPitchAngle);
+        }
+    }
+
+    if (needsDensityRegen) {
+        console.log("Regenerating density texture due to parameter change:", key);
+        if (densityWorker) {
+            densityWorker.terminate();
+            densityWorker = null;
+            console.log("Terminated existing density worker.");
+        }
+        // Ensure composer is reset or correctly handles new texture if it exists
+        if (composer && smokePass) {
+            // Potentially remove and re-add smokePass if texture dimensions/format changes,
+            // but here only data changes. Texture object itself is reused.
+        }
+        setupDensityTexture(); // This will create and start a new worker
+    }
+
+    if (needsStarRegen) {
+        console.log("Regenerating stars due to parameter change:", key);
+        if (starField) {
+            galaxyGroup.remove(starField);
+            starField.geometry.dispose();
+            starField.material.dispose();
+            starField = null; // Important to nullify
+        }
+        setupInstancedStars();
+    }
+    
+    // Live uniform updates for shaders
+    if (starField && key === 'orbitalTimeScale') {
+        starField.material.uniforms.timeScale.value = val;
+    }
+    if (starField && key === 'coreRadius') { 
+        starField.material.uniforms.coreRadiusUniform.value = val;
+    }
+
+    if (smokePass) {
+        if (key === 'densityFactor') smokePass.uniforms.densityFactor.value = val;
+        if (key === 'absorptionCoefficient') smokePass.uniforms.absorptionCoefficient.value = val;
+        if (key === 'scatteringCoefficient') smokePass.uniforms.scatteringCoefficient.value = val;
+        if (key === 'rayMarchSteps') smokePass.uniforms.steps.value = val;
+        if (key === 'anisotropyG') smokePass.uniforms.phaseG.value = val;
+        if (key === 'centralLightIntensity') {
+            smokePass.uniforms.lightIntensity.value.setRGB(1.0, 0.9, 0.8).multiplyScalar(val);
+        }
+        if (key === 'galacticRadius' && smokePass.uniforms.boxMin) { // Check if boxMin exists
+            smokePass.uniforms.boxMin.value.set(-val, -val, -val * 0.5);
+            smokePass.uniforms.boxMax.value.set(val, val, val * 0.5);
+        }
     }
 };
 
