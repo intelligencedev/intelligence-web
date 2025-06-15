@@ -258,8 +258,10 @@ function setupDensityTexture() {
             }
 
             // Worker has done its job, can terminate if not needed for updates
-            // densityWorker.terminate(); 
-            // densityWorker = null;
+            densityWorker.terminate(); 
+            densityWorker = null;
+
+            console.log("Density worker terminated after processing.");
         };
         densityWorker.onerror = function(error) {
             console.error('Error from density worker:', error);
@@ -1113,31 +1115,6 @@ function getClusterInfluence(position, clusters) {
 
 // --- NEW: Volumetric Raymarching Inspired Smoke Shader ---
 
-// Remove old smoke particle system related code if it exists
-// For example, if there was a 'createSmokeParticles' or similar, it should be removed.
-// And in the animate loop, any updates to that old system.
-
-// Update EffectComposer - remove duplicate declaration since we hoisted it above
-
-// const VolumePass = {
-//     uniforms: {
-//         tScene:   { value: null },
-//         tDensity: { value: null },
-//         cameraMat:{ value: new THREE.Matrix4() },
-//         invProj:  { value: new THREE.Matrix4() },
-//         sunPos:   { value: galaxyParams.sunPosition.clone() },
-//         g:        { value: galaxyParams.anisotropyG },
-//         sigmaS:   { value: galaxyParams.smokeDiffuseStrength },
-//         sigmaA:   { value: galaxyParams.smokeDensityFactor },
-//         stepSz:   { value: 1.0 / 128.0 },
-//         maxSteps: { value: galaxyParams.smokeMarchSteps }
-//     },
-//     vertexShader: `varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);}`,
-//     fragmentShader: volumetricSmokeShader.fragmentShader
-// };
-
-// --- NEW: Volumetric Raymarching Inspired Smoke Shader ---
-
 function setupPostProcessing() {
     console.log("Setting up post-processing...");
     
@@ -1198,8 +1175,6 @@ function setupPostProcessing() {
         composer.addPass(copyPass);
     }
 }
-
-// setupPostProcessing(); // Moved to after density texture setup
 
 // NEW: VolumePass for full-screen raymarch
 const VolumePass = {
