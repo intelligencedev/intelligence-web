@@ -91,14 +91,16 @@ blueNoiseTexture.wrapS = THREE.RepeatWrapping;
 blueNoiseTexture.wrapT = THREE.RepeatWrapping;
 blueNoiseTexture.needsUpdate = true;
 
-camera.position.set(0.52, -7.77, 1.51);
-camera.rotation.set(THREE.MathUtils.degToRad(79.0), THREE.MathUtils.degToRad(3.9), THREE.MathUtils.degToRad(-18.7)); // Converted to radians
-
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.25;
 controls.enableZoom = true;
 controls.enablePan = false;
+
+// Set camera position after controls are initialized
+camera.position.set(0.52, -7.77, 1.51);
+camera.rotation.set(THREE.MathUtils.degToRad(79.0), THREE.MathUtils.degToRad(3.9), THREE.MathUtils.degToRad(-18.7));
+controls.update(); // Update controls to match camera position
 
 const galaxyGroup = new THREE.Group();
 scene.add(galaxyGroup);
@@ -136,7 +138,11 @@ window.galaxyParams = {
     godRaysIntensity: 0.33,
     sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
     anisotropyG: 0.1,
-    centralLightIntensity: 0.3
+    centralLightIntensity: 0.3,
+    // Dust/Smoke Params
+    numSmokeParticles: 10000,
+    smokeParticleSize: 0.1,
+    smokeNoiseIntensity: 1.0
 };
 
 // --- START: GPU Instanced Stars ---
@@ -644,8 +650,82 @@ function setupInstancedStars() {
     console.log("Accurate galaxy structure stars setup complete.");
 }
 
-// Call the new setup function
-setupInstancedStars();
+// Smoke shaders
+const smokeVertexShader = `
+  uniform float size;
+  uniform float time;
+  varying vec3 vWorldPos;
+  varying vec2 vUv;
+  void main() {
+    vUv = position.xy;
+    vWorldPos = position;
+    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = size * (1.0 + 0.3 * sin(time + position.x * 5.0));
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+const smokeFragmentShader = `
+  uniform sampler2D noiseTexture;
+  uniform float noiseScale;
+  uniform float time;
+  varying vec2 vUv;
+  void main() {
+    vec2 uv = vUv * noiseScale + vec2(time * 0.02);
+    float n = texture2D(noiseTexture, uv).r;
+    float alpha = n * 0.5;
+    gl_FragColor = vec4(vec3(0.8), alpha);
+  }
+`;
+
+// Implement dust/volumetric smoke system
+let smokePoints, smokeData;
+function generateVolumetricSmoke() {
+  // Remove existing smoke if any
+  if (smokePoints) {
+    galaxyGroup.remove(smokePoints);
+    smokePoints.geometry.dispose();
+    smokePoints.material.dispose();
+    smokePoints = null;
+  }
+  const count = galaxyParams.numSmokeParticles;
+  const positions = new Float32Array(count * 3);
+  smokeData = [];
+  // sample along logarithmic spirals
+  for (let i = 0; i < count; i++) {
+    const arm = Math.floor(Math.random() * galaxyParams.spiralArms);
+    // random radius between baseRadius and galacticRadius
+    let r = THREE.MathUtils.randFloat(galaxyParams.baseRadius, galaxyParams.galacticRadius);
+    // compute theta along arm: theta = ln(r/baseRadius)/tan(pitch) + arm offset
+    const pitch = THREE.MathUtils.degToRad(galaxyParams.spiralPitchAngle);
+    let theta0 = Math.log(r / galaxyParams.baseRadius) / Math.tan(pitch) + (arm * (2 * Math.PI / galaxyParams.spiralArms));
+    // add noise radial offset
+    r += (Math.random() - 0.5) * galaxyParams.smokeNoiseIntensity;
+    // random small z offset
+    const z = (Math.random() - 0.5) * galaxyParams.verticalScaleHeight;
+    // initial position
+    positions[i * 3] = r * Math.cos(theta0);
+    positions[i * 3 + 1] = r * Math.sin(theta0);
+    positions[i * 3 + 2] = z;
+    smokeData.push({ r, theta0, z });
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      noiseTexture: { value: blueNoiseTexture },
+      noiseScale: { value: galaxyParams.smokeNoiseIntensity },
+      time: { value: globalTime },
+      size: { value: galaxyParams.smokeParticleSize }
+    },
+    vertexShader: smokeVertexShader,
+    fragmentShader: smokeFragmentShader,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  smokePoints = new THREE.Points(geometry, material);
+  galaxyGroup.add(smokePoints);
+}
 
 // Debug: Log orbital periods for different radii to verify Keplerian motion
 console.log("Orbital Motion Debug:");
@@ -658,6 +738,10 @@ for (let r = 0.5; r <= 4.0; r += 0.5) {
 
 // Generate cluster centers before density texture setup
 sharedGalaxyClusters = generateClusterCenters(20, galaxyParams.galacticRadius * 0.8, galaxyParams.spiralArms, galaxyParams.baseRadius, galaxyParams.spiralPitchAngle);
+
+// Call the setup functions
+setupInstancedStars();
+generateVolumetricSmoke();
 
 // Hoist composer declaration before setup to avoid TDZ error
 var composer;
@@ -1290,27 +1374,41 @@ function animate() {
         }
     }
 
-
-    // renderer.render(scene, camera); // Replace with composer.render()
-    if (composer) {
-        composer.render();
-    } else {
-        renderer.render(scene, camera); // Fallback if composer not ready
-        console.log("Using fallback renderer - composer not ready yet");
+    // Update smoke particle positions rotating like stars
+    if (smokePoints && smokeData) {
+      const posAttr = smokePoints.geometry.attributes.position;
+      for (let i = 0; i < smokeData.length; i++) {
+        const data = smokeData[i];
+        // simple rotation: theta0 minus angularVel*timeScale
+        const omega = Math.sqrt(4.3e-6 / Math.pow(data.r, 3));
+        const theta = data.theta0 - omega * globalTime * galaxyParams.orbitalTimeScale * 0.5;
+        const x = data.r * Math.cos(theta);
+        const y = data.r * Math.sin(theta);
+        posAttr.setXYZ(i, x, y, data.z);
+      }
+      posAttr.needsUpdate = true;
     }
 
+    // Update camera info display
     const cameraInfo = document.getElementById('camera-info');
     if (cameraInfo) {
         cameraInfo.innerHTML =
             `Camera: x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}<br>` +
             `Rotation: x: ${THREE.MathUtils.radToDeg(camera.rotation.x).toFixed(1)}, y: ${THREE.MathUtils.radToDeg(camera.rotation.y).toFixed(1)}, z: ${THREE.MathUtils.radToDeg(camera.rotation.z).toFixed(1)}`;
     }
-}
-animate();
 
-// Runtime parameter update handler
-window.handleParamChange = function(key, val) {
-    // galaxyParams[key] is already updated by the UI script in index.html
+    // renderer.render(scene, camera); // Replace with composer.render()
+    if (composer) {
+      composer.render();
+    } else {
+      renderer.render(scene, camera); // Fallback if composer not ready
+      console.log("Using fallback renderer - composer not ready yet");
+    }
+}
+
+// Extend parameter change handler for smoke
+ window.handleParamChange = function(key, val) {
+   // galaxyParams[key] is already updated by the UI script in index.html
 
     const densityRegenKeys = [
         'galacticRadius', 'verticalScaleHeight', 'discScaleLength', 
@@ -1322,6 +1420,8 @@ window.handleParamChange = function(key, val) {
         'discScaleLength', 'bulgeRadius', 'verticalScaleHeight', 'spiralPitchAngle',
         'clusterInfluence', 'baseRadius'
     ];
+    // Smoke regen keys
+    const smokeRegen = ['numSmokeParticles'];
 
     let needsDensityRegen = densityRegenKeys.includes(key);
     let needsStarRegen = starRegenKeys.includes(key);
@@ -1355,7 +1455,7 @@ window.handleParamChange = function(key, val) {
         if (starField) {
             galaxyGroup.remove(starField);
             starField.geometry.dispose();
-            starField.material.dispose();
+                       starField.material.dispose();
             starField = null; // Important to nullify
         }
         setupInstancedStars();
@@ -1372,7 +1472,7 @@ window.handleParamChange = function(key, val) {
     if (smokePass) {
         if (key === 'densityFactor') smokePass.uniforms.densityFactor.value = val;
         if (key === 'absorptionCoefficient') smokePass.uniforms.absorptionCoefficient.value = val;
-        if (key === 'scatteringCoefficient') smokePass.uniforms.scatteringCoefficient.value = val;
+        if ( key === 'scatteringCoefficient') smokePass.uniforms.scatteringCoefficient.value = val;
         if (key === 'rayMarchSteps') smokePass.uniforms.steps.value = val;
         if (key === 'anisotropyG') smokePass.uniforms.phaseG.value = val;
         if (key === 'centralLightIntensity') {
@@ -1382,6 +1482,17 @@ window.handleParamChange = function(key, val) {
             smokePass.uniforms.boxMin.value.set(-val, -val, -val * 0.5);
             smokePass.uniforms.boxMax.value.set(val, val, val * 0.5);
         }
+    }
+
+    // Smoke regeneration on specific parameter changes
+    if (smokePoints) {
+      if (smokeRegen.includes(key)) {
+        console.log('Regenerating smoke particles due to change:', key);
+        generateVolumetricSmoke();
+      }
+      // Live update size and noise intensity
+      if (key === 'smokeParticleSize') smokePoints.material.uniforms.size.value = val;
+      if (key === 'smokeNoiseIntensity') smokePoints.material.uniforms.noiseScale.value = val;
     }
 };
 
@@ -1404,3 +1515,6 @@ window.addEventListener('resize', () => {
 }, false);
 
 // Parameter UI (Example - can be expanded)
+
+// Start the animation loop
+animate();

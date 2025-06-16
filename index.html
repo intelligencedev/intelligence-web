@@ -270,6 +270,24 @@
         <span class="parameter-value" id="centralLightIntensity-value">0.3</span>
       </div>
     </div>
+    <div class="parameter-section">
+      <div class="section-title">Dust Parameters</div>
+      <div class="parameter-row">
+        <label for="numSmokeParticles">Smoke Particles</label>
+        <input type="range" id="numSmokeParticles" min="1000" max="50000" step="1000" value="10000">
+        <span class="parameter-value" id="numSmokeParticles-value">10000</span>
+      </div>
+      <div class="parameter-row">
+        <label for="smokeParticleSize">Smoke Particle Size</label>
+        <input type="range" id="smokeParticleSize" min="0.01" max="0.5" step="0.01" value="0.1">
+        <span class="parameter-value" id="smokeParticleSize-value">0.1</span>
+      </div>
+      <div class="parameter-row">
+        <label for="smokeNoiseIntensity">Smoke Noise Intensity</label>
+        <input type="range" id="smokeNoiseIntensity" min="0.1" max="5.0" step="0.1" value="1.0">
+        <span class="parameter-value" id="smokeNoiseIntensity-value">1.0</span>
+      </div>
+    </div>
   </div>
 
   <!-- Load Three.js and additional scripts for post-processing -->
@@ -300,7 +318,7 @@
       { id: 'armWidth', key: 'armWidth', type: 'float' },
       { id: 'armDensityMultiplier', key: 'armDensityMultiplier', type: 'float' },
       // Existing Nebula/Volume Params
-      { id: 'numNebulaParticles', key: 'numNebulaParticles', type: 'int' }, // Legacy, but keep if used elsewhere
+      { id: 'numNebulaParticles', key: 'numNebulaParticles', type: 'int' },
       { id: 'densityFactor', key: 'densityFactor', type: 'float' },
       { id: 'rayMarchSteps', key: 'rayMarchSteps', type: 'int' },
       { id: 'absorptionCoefficient', key: 'absorptionCoefficient', type: 'float' },
@@ -308,6 +326,10 @@
       { id: 'godRaysIntensity', key: 'godRaysIntensity', type: 'float' },
       { id: 'anisotropyG', key: 'anisotropyG', type: 'float' },
       { id: 'centralLightIntensity', key: 'centralLightIntensity', type: 'float' },
+      // Dust Params
+      { id: 'numSmokeParticles', key: 'numSmokeParticles', type: 'int' },
+      { id: 'smokeParticleSize', key: 'smokeParticleSize', type: 'float' },
+      { id: 'smokeNoiseIntensity', key: 'smokeNoiseIntensity', type: 'float' },
     ];
 
     // Wait for script.js to load and galaxyParams to be available
