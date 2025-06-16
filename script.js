@@ -659,9 +659,13 @@ const smokeVertexShader = `
   void main() {
     vUv = position.xy;
     vWorldPos = position;
-    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = size * (1.0 + 0.3 * sin(time + position.x * 5.0));
-    gl_Position = projectionMatrix * mvPos;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    
+    // Scale size based on distance to camera for proper perspective
+    float distance = length(mvPosition.xyz);
+    gl_PointSize = size * 300.0 / distance * (1.0 + 0.3 * sin(time + position.x * 5.0));
+    
+    gl_Position = projectionMatrix * mvPosition;
   }
 `;
 const smokeFragmentShader = `
@@ -1422,6 +1426,12 @@ function animate() {
     ];
     // Smoke regen keys
     const smokeRegen = ['numSmokeParticles'];
+    // Regenerate smoke when spiral structure parameters change
+    const smokeStructKeys = ['galacticRadius','spiralArms','baseRadius','spiralPitchAngle','verticalScaleHeight'];
+    if (smokeStructKeys.includes(key)) {
+      console.log('Regenerating smoke due to structural param change:', key);
+      generateVolumetricSmoke();
+    }
 
     let needsDensityRegen = densityRegenKeys.includes(key);
     let needsStarRegen = starRegenKeys.includes(key);
@@ -1491,8 +1501,14 @@ function animate() {
         generateVolumetricSmoke();
       }
       // Live update size and noise intensity
-      if (key === 'smokeParticleSize') smokePoints.material.uniforms.size.value = val;
-      if (key === 'smokeNoiseIntensity') smokePoints.material.uniforms.noiseScale.value = val;
+      if (key === 'smokeParticleSize') {
+        console.log('Updating smoke particle size to:', val);
+        smokePoints.material.uniforms.size.value = val;
+      }
+      if (key === 'smokeNoiseIntensity') {
+        console.log('Updating smoke noise intensity to:', val);
+        smokePoints.material.uniforms.noiseScale.value = val;
+      }
     }
 };
 
