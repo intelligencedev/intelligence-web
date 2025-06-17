@@ -128,8 +128,8 @@ const cameraAnimation = {
         // Disable user controls during animation
         controls.enabled = false;
         
-        // Smooth easing function (ease-out)
-        const easeProgress = 1 - Math.pow(1 - progress, 1);
+        // Smooth easing function (ease-in cubic)
+        const easeProgress = Math.pow(progress, 0.9);
         
         // Interpolate position
         camera.position.lerpVectors(this.startPosition, this.endPosition, easeProgress);
