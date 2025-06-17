@@ -691,11 +691,7 @@ const smokeVertexShader = `
     vec4 projectedPosition = projectionMatrix * viewPosition;
 
     gl_Position = projectedPosition;
-    
-    // Calculate point size with better scaling and minimum size
-    float distance = length(viewPosition.xyz);
-    float sizeScale = (uSize * aParticleSize) * (800.0 / max(distance, 1.0));
-    gl_PointSize = max(2.0, min(sizeScale, 100.0)); // Clamp between 2 and 100 pixels
+    gl_PointSize = max(1.0, (uSize * aParticleSize) * (300.0 / -viewPosition.z));
   }
 `;
 
@@ -718,9 +714,6 @@ const smokeFragmentShader = `
   varying vec3 vViewVector;
   varying vec3 vLocalPosition;
   
-  // Simple diagnostic mode - set to true to bypass complex rendering
-  #define DIAGNOSTIC_MODE true
-  
   // Sphere signed distance function - returns negative inside, positive outside
   float sdfSphere(vec3 p, float radius) {
     return length(p) - radius;
@@ -739,10 +732,7 @@ const smokeFragmentShader = `
     float noiseValue = texture2D(uBlueNoiseTexture, densityNoiseUV).r * uNoiseIntensity;
     
     // Higher density factor means thicker smoke
-    float density = (-base + noiseValue * 0.3) * uDensityFactor;
-    
-    // Ensure minimum density for visibility
-    return max(density, 0.1);
+    return (-base + noiseValue * 0.3) * uDensityFactor;
   }
 
   // Raymarching through the volume
@@ -803,22 +793,11 @@ const smokeFragmentShader = `
     if (dist > 0.5) {
       discard;
     }
-    
-    #if DIAGNOSTIC_MODE
-    // Simple diagnostic rendering - always visible particles
-    vec3 simpleColor = mix(uColor1, uColor2, 0.5 + 0.5 * sin(uTime * 2.0));
-    float alpha = (1.0 - dist * 2.0) * vParticleOpacity * 0.8;
-    gl_FragColor = vec4(simpleColor, alpha);
-    return;
-    #endif
 
     // Sample particle texture for basic shape
     vec4 texColor = texture2D(uParticleTexture, pointCoord);
     if (texColor.a < 0.05) {
-      // If texture is transparent, use debug color
-      vec4 debugColor = vec4(1.0, 0.5, 0.0, 0.3);
-      gl_FragColor = debugColor;
-      return;
+      discard;
     }
     
     // Ray starting at particle center facing towards camera
@@ -827,13 +806,6 @@ const smokeFragmentShader = `
     
     // Perform raymarching within the particle
     vec4 volumetricResult = raymarch(rayOrigin, rayDirection);
-    
-    // If volumetric result is too dim, boost it or use fallback
-    if (volumetricResult.a < 0.01) {
-      // Fallback: simple particle with color based on position
-      vec3 fallbackColor = mix(uColor1, uColor2, 0.5);
-      volumetricResult = vec4(fallbackColor * 0.8, 0.4);
-    }
     
     // Combine with particle texture for smooth edges
     volumetricResult.a *= texColor.a * vParticleOpacity;
@@ -914,7 +886,7 @@ function generateVolumetricSmoke() {
       uCameraPosition: { value: camera.position },
       uParticleTexture: { value: createCircularGradientTexture() },
       uBlueNoiseTexture: { value: blueNoiseTexture },
-      uDensityFactor: { value: 15.0 }, // Increased for better visibility
+      uDensityFactor: { value: 5.0 },
       uMarchSteps: { value: 6 },
       uDiffuseStrength: { value: 9.0 },
       time: { value: globalTime },
@@ -923,10 +895,8 @@ function generateVolumetricSmoke() {
     vertexShader: smokeVertexShader,
     fragmentShader: smokeFragmentShader,
     transparent: true,
-    blending: THREE.AdditiveBlending, // Changed to additive for better visibility
-    depthWrite: false,
-    depthTest: true, // Enable depth testing to ensure proper rendering order
-    side: THREE.DoubleSide
+    blending: THREE.NormalBlending,
+    depthWrite: false
   });
   
   smokePoints = new THREE.Points(geometry, material);
@@ -1607,17 +1577,6 @@ function animate() {
     if (smokePoints && smokePoints.material) {
         smokePoints.material.uniforms.uTime.value = globalTime;
         smokePoints.material.uniforms.uCameraPosition.value.copy(camera.position);
-        
-        // Debug: Log smoke particle info occasionally
-        if (Math.floor(globalTime * 60) % 300 === 0) { // Every 5 seconds
-            console.log("🔥 Smoke particles debug:");
-            console.log("  Visible:", smokePoints.visible);
-            console.log("  Count:", smokePoints.geometry.attributes.position.count);
-            console.log("  Material:", smokePoints.material.type);
-            console.log("  Size uniform:", smokePoints.material.uniforms.uSize.value);
-            console.log("  Density factor:", smokePoints.material.uniforms.uDensityFactor.value);
-            console.log("  In galaxyGroup:", galaxyGroup.children.includes(smokePoints));
-        }
     }
 
     // Update camera info display
