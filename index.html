@@ -279,13 +279,18 @@
       </div>
       <div class="parameter-row">
         <label for="smokeParticleSize">Smoke Particle Size</label>
-        <input type="range" id="smokeParticleSize" min="0.1" max="2.0" step="0.1" value="0.5">
+        <input type="range" id="smokeParticleSize" min="0.1" max="12.0" step="0.1" value="0.5">
         <span class="parameter-value" id="smokeParticleSize-value">0.5</span>
       </div>
       <div class="parameter-row">
         <label for="smokeNoiseIntensity">Smoke Noise Intensity</label>
         <input type="range" id="smokeNoiseIntensity" min="0.1" max="5.0" step="0.1" value="1.0">
         <span class="parameter-value" id="smokeNoiseIntensity-value">1.0</span>
+      </div>
+      <div class="parameter-row">
+        <label for="smokeParticleColor">Smoke Particle Color</label>
+        <input type="color" id="smokeParticleColor" value="#4040ff">
+        <span class="parameter-value" id="smokeParticleColor-value">#4040ff</span>
       </div>
     </div>
   </div>
@@ -330,6 +335,7 @@
       { id: 'numSmokeParticles', key: 'numSmokeParticles', type: 'int' },
       { id: 'smokeParticleSize', key: 'smokeParticleSize', type: 'float' },
       { id: 'smokeNoiseIntensity', key: 'smokeNoiseIntensity', type: 'float' },
+      { id: 'smokeParticleColor', key: 'smokeParticleColor', type: 'color' },
     ];
 
     // Wait for script.js to load and galaxyParams to be available
@@ -343,9 +349,15 @@
         const valueSpan = document.getElementById(def.id + '-value');
         if (!slider || !valueSpan) return;
         slider.addEventListener('input', e => {
-          let val = def.type === 'int' ? parseInt(e.target.value) : parseFloat(e.target.value);
+          let val;
+          if (def.type === 'color') {
+            val = e.target.value; // Keep as hex string
+            valueSpan.textContent = val;
+          } else {
+            val = def.type === 'int' ? parseInt(e.target.value) : parseFloat(e.target.value);
+            valueSpan.textContent = val;
+          }
           window.galaxyParams[def.key] = val;
-          valueSpan.textContent = val;
           if (window.handleParamChange) window.handleParamChange(def.key, val);
         });
       });

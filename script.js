@@ -142,7 +142,8 @@ window.galaxyParams = {
     // Dust/Smoke Params
     numSmokeParticles: 10000,
     smokeParticleSize: 0.5, // Increased for better visibility
-    smokeNoiseIntensity: 1.0
+    smokeNoiseIntensity: 1.0,
+    smokeParticleColor: '#4040ff' // Default blue color
 };
 
 // --- START: GPU Instanced Stars ---
@@ -652,52 +653,42 @@ function setupInstancedStars() {
 
 // Volumetric Raymarching Smoke Shaders
 const smokeVertexShader = `
-  uniform float uSize;
-  uniform float time;
-  uniform float rotationSpeed;
-  
-  attribute float aParticleSize;
-  attribute float aParticleOpacity;
-  attribute float angle;
-  attribute float radius;
-  
-  varying vec3 vWorldPosition;
-  varying float vParticleOpacity;
-  varying vec3 vViewVector;
-  varying vec3 vLocalPosition;
+  attribute float aParticleSize; // Per-particle size multiplier
+  // attribute vec3 customColor; // Not used by fragment shader
+  attribute float angle;      // Initial angle for shader-based rotation (currently unused due to CPU animation)
+  attribute float radius;     // Initial radius for shader-based rotation (currently unused due to CPU animation)
+  attribute float aParticleOpacity; // Changed from particleOpacity to aParticleOpacity
+
+  // varying vec3 vColor; // Not used by fragment shader
+  varying float vParticleOpacity; // Renamed from vOpacity to match fragment
+  // varying vec2 vUv; // Not used by fragment shader (fragment uses gl_PointCoord)
+  varying vec3 vWorldPosition; // Added to pass world position to fragment
+
+  uniform float uTime; // Retained, though direct orbital logic is CPU-side
+  uniform float uSize; // Base particle size controlled by UI parameter
+  // uniform float rotationSpeed; // Not used if CPU handles orbit
+  // uniform vec3 uCameraPosition; // Not directly used here, but common for advanced effects
 
   void main() {
-    // Apply rotation similar to galaxy rotation
-    float wrappedTime = mod(time, 1000.0);
-    float rotationAngle = angle + wrappedTime * rotationSpeed;
-    
-    // Create rotated position
-    vec3 rotatedPosition = vec3(
-      radius * cos(rotationAngle),
-      radius * sin(rotationAngle),
-      position.z
-    );
-    
-    // Use the rotated position for calculations
-    vec4 modelPosition = modelMatrix * vec4(rotatedPosition, 1.0);
-    vWorldPosition = modelPosition.xyz;
-    vParticleOpacity = aParticleOpacity;
-    vLocalPosition = rotatedPosition;
+    // vColor = customColor; // Removed
+    vParticleOpacity = aParticleOpacity; // Pass opacity, changed from particleOpacity
+    // vUv = uv; // Removed
 
-    // View vector from camera to this vertex (used for raymarching direction)
-    vViewVector = normalize(modelPosition.xyz - cameraPosition);
+    // Use CPU-updated positions directly for orbital motion.
+    vec4 modelPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = modelPosition.xyz; // Pass world position to fragment shader
 
     vec4 viewPosition = viewMatrix * modelPosition;
-    vec4 projectedPosition = projectionMatrix * viewPosition;
 
-    gl_Position = projectedPosition;
-    gl_PointSize = max(1.0, (uSize * aParticleSize) * (300.0 / -viewPosition.z));
+    gl_Position = projectionMatrix * viewPosition;
+    
+    // Simple size calculation without distance scaling
+    gl_PointSize = uSize * aParticleSize; // UI control * per-particle variation
   }
 `;
 
 const smokeFragmentShader = `
-  uniform vec3 uColor1;
-  uniform vec3 uColor2;
+  uniform vec3 uSmokeColor; // Single color uniform
   uniform float uTime;
   uniform float uNoiseIntensity;
   uniform vec3 uCentralLightPosition;
@@ -709,82 +700,9 @@ const smokeFragmentShader = `
   uniform float uDiffuseStrength;
   uniform sampler2D uBlueNoiseTexture;
 
-  varying vec3 vWorldPosition;
-  varying float vParticleOpacity;
-  varying vec3 vViewVector;
-  varying vec3 vLocalPosition;
+  varying vec3 vWorldPosition; // Now received from vertex shader
+  varying float vParticleOpacity; // Matched with vertex shader
   
-  // Sphere signed distance function - returns negative inside, positive outside
-  float sdfSphere(vec3 p, float radius) {
-    return length(p) - radius;
-  }
-  
-  // Density function that combines SDF and noise
-  float densityFunction(vec3 p) {
-    // Transform from world to local particle space
-    vec3 localP = p - vWorldPosition;
-    
-    // Base sphere with radius 0.5
-    float base = sdfSphere(localP, 0.5);
-    
-    // Sample blue noise texture for density, animate with uTime
-    vec2 densityNoiseUV = mod(localP.xy * 3.0 + uTime * 0.02, 1.0);
-    float noiseValue = texture2D(uBlueNoiseTexture, densityNoiseUV).r * uNoiseIntensity;
-    
-    // Higher density factor means thicker smoke
-    return (-base + noiseValue * 0.3) * uDensityFactor;
-  }
-
-  // Raymarching through the volume
-  vec4 raymarch(vec3 rayOrigin, vec3 rayDirection) {
-    float stepSize = 1.0 / float(uMarchSteps);
-    vec3 lightDir = normalize(uCentralLightPosition - vWorldPosition);
-    
-    vec4 result = vec4(0.0);
-    float t = -0.5; // Start inside the volume
-    
-    for (int i = 0; i < 32; i++) { // Hard-code max steps for compatibility
-      if (i >= uMarchSteps) break;
-      
-      // Current position along ray
-      vec3 pos = rayOrigin + rayDirection * t;
-      
-      // Sample density at this position
-      float density = max(0.0, densityFunction(pos));
-      
-      if (density > 0.0) {
-        // Distance to central light affects lighting
-        float distToLight = length(uCentralLightPosition - pos);
-        float lightAttenuation = 4.0 / (distToLight * distToLight + 1.0);
-        
-        // Calculate diffuse lighting
-        float densityToLight = densityFunction(pos + lightDir * 0.2);
-        float diffuse = clamp((density - densityToLight) / 0.2, 0.0, 1.0) * uDiffuseStrength;
-        
-        // Sample blue noise texture for color mixing
-        vec2 colorMixNoiseUV = mod(pos.xy * 2.0 + uTime * 0.01 + vec2(0.3, 0.7), 1.0);
-        float colorMix = texture2D(uBlueNoiseTexture, colorMixNoiseUV).r;
-        vec3 color = mix(uColor1, uColor2, colorMix);
-        
-        // Apply lighting effects
-        vec3 lit = color * (0.5 + diffuse * 0.5) * lightAttenuation * uCentralLightIntensity;
-        
-        // Accumulate color and opacity
-        vec4 newSample = vec4(lit, density * 0.15);
-        newSample.rgb *= newSample.a;
-        result += newSample * (1.0 - result.a);
-        
-        // Early exit if nearly opaque
-        if (result.a > 0.95) break;
-      }
-      
-      // Advance along ray
-      t += stepSize;
-    }
-    
-    return result;
-  }
-
   void main() {
     vec2 pointCoord = gl_PointCoord;
     float dist = length(pointCoord - vec2(0.5));
@@ -794,23 +712,11 @@ const smokeFragmentShader = `
       discard;
     }
 
-    // Sample particle texture for basic shape
-    vec4 texColor = texture2D(uParticleTexture, pointCoord);
-    if (texColor.a < 0.05) {
-      discard;
-    }
+    // Use the user-selected color with radial gradient
+    vec3 particleColor = uSmokeColor * (1.5 - dist); // Brighter in center, darker at edges
+    float alpha = (1.0 - dist * 2.0) * vParticleOpacity; // Fade out at edges
     
-    // Ray starting at particle center facing towards camera
-    vec3 rayOrigin = vWorldPosition;
-    vec3 rayDirection = normalize(vWorldPosition - uCameraPosition);
-    
-    // Perform raymarching within the particle
-    vec4 volumetricResult = raymarch(rayOrigin, rayDirection);
-    
-    // Combine with particle texture for smooth edges
-    volumetricResult.a *= texColor.a * vParticleOpacity;
-    
-    gl_FragColor = volumetricResult;
+    gl_FragColor = vec4(particleColor, alpha);
   }
 `;
 
@@ -877,8 +783,7 @@ function generateVolumetricSmoke() {
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: globalTime },
-      uColor1: { value: new THREE.Color(0x101025).multiplyScalar(1.5) },
-      uColor2: { value: new THREE.Color(0x251510).multiplyScalar(1.5) },
+      uSmokeColor: { value: new THREE.Color(galaxyParams.smokeParticleColor) }, // Single color uniform
       uSize: { value: galaxyParams.smokeParticleSize },
       uNoiseIntensity: { value: galaxyParams.smokeNoiseIntensity },
       uCentralLightPosition: { value: new THREE.Vector3(0, 0, 0) },
@@ -895,7 +800,7 @@ function generateVolumetricSmoke() {
     vertexShader: smokeVertexShader,
     fragmentShader: smokeFragmentShader,
     transparent: true,
-    blending: THREE.NormalBlending,
+    blending: THREE.AdditiveBlending, // Changed to additive for better visibility
     depthWrite: false
   });
   
@@ -1474,6 +1379,8 @@ function setupPostProcessing() {
         volumetricSmokeShader.uniforms.boxMin.value = new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.5);
         volumetricSmokeShader.uniforms.boxMax.value = new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.5);
 
+       
+
         smokePass = new ShaderPass(volumetricSmokeShader);
         smokePass.renderToScreen = true; // Final pass renders to screen with ACES tonemapping
         composer.addPass(smokePass);
@@ -1565,7 +1472,7 @@ function animate() {
         const data = smokeData[i];
         // simple rotation: theta0 minus angularVel*timeScale
         const omega = Math.sqrt(4.3e-6 / Math.pow(data.r, 3));
-        const theta = data.theta0 - omega * globalTime * galaxyParams.orbitalTimeScale * 0.5;
+        const theta = data.theta0 - omega * globalTime * galaxyParams.orbitalTimeScale;
         const x = data.r * Math.cos(theta);
         const y = data.r * Math.sin(theta);
         posAttr.setXYZ(i, x, y, data.z);
@@ -1695,9 +1602,12 @@ function animate() {
         console.log('Updating smoke noise intensity to:', val);
         smokePoints.material.uniforms.uNoiseIntensity.value = val;
       }
+      if (key === 'smokeParticleColor') {
+        console.log('Updating smoke particle color to:', val);
+        smokePoints.material.uniforms.uSmokeColor.value.setHex(val.replace('#', '0x'));
+      }
     }
 };
-
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
