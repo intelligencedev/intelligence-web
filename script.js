@@ -468,7 +468,17 @@ const volumetricSmokeShader = {
             }
             
             vec2 densityData = texture(tDensity, texCoord).rg;
-            return densityData * densityFactor;
+            vec2 result = densityData * densityFactor;
+
+            // Clamp to prevent excessively large or invalid values
+            result.r = clamp(result.r, 0.0, 1000.0); // Clamp density
+            result.g = clamp(result.g, 0.0, 1.0);   // Clamp temperature (should be [0,1] anyway)
+            
+            // Additional check for NaN, replace with 0 if so
+            if(isnan(result.r)) result.r = 0.0;
+            if(isnan(result.g)) result.g = 0.0;
+
+            return result;
         }
 
         // Temperature-based color mixing
@@ -581,9 +591,13 @@ const volumetricSmokeShader = {
             }
             
             // Debug: Visualize density sampling
+            // Safeguard maxDensitySampled before using it
+            if (isnan(maxDensitySampled) || isinf(maxDensitySampled)) {
+                maxDensitySampled = 0.0; 
+            }
             if (maxDensitySampled > 0.0) {
-                // Add green tint where density was found
-                accumulatedColor += vec3(0.0, maxDensitySampled * 0.5, 0.0);
+                // Add green tint where density was found, clamp the green contribution
+                accumulatedColor += vec3(0.0, clamp(maxDensitySampled * 0.5, 0.0, 1.0), 0.0);
             }
             
             // Composite volumetric over scene with HDR
@@ -1450,7 +1464,7 @@ function setupPostProcessing() {
         volumetricSmokeShader.uniforms.boxMin.value = new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.5);
         volumetricSmokeShader.uniforms.boxMax.value = new THREE.Vector3(galaxyParams.galacticRadius, galaxyParams.galacticRadius, galaxyParams.galacticRadius * 0.5);
 
-       
+
 
         smokePass = new ShaderPass(volumetricSmokeShader);
         smokePass.renderToScreen = true; // Final pass renders to screen with ACES tonemapping
