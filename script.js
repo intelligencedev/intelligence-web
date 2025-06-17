@@ -97,10 +97,81 @@ controls.dampingFactor = 0.25;
 controls.enableZoom = true;
 controls.enablePan = false;
 
-// Set camera position after controls are initialized
-camera.position.set(0.52, -7.77, 1.51);
-camera.rotation.set(THREE.MathUtils.degToRad(79.0), THREE.MathUtils.degToRad(3.9), THREE.MathUtils.degToRad(-18.7));
-controls.update(); // Update controls to match camera position
+// Camera animation system
+const cameraAnimation = {
+    isActive: true,
+    duration: 1660.0,
+    startTime: 0,
+    startPosition: new THREE.Vector3(0, 0, 0),
+    endPosition: new THREE.Vector3(144, -56, -164),
+    currentRotation: 0,
+    rotationSpeed: 0.3, // radians per second
+    
+    update: function(currentTime) {
+        if (!this.isActive) return;
+        
+        if (this.startTime === 0) {
+            this.startTime = currentTime;
+        }
+        
+        const elapsed = currentTime - this.startTime;
+        const progress = Math.min(elapsed / this.duration, 1.0);
+        
+        if (progress >= 1.0) {
+            // Animation complete
+            this.isActive = false;
+            controls.enabled = true; // Enable user controls
+            console.log("Camera intro animation completed");
+            return;
+        }
+        
+        // Disable user controls during animation
+        controls.enabled = false;
+        
+        // Smooth easing function (ease-out)
+        const easeProgress = 1 - Math.pow(1 - progress, 1);
+        
+        // Interpolate position
+        camera.position.lerpVectors(this.startPosition, this.endPosition, easeProgress);
+        
+        // Old direct camera.rotation assignments (x, y, z) and this.currentRotation logic removed
+        // as they are overridden by camera.lookAt() and the new barrel roll implementation.
+
+        // Barrel roll implementation:
+        // Define the target for lookAt and for calculating the roll axis.
+        const lookTarget = new THREE.Vector3(0, 0, 0);
+        // For a "slow barrel roll", one full rotation (2 * PI) over the animation duration.
+        const barrelRollAngle = progress * 20 * Math.PI; 
+        
+        const baseUpVector = new THREE.Vector3(0, 1, 0); // Standard Y-up
+        // The axis to roll around is the camera's viewing direction.
+        const rollAxis = new THREE.Vector3().subVectors(lookTarget, camera.position);
+
+        // Check if rollAxis is valid (not a zero vector) before normalizing and using it.
+        // This handles the case where camera.position might be at lookTarget (e.g., at animation start).
+        if (rollAxis.lengthSq() > 0.0001) { // Using a small epsilon for safety
+            rollAxis.normalize();
+            const rollQuaternion = new THREE.Quaternion().setFromAxisAngle(rollAxis, barrelRollAngle);
+            // Apply the roll to the base 'up' vector and set it as the camera's 'up'.
+            camera.up.copy(baseUpVector).applyQuaternion(rollQuaternion);
+        } else {
+            // If camera is at the target, roll is ill-defined; use the base 'up' vector.
+            camera.up.copy(baseUpVector);
+        }
+        
+        this.lastUpdateTime = currentTime; // Preserved from original structure
+        
+        // Look towards the galaxy center; lookAt() will now use the modified camera.up for orientation.
+        camera.lookAt(lookTarget);
+    }
+};
+
+// Start camera at origin for animation
+camera.position.set(0, 0, 0);
+camera.rotation.set(0, 0, 0);
+
+// Initially disable controls until animation completes
+controls.enabled = false;
 
 const galaxyGroup = new THREE.Group();
 scene.add(galaxyGroup);
@@ -114,36 +185,36 @@ let globalTime = 0;
 let lastFrameTime = performance.now(); // Initialize lastFrameTime
 
 window.galaxyParams = {
-    numStars: 1000,
-    starSize: 0.02,
+    numStars: 10000,
+    starSize: 0.005,
     galacticRadius: 4,
     spiralArms: 2,
-    coreRadius: 0.30,
-    orbitalTimeScale: 10.0, // Time scaling factor for orbital motion
+    coreRadius: 0.05,
+    orbitalTimeScale: 20.9, // Time scaling factor for orbital motion
     // Galaxy structure parameters
-    discScaleLength: 0.35, // h_r ≈ 0.35 R_gal
-    bulgeRadius: 0.2, // R < 0.2 R_gal
-    verticalScaleHeight: 0.06, // h_z ≈ 0.06 R_gal
-    spiralPitchAngle: 13.0, // degrees (12°-14°)
-    clusterInfluence: 0.20, // 20% of stars snap to clusters
+    discScaleLength: 0.29, // h_r ≈ 0.29 R_gal
+    bulgeRadius: 0.05, // R < 0.05 R_gal
+    verticalScaleHeight: 0.05, // h_z ≈ 0.05 R_gal
+    spiralPitchAngle: 12.5, // degrees (12.5°)
+    clusterInfluence: 0.09, // 9% of stars snap to clusters
     // New spiral arm parameters
-    baseRadius: 0.5, // For spiral calculations (stars and nebula)
-    armWidth: 0.35, // Width of nebula arms
-    armDensityMultiplier: 4.0, // Max density boost on nebula arms
+    baseRadius: 0.1, // For spiral calculations (stars and nebula)
+    armWidth: 0.17, // Width of nebula arms
+    armDensityMultiplier: 5.0, // Max density boost on nebula arms
     // Volumetric nebula parameters (replacing old smoke particles)
-    densityFactor: 15.0, // Increased for better visibility
-    absorptionCoefficient: 0.5, // Reduced for better visibility
-    scatteringCoefficient: 6.0,
+    densityFactor: 49.6, // Increased for better visibility
+    absorptionCoefficient: 0.1, // Reduced for better visibility
+    scatteringCoefficient: 20.0,
     rayMarchSteps: 96,
     godRaysIntensity: 0.33,
     sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
-    anisotropyG: 0.1,
-    centralLightIntensity: 0.3,
+    anisotropyG: 0.41,
+    centralLightIntensity: 0.09,
     // Dust/Smoke Params
-    numSmokeParticles: 10000,
-    smokeParticleSize: 0.5, // Increased for better visibility
-    smokeNoiseIntensity: 1.0,
-    smokeParticleColor: '#4040ff' // Default blue color
+    numSmokeParticles: 2000,
+    smokeParticleSize: 12.0, // Increased for better visibility
+    smokeNoiseIntensity: 1.1,
+    smokeParticleColor: '#323252' // Dark blue-gray color
 };
 
 // --- START: GPU Instanced Stars ---
@@ -1399,8 +1470,7 @@ function setupPostProcessing() {
 // NEW: VolumePass for full-screen raymarch
 const VolumePass = {
     uniforms: {
-        tScene:   { value: null },        // Scene color buffer
-        tDensity: { value: null },        // 3D density texture
+        tScene:   { value: null },        tDensity: { value: null },        // 3D density texture
         cameraMat:{ value: new THREE.Matrix4() },
         invProj:  { value: new THREE.Matrix4() },
         sunPos:   { value: new THREE.Vector3() },
@@ -1419,10 +1489,15 @@ const VolumePass = {
 function animate() {
     requestAnimationFrame(animate);
 
+
+
     const currentTime = performance.now();
     const deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
     lastFrameTime = currentTime;
     globalTime += deltaTime;
+
+    // Update camera animation (intro sequence)
+    cameraAnimation.update(globalTime);
 
     controls.update();
 
