@@ -1,0 +1,31 @@
+baseURL = 'http://localhost'
+languageCode = 'en-us'
+title = 'Intelligence Web'
+theme = 'PaperMod'
+
+[params]
+  author = "Intelligence Dev"
+  description = "A collection of interactive visualizations and documentation"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+[[menu.main]]
+  identifier = "home"
+  name = "Home"
+  url = "/"
+  weight = 10
+
+[[menu.main]]
+  identifier = "visualizations"
+  name = "Visualizations"
+  url = "/visualizations/"
+  weight = 20
+
+[[menu.main]]
+  identifier = "docs"
+  name = "Documentation"
+  url = "/docs/"
+  weight = 30

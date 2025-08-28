@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Enhanced Spiral Galaxy with Supermassive Black Hole</title>
+<style>
+  html,body{height:100%;margin:0;overflow:hidden;background:#000}
+  canvas{display:block;width:100vw;height:100vh}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script id="vs" type="x-shader/x-vertex">
+  attribute vec2 a_Position;
+  uniform vec2  u_resolution;
+  uniform float u_time;
+  varying vec3  v_rayDir;
+
+  void main(){
+    float a = u_time * 0.04;   // spin rate
+    float e = u_time * 0.01;   // bob rate
+    vec3 cam = vec3(sin(a)*6.5, 1.7 + sin(e)*0.6, cos(a)*6.5);
+    vec3 tgt=vec3(0.0,0.4,0.0);
+    vec3 up =vec3(0.0,1.0,0.0);
+
+    vec3 f=normalize(tgt-cam);
+    vec3 r=normalize(cross(f,up));
+    vec3 u =      cross(r,f);
+
+    vec2 scr=a_Position*vec2(u_resolution.x/u_resolution.y,1.0);
+    v_rayDir=normalize(scr.x*r + scr.y*u + 1.6*f);
+
+    gl_Position=vec4(a_Position,0.0,1.0);
+  }
+</script>
+
+<script id="fs" type="x-shader/x-fragment">
+  precision highp float;
+  uniform float u_time;
+  uniform vec2  u_resolution;
+  varying vec3  v_rayDir;
+
+  #define STEPS 120
+  #define SHADOW_STEPS 32
+  #define PI 3.14159265359
+  #define TAU 6.28318530718
+
+  /* ---------- hash & noise ---------- */
+  float h31(vec3 p){return fract(sin(dot(p,vec3(327.1,311.7,74.7)))*43758.55);}
+  float noise(vec3 p){
+    vec3 i=floor(p);vec3 f=fract(p);f=f*f*(3.-2.*f);
+    float n000=h31(i),n100=h31(i+vec3(1,0,0)),n010=h31(i+vec3(0,1,0)),n110=h31(i+vec3(1,1,0));
+    float n001=h31(i+vec3(0,0,1)),n101=h31(i+vec3(1,0,1)),n011=h31(i+vec3(0,1,1)),n111=h31(i+vec3(1,1,1));
+    float nx00=mix(n000,n100,f.x),nx10=mix(n010,n110,f.x),nx01=mix(n001,n101,f.x),nx11=mix(n011,n111,f.x);
+    float nxy0=mix(nx00,nx10,f.y),nxy1=mix(nx01,nx11,f.z);
+    return mix(nxy0,nxy1,f.z);
+  }
+  float fbm(vec3 p){
+    float a=1.5,s=0.;
+    for(int i=0;i<6;i++){s+=a*noise(p);p=p*2.2+vec3(1.3);a*=.55;}
+    return s;
+  }
+
+  /* ---------- galaxy params ---------- */
+  const float R_MIN   = .65;
+  const float R_MAX   = 5.8;
+  const float DISK_H  = 0.13;
+  const int   ARMS    = 2;
+  const float PITCH   = 0.31;
+  const float ARM_W   = 2.9;
+  const float ROT_SPD = 0.0008;
+  const float BULGE   = 5.8;
+  const float DUST_ABS= 4.2;
+  
+  // Central black hole and lighting
+  const vec3 CORE_POS = vec3(0.0, 0.0, 0.0);
+  const float BLACK_HOLE_RADIUS = .2;
+  const float ACCRETION_DISK_RADIUS = 0.35;
+  const vec3 CORE_LIGHT_COLOR = vec3(2.5, 2.0, 1.2);
+  const float CORE_BRIGHTNESS = 10.0;
+
+  /* rotation curve */
+  float rot(float r){return r<0.7 ? r*2.8 : 1.4 + 0.3/r;}
+
+  /* star colour LUT */
+  vec3 starCol(float k){
+    k=clamp(k,0.,1.);
+    vec3 O=vec3(.55,.66,1.),B=vec3(.77,.83,1.),A=vec3(.97,.97,.98),
+         F=vec3(1.,.9,.76),   G=vec3(1.,.85,.65),K=vec3(1.,.7,.4),M=vec3(1.,.5,.23);
+    if(k>.85) return mix(B,O,(k-.85)/.15);
+    if(k>.70) return mix(A,B,(k-.70)/.15);
+    if(k>.55) return mix(F,A,(k-.55)/.15);
+    if(k>.40) return mix(G,F,(k-.40)/.15);
+    if(k>.25) return mix(K,G,(k-.25)/.15);
+    return mix(M,K,k/.25);
+  }
+
+  /* SDF for galaxy structure */
+  float galaxySDF(vec3 p, float t) {
+    vec2 gc = vec2(length(p.xz), atan(p.z, -p.x));
+    float r = gc.x, th = gc.y;
+    
+    if(r < R_MIN || r > R_MAX) return 10.0;
+    
+    float verticalDist = abs(p.y) - DISK_H * (1.0 + 0.3 * exp(-r));
+    float rotAng = rot(r) * ROT_SPD * t;
+    
+    float armDist = 1.0;
+    for(int i = 0; i < ARMS; i++) {
+      float off = float(i) * TAU / float(ARMS);
+      float spiralAngle = th - log(r/0.4)/PITCH - off - rotAng;
+      float armOffset = sin(spiralAngle) * r;
+      armDist = min(armDist, abs(armOffset) - ARM_W * r * .15);
+    }
+    
+    return max(max(verticalDist, armDist), r - R_MAX);
+  }
+
+  /* Enhanced spiral density with SDF integration */
+  float spiral(vec3 p, float t){
+    vec2 gc = vec2(length(p.xz), atan(p.z, p.x));
+    float r = gc.x, th = gc.y;
+    if(r < R_MIN || r > R_MAX) return 0.;
+    
+    float dens = 0.9;
+    float rotAng = rot(r) * ROT_SPD * t;
+    
+    for(int i = 0; i < ARMS; i++){
+      float off = float(i) * TAU / float(ARMS);
+      float a = th - log(r/0.4)/PITCH - off - rotAng;
+      float armStrength = exp(-pow(sin(a), 2.)/(ARM_W*ARM_W));
+      dens += armStrength;
+    }
+    
+    // Add noise variation
+    float noiseVal = 0.7 + 0.8 * fbm(p * 6.0 + vec3(0, 0, t * .1));
+    dens *= noiseVal;
+    
+    // Distance-based falloff
+    float sdfDist = galaxySDF(p, t);
+    dens *= smoothstep(0.3, -2.0, sdfDist);
+    
+    return dens;
+  }
+
+  /* Enhanced dust lanes with SDF */
+  float dust(vec3 p, float t){
+    vec2 gc = vec2(length(p.xz), atan(p.z, p.x));
+    float r = gc.x;
+    if(r < R_MIN || r > R_MAX) return 0.;
+    
+    float d = 0.;
+    float rotAng = rot(r) * ROT_SPD * t;
+    
+    for(int i = 0; i < ARMS; i++){
+      float off = float(i) * TAU / float(ARMS);
+      float a = gc.y - log(r/2.2)/PITCH - off - rotAng + 0.3;
+      d += exp(-pow(sin(a), 4.)/(ARM_W*0.25*ARM_W*0.25));
+    }
+    
+    float dustNoise = 0.6 + 0.7 * fbm(p * 12.0);
+    return d / dustNoise;
+  }
+
+  /* Accretion disk around black hole */
+  float accretionDisk(vec3 p) {
+    float r = length(p.xz);
+    if(r < BLACK_HOLE_RADIUS || r > ACCRETION_DISK_RADIUS) return 0.1;
+    
+    float diskHeight = 0.2 + 0.01 * sin(atan(p.z, p.x) * 8.0 + u_time * 2.0);
+    float heightFactor = exp(-abs(p.y) / diskHeight);
+    
+    float spiralPattern = sin(atan(p.z, p.x) * 3.0 - r * 15.0 + u_time * 3.0) * 0.5 + 0.5;
+    float radialFactor = smoothstep(BLACK_HOLE_RADIUS, BLACK_HOLE_RADIUS + 0.05, r) * 
+                        smoothstep(ACCRETION_DISK_RADIUS, ACCRETION_DISK_RADIUS - 0.1, r);
+    
+    return spiralPattern * heightFactor * radialFactor;
+  }
+
+  /* H-α glow regions */
+  float HII(vec3 p, float t){
+    float r = length(p.xz);
+    if(r < 0.2 || r > R_MAX * 0.8) return 0.;
+    
+    float s = spiral(p, t) * 1.4;
+    float hiiNoise = smoothstep(0.7, 0.2, fbm(p * 16.0 + t * 0.03));
+    return s * hiiNoise;
+  }
+
+  /* Ray marching for shadows */
+  float shadowMarch(vec3 pos, vec3 lightDir) {
+    float shadowFactor = 1.0;
+    float t = 0.02;
+    
+    for(int i = 0; i < SHADOW_STEPS; i++) {
+      vec3 samplePos = pos + lightDir * t;
+      float dist = galaxySDF(samplePos, u_time);
+      
+      if(dist < 0.0) {
+        float dustAmount = dust(samplePos, u_time);
+        float spiralDensity = spiral(samplePos, u_time);
+        shadowFactor *= exp(-dustAmount * 0.8 - spiralDensity * 0.4);
+      }
+      
+      t += max(0.01, abs(dist) * 0.5);
+      if(t > 3.0 || shadowFactor < 0.1) break;
+    }
+    
+    return clamp(shadowFactor, 0.0, 1.0);
+  }
+
+  /* galaxy density & metadata */
+  vec3 galaxy(vec3 p, float t, out float hii, out float accretion){
+    float r = length(p.xz);
+    float zFall = exp(-abs(p.y)/DISK_H);
+    
+    if(zFall < 0.08) {
+      hii = 0.0;
+      accretion = 0.0;
+      return vec3(0.008);
+    }
+    
+    // Enhanced bulge with more realistic profile
+    float bulgeFactor = exp(-r/BULGE) * exp(-abs(p.y)/(DISK_H * 8.0));
+    bulgeFactor += exp(-r*r*20.0) * 0.5; // Central concentration
+    
+    float disk = spiral(p, t) * zFall;
+    float halo = exp(-r/7.0) * 0.06;
+    
+    hii = HII(p, t);
+    accretion = accretionDisk(p);
+    
+    float dens = bulgeFactor + disk + halo + hii + accretion * 2.0;
+    float temp = (bulgeFactor * 0.2 + disk * (0.6 + 0.25 * fbm(p * 4.0)) + 
+                  hii * 0.85 + accretion * 0.95) / max(dens, 1e-3);
+    float dustL = dust(p, t);
+    
+    return vec3(dens, temp, dustL);
+  }
+
+  /* Enhanced phase function */
+  float phase(float g, float mu){
+    float g2 = g*g;
+    float d = 1.0 + g2 - 2.0*g*mu;
+    return (1.0 - g2) / (4.0*PI*pow(d, 1.5));
+  }
+
+  /* background stars */
+  vec3 stars(vec3 rd){
+    vec3 col = vec3(0);
+    for(int l = 0; l < 3; l++){
+      float sc = pow(9.0, float(l+1));
+      vec3 p = floor(rd * sc);
+      float h = h31(p);
+      float th = 1.998 - 0.0008 * float(l);
+      
+      if(h > th){
+        float br = (h - th) / (1.0 - th);
+        vec3 starColor = starCol(h31(p + 325.0));
+        col += starColor * br * (1.8 - 0.35 * float(l));
+      }
+    }
+    return col;
+  }
+
+  /* ACES tone mapping */
+  vec3 tonemap(vec3 x){
+    const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+    return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
+  }
+
+  void main(){
+    vec3 ro = vec3(sin(u_time*0.04)*6.5, 1.7+sin(u_time*0.01)*0.6, cos(u_time*0.04)*6.5);
+    vec3 rd = normalize(v_rayDir);
+
+    float maxD = 16.0, dt = maxD / float(STEPS);
+    float jitter = h31(vec3(gl_FragCoord.xy*0.37, u_time)) * dt;
+    float t = jitter;
+
+    vec3 col = vec3(0); 
+    float trans = 1.0; 
+    float alpha = 0.0;
+
+    for(int i = 0; i < STEPS; i++){
+      if(trans < 0.015 || t > maxD) break;
+      vec3 p = ro + rd * t;
+
+      // Galaxy rotation
+    float ang = -u_time * ROT_SPD;
+    mat2 rotMat = mat2(-cos(ang), -sin(ang), sin(ang), cos(ang));
+    p.xz = -rotMat * p.xz;
+
+      // Central supermassive black hole lighting
+      float distToCore = length(p - CORE_POS);
+      vec3 lightDir = normalize(CORE_POS - p);
+      
+      // Core light intensity with realistic falloff
+      float coreIntensity = CORE_BRIGHTNESS / (0.5 + distToCore * distToCore * 0.8);
+      
+      // Event horizon effects
+      if(distToCore < BLACK_HOLE_RADIUS * .5) {
+        float gravitationalRedshift = 2.0 - exp(-BLACK_HOLE_RADIUS / distToCore);
+        coreIntensity *= (2.0 - gravitationalRedshift);
+      }
+
+      float hii, accretion;
+      vec3 meta = galaxy(p, u_time, hii, accretion);
+      float dens = meta.x, temp = meta.y, dustL = meta.z;
+      
+      if(dens > 0.001){
+        // Shadow calculation
+        float shadowFactor = shadowMarch(p, lightDir);
+        
+        // Enhanced lighting calculation
+        float lightFactor = coreIntensity * shadowFactor;
+        float scattering = phase(0.6, dot(rd, lightDir));
+        
+        // Base color from temperature
+        vec3 sc = starCol(temp);
+        
+        // Special coloring for different regions
+        if(hii > 0.1) {
+          sc = mix(sc, vec3(1.0, 0.3, 0.5), hii * 0.7);
+        }
+        if(accretion > 0.1) {
+          sc = mix(sc, vec3(1.2, 0.8, 0.4), accretion * 0.8);
+        }
+        
+        // Dust effects
+        float dustF = exp(-dustL * DUST_ABS * dt);
+        sc *= dustF;
+        
+        // Dust reddening
+        if(dustL > 0.12) {
+          sc *= vec3(2.3, 0.85, 1.6);
+        }
+        
+        // Apply lighting and scattering
+        sc *= lightFactor * scattering;
+        
+        // Enhanced brightness for core regions
+        if(distToCore < 1.0) {
+          sc *= 1.0 + (1.0 - distToCore) * 2.0;
+        }
+        
+        float absorption = 1.0 - exp(-dens * dt * 1.8);
+        col += sc * absorption * trans * 2.6;
+        trans *= dustF * (1.0 - absorption);
+        alpha += absorption * (1.0 - alpha);
+      }
+      
+      t += dt;
+    }
+
+    // Enhanced background with nebular glow
+    // Pure black background
+    vec3 bg = vec3(0.0, 0.0, 0.0);
+
+    col = mix(bg, col, alpha);
+    
+    // Enhanced tone mapping and color grading
+    col = tonemap(col * 1.4);
+    col = pow(col, vec3(0.82));
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+</script>
+
+<script>
+/* minimal GL bootstrap */
+const cvs=document.getElementById('c');
+const gl=cvs.getContext('webgl');
+const vsSrc=document.getElementById('vs').textContent;
+const fsSrc=document.getElementById('fs').textContent;
+function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
+if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(o);return o;}
+const prog=gl.createProgram();
+gl.attachShader(prog,sh(gl.VERTEX_SHADER,vsSrc));
+gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fsSrc));
+gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw gl.getProgramInfoLog(prog);
+gl.useProgram(prog);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+const loc=gl.getAttribLocation(prog,'a_Position');
+gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const uTime=gl.getUniformLocation(prog,'u_time');
+const uRes=gl.getUniformLocation(prog,'u_resolution');
+function rs(){const d=window.devicePixelRatio||1;cvs.width=innerWidth*d;cvs.height=innerHeight*d;
+gl.viewport(0,0,cvs.width,cvs.height);}window.onresize=rs;rs();
+requestAnimationFrame(function loop(t){gl.uniform1f(uTime,t*.001);gl.uniform2f(uRes,cvs.width,cvs.height);
+gl.drawArrays(gl.TRIANGLES,0,6);requestAnimationFrame(loop);});
+</script>
+</body>
+</html>
