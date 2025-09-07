@@ -1,0 +1,15 @@
+{{ define "title" }}{{ .Title }} | {{ .Site.Title }}{{ end }}
+{{ define "main" }}
+<article class="post-container">
+  <header>
+    <h1>{{ .Title }}</h1>
+    <div class="post-meta">
+      {{ with .Date }}<span>{{ .Format "Jan 02, 2006" }}</span>{{ end }}
+      {{ with .Params.tags }}<span>Tags: {{ delimit . ", " }}</span>{{ end }}
+    </div>
+  </header>
+  <div class="post-body">
+    {{ .Content }}
+  </div>
+</article>
+{{ end }}

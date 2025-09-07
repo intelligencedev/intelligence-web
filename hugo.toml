@@ -1,7 +1,11 @@
-baseURL = 'http://localhost'
+baseURL = 'http://localhost:1313'
 languageCode = 'en-us'
 title = 'Intelligence Web'
-theme = 'PaperMod'
+theme = 'ai-dev-journal'
+
+[params.design]
+  accentGradient = true
+  showRSS = true
 
 [params]
   author = "Intelligence Dev"

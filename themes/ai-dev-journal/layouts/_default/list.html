@@ -1,38 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Clouds Visualization | Intelligence Web</title>
-  <meta name="description" content="Dreamy volumetric clouds simulation" />
-  
-  <link rel="stylesheet" href="/css/style.min.bd09d3be61e215098493dfe04dba7f68d81579dcd88b2266a0557b0f3affc271.css" integrity="sha256-vQnTvmHiFQmEk9/gTbp/aNgVedzYiyJmoFV7Dzr/wnE=" />
-</head>
-<body>
-  <header class="site-header">
-    <nav class="navbar">
-      <a class="brand" href="/">
-        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="32" cy="32" r="30" stroke="#4f9cff" stroke-width="2" />
-          <path d="M18 38c4-10 10-16 14-16s10 6 14 16" stroke="#7dd3ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-          <circle cx="32" cy="32" r="6" fill="#4f9cff" />
-        </svg>
-        <span>Intelligence Web</span>
-      </a>
-      <div class="nav-links">
-        
-        
-          <a href="/" class="">Home</a>
-        
-          <a href="/visualizations/" class="">Visualizations</a>
-        
-          <a href="/docs/" class="">Documentation</a>
-        
-      </div>
-    </nav>
-  </header>
-  <main>
-    
+{{ define "title" }}{{ .Title }} | {{ .Site.Title }}{{ end }}
+{{ define "main" }}
 <section class="hero">
   <div class="hero-copy">
     <h1>Intelligence, Engineered</h1>
@@ -53,7 +20,13 @@
     <a href="/index.xml" class="btn alt" style="--btn-fg:var(--accent-alt);">RSS</a>
   </div>
   <div class="grid">
-    
+    {{ range first 12 .Pages }}
+      <article class="card">
+        <h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+        {{ with .Params.description }}<p>{{ . }}</p>{{ end }}
+        <a class="more" href="{{ .RelPermalink }}">Read</a>
+      </article>
+    {{ end }}
   </div>
 </section>
 
@@ -86,23 +59,10 @@
 </section>
 
 <script>
-
+// Subtle spark particle effect in hero canvas
 (function(){
   const c=document.getElementById('sparkCanvas');if(!c)return;const ctx=c.getContext('2d');const w=c.width,h=c.height;let t=0;const P=Array.from({length:60},()=>({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.6,vy:(Math.random()-.5)*.6,r:Math.random()*2+1}));
   function frame(){t++;ctx.fillStyle='rgba(8,14,22,.14)';ctx.fillRect(0,0,w,h);for(const p of P){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>w)p.vx*=-1;if(p.y<0||p.y>h)p.vy*=-1;ctx.beginPath();const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);g.addColorStop(0,'rgba(125,211,255,.9)');g.addColorStop(.5,'rgba(79,156,255,.35)');g.addColorStop(1,'rgba(79,156,255,0)');ctx.fillStyle=g;ctx.arc(p.x,p.y,p.r*4,0,Math.PI*2);ctx.fill();}
   requestAnimationFrame(frame);}frame();})();
 </script>
-
-  </main>
-  <footer class="footer">
-    <div>
-      <strong>Intelligence Web</strong><br />
-      Cutting-edge AI & Software Engineering Journal.
-    </div>
-    <div>
-      <div>Built with Hugo.</div>
-      <div>&copy; 2025 Intelligence Dev</div>
-    </div>
-  </footer>
-</body>
-</html>
+{{ end }}

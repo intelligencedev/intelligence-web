@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{ block "title" . }}{{ if .Title }}{{ .Title }} | {{ end }}{{ .Site.Title }}{{ end }}</title>
+  <meta name="description" content="{{ with .Params.description }}{{ . }}{{ else }}{{ .Site.Params.description }}{{ end }}" />
+  {{ $css := resources.Get "css/style.css" | minify | fingerprint }}
+  <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="navbar">
+      <a class="brand" href="/">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="32" cy="32" r="30" stroke="#4f9cff" stroke-width="2" />
+          <path d="M18 38c4-10 10-16 14-16s10 6 14 16" stroke="#7dd3ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="32" cy="32" r="6" fill="#4f9cff" />
+        </svg>
+        <span>{{ .Site.Title }}</span>
+      </a>
+      <div class="nav-links">
+        {{ $current := . }}
+        {{ range .Site.Menus.main }}
+          <a href="{{ .URL }}" class="{{ if or ($current.IsMenuCurrent "main" .) ($current.HasMenuCurrent "main" .) }}active{{ end }}">{{ .Name }}</a>
+        {{ end }}
+      </div>
+    </nav>
+  </header>
+  <main>
+    {{ block "main" . }}{{ end }}
+  </main>
+  <footer class="footer">
+    <div>
+      <strong>{{ .Site.Title }}</strong><br />
+      Cutting-edge AI & Software Engineering Journal.
+    </div>
+    <div>
+      <div>Built with Hugo.</div>
+      <div>&copy; {{ now.Format "2006" }} {{ .Site.Params.author }}</div>
+    </div>
+  </footer>
+</body>
+</html>

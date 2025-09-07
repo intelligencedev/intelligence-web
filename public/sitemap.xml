@@ -6,6 +6,8 @@
   </url><url>
     <loc>http://localhost:1313/visualizations/clouds/</loc>
   </url><url>
+    <loc>http://localhost:1313/docs/</loc>
+  </url><url>
     <loc>http://localhost:1313/visualizations/galaxy/</loc>
   </url><url>
     <loc>http://localhost:1313/</loc>

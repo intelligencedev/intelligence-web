@@ -1,571 +1,108 @@
 <!DOCTYPE html>
-<html lang="en" dir="auto">
-
-<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<meta name="robots" content="noindex, nofollow">
-<title>Galaxy Simulation | Intelligence Web</title>
-<meta name="keywords" content="">
-<meta name="description" content="Interactive galaxy simulation with nebula and dust effects">
-<meta name="author" content="Intelligence Dev">
-<link rel="canonical" href="http://localhost:1313/visualizations/galaxy/">
-<link crossorigin="anonymous" href="/assets/css/stylesheet.8fe10233a706bc87f2e08b3cf97b8bd4c0a80f10675a143675d59212121037c0.css" integrity="sha256-j&#43;ECM6cGvIfy4Is8&#43;XuL1MCoDxBnWhQ2ddWSEhIQN8A=" rel="preload stylesheet" as="style">
-<link rel="icon" href="http://localhost:1313/favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
-<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
-<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
-<meta name="theme-color" content="#2e2e33">
-<meta name="msapplication-TileColor" content="#2e2e33">
-<link rel="alternate" type="application/rss+xml" href="http://localhost:1313/visualizations/galaxy/index.xml">
-<link rel="alternate" hreflang="en" href="http://localhost:1313/visualizations/galaxy/">
-<noscript>
-    <style>
-        #theme-toggle,
-        .top-link {
-            display: none;
-        }
-
-    </style>
-    <style>
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --theme: rgb(29, 30, 32);
-                --entry: rgb(46, 46, 51);
-                --primary: rgb(218, 218, 219);
-                --secondary: rgb(155, 156, 157);
-                --tertiary: rgb(65, 66, 68);
-                --content: rgb(196, 196, 197);
-                --code-block-bg: rgb(46, 46, 51);
-                --code-bg: rgb(55, 56, 62);
-                --border: rgb(51, 51, 51);
-            }
-
-            .list {
-                background: var(--theme);
-            }
-
-            .list:not(.dark)::-webkit-scrollbar-track {
-                background: 0 0;
-            }
-
-            .list:not(.dark)::-webkit-scrollbar-thumb {
-                border-color: var(--theme);
-            }
-        }
-
-    </style>
-</noscript>
-</head>
-
-<body class="list" id="top">
-<script>
-    if (localStorage.getItem("pref-theme") === "dark") {
-        document.body.classList.add('dark');
-    } else if (localStorage.getItem("pref-theme") === "light") {
-        document.body.classList.remove('dark')
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.body.classList.add('dark');
-    }
-
-</script>
-
-<header class="header">
-    <nav class="nav">
-        <div class="logo">
-            <a href="http://localhost:1313/" accesskey="h" title="Intelligence Web (Alt + H)">Intelligence Web</a>
-            <div class="logo-switches">
-                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
-                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
-                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"></circle>
-                        <line x1="12" y1="1" x2="12" y2="3"></line>
-                        <line x1="12" y1="21" x2="12" y2="23"></line>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                        <line x1="1" y1="12" x2="3" y2="12"></line>
-                        <line x1="21" y1="12" x2="23" y2="12"></line>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                    </svg>
-                </button>
-            </div>
-        </div>
-        <ul id="menu">
-            <li>
-                <a href="http://localhost:1313/" title="Home">
-                    <span>Home</span>
-                </a>
-            </li>
-            <li>
-                <a href="http://localhost:1313/visualizations/" title="Visualizations">
-                    <span>Visualizations</span>
-                </a>
-            </li>
-            <li>
-                <a href="http://localhost:1313/docs/" title="Documentation">
-                    <span>Documentation</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
-</header>
-<main class="main"> 
-<header class="page-header">
-  <h1>
-    Galaxy Simulation
-  </h1>
-  <div class="post-description">
-    Interactive galaxy simulation with nebula and dust effects
-  </div>
-</header>
-<div class="post-content"><!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aeternis - intelligence.dev</title>
-  <style>
-    body {
-      margin: 0;
-    }
-<pre><code>canvas {
-  display: block;
-}
-
-#email-icon {
-  position: fixed;
-  bottom: 10px;
-  right: 10px;
-  padding: 8px;
-  cursor: pointer;
-  background: transparent;
-  border-radius: 5px;
-  transition: background 0.3s ease;
-}
-
-#email-icon:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-#email-icon svg {
-  width: 24px;
-  height: 24px;
-}
-
-#parameters-button {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-#parameters-menu {
-  display: none;
-  position: fixed;
-  top: 50px;
-  left: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  padding: 15px;
-  border-radius: 5px;
-  color: white;
-  max-height: 80vh;
-  overflow-y: auto;
-  min-width: 250px;
-}
-
-.parameter-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.parameter-row label {
-  flex: 1;
-  margin-right: 10px;
-  font-size: 12px;
-}
-
-.parameter-row input[type=&quot;range&quot;] {
-  flex: 2;
-  margin-right: 8px;
-}
-
-.parameter-row input[type=&quot;color&quot;] {
-  flex: 1;
-  margin-right: 8px;
-  height: 25px;
-  border: none;
-  border-radius: 3px;
-}
-
-.parameter-value {
-  flex: 0 0 auto;
-  min-width: 45px;
-  text-align: right;
-  font-size: 11px;
-  color: #ccc;
-}
-
-.parameter-section {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding-bottom: 10px;
-  margin-bottom: 10px;
-}
-
-.parameter-section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-}
-
-.section-title {
-  font-weight: bold;
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: #fff;
-}
-
-/* Camera Info Style */
-#camera-info {
-  position: fixed;
-  bottom: 10px;
-  left: 10px;
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  font-size: 13px;
-  padding: 7px 12px;
-  border-radius: 6px;
-  z-index: 1000;
-  font-family: monospace;
-  pointer-events: none;
-}
-</code></pre>
-<p></style></p>
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/"
-      }
-    }
-  </script>
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Galaxy Simulation | Intelligence Web</title>
+  <meta name="description" content="Interactive galaxy simulation with nebula and dust effects" />
+  
+  <link rel="stylesheet" href="/css/style.min.bd09d3be61e215098493dfe04dba7f68d81579dcd88b2266a0557b0f3affc271.css" integrity="sha256-vQnTvmHiFQmEk9/gTbp/aNgVedzYiyJmoFV7Dzr/wnE=" />
 </head>
 <body>
-  <!-- Email Contact Icon -->
-  <div id="email-icon" onclick="window.location.href='mailto:admin@intelligence.dev'">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-      <path fill="none" stroke="#D3D3D3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-        d="m4 6l6.108 4.612l.002.002c.678.497 1.017.746 1.389.842a2 2 0 0 0 1.002 0c.372-.096.712-.345 1.392-.844c0 0 3.917-3.006 6.107-4.612M3 15.8V8.2c0-1.12 0-1.68.218-2.108c.192-.377.497-.682.874-.874C4.52 5 5.08 5 6.2 5h11.6c1.12 0 1.68 0 2.107.218c.377.192.683.497.875.874c.218.427.218.987.218 2.105v7.607c0 1.118 0 1.676-.218 2.104a2.002 2.002 0 0 1-.875.874c-.427.218-.986.218-2.104.218H6.197c-1.118 0-1.678 0-2.105-.218a2 2 0 0 1-.874-.874C3 17.48 3 16.92 3 15.8Z" />
-    </svg>
-  </div>
-  <!-- Camera Info Display (bottom left) -->
-  <div id="camera-info">
-    Camera: x: 0.00, y: 0.00, z: 0.00<br>Rotation: x: 0.00, y: 0.00, z: 0.00
-  </div>
-  <!-- Parameters Button -->
-<p><button id="parameters-button">Parameters</button></p>
-  <div id="parameters-menu">
-    <div class="parameter-section">
-      <div class="section-title">Galaxy Parameters</div>
-      <div class="parameter-row">
-        <label for="numStars">Stars</label>
-        <input type="range" id="numStars" min="100" max="10000" step="100" value="10000">
-        <span class="parameter-value" id="numStars-value">10000</span>
+  <header class="site-header">
+    <nav class="navbar">
+      <a class="brand" href="/">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="32" cy="32" r="30" stroke="#4f9cff" stroke-width="2" />
+          <path d="M18 38c4-10 10-16 14-16s10 6 14 16" stroke="#7dd3ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="32" cy="32" r="6" fill="#4f9cff" />
+        </svg>
+        <span>Intelligence Web</span>
+      </a>
+      <div class="nav-links">
+        
+        
+          <a href="/" class="">Home</a>
+        
+          <a href="/visualizations/" class="">Visualizations</a>
+        
+          <a href="/docs/" class="">Documentation</a>
+        
       </div>
-      <div class="parameter-row">
-        <label for="starSize">Star Size</label>
-        <input type="range" id="starSize" min="0.005" max="0.1" step="0.001" value="0.005">
-        <span class="parameter-value" id="starSize-value">0.005</span>
-      </div>
-      <div class="parameter-row">
-        <label for="galacticRadius">Galactic Radius</label>
-        <input type="range" id="galacticRadius" min="1" max="10" step="0.01" value="4">
-        <span class="parameter-value" id="galacticRadius-value">4</span>
-      </div>
-      <div class="parameter-row">
-        <label for="spiralArms">Spiral Arms</label>
-        <input type="range" id="spiralArms" min="1" max="8" step="1" value="2">
-        <span class="parameter-value" id="spiralArms-value">2</span>
-      </div>
-      <div class="parameter-row">
-        <label for="coreRadius">Core Radius</label>
-        <input type="range" id="coreRadius" min="0.05" max="2" step="0.01" value="0.05">
-        <span class="parameter-value" id="coreRadius-value">0.05</span>
-      </div>
-      <div class="parameter-row">
-        <label for="orbitalTimeScale">Orbital Speed</label>
-        <input type="range" id="orbitalTimeScale" min="0.1" max="50" step="0.1" value="20.9">
-        <span class="parameter-value" id="orbitalTimeScale-value">20.9</span>
-      </div>
-      <div class="parameter-row">
-        <label for="discScaleLength">Disc Scale Length</label>
-        <input type="range" id="discScaleLength" min="0.1" max="0.8" step="0.01" value="0.29">
-        <span class="parameter-value" id="discScaleLength-value">0.29</span>
-      </div>
-      <div class="parameter-row">
-        <label for="bulgeRadius">Bulge Radius</label>
-        <input type="range" id="bulgeRadius" min="0.05" max="0.5" step="0.01" value="0.05">
-        <span class="parameter-value" id="bulgeRadius-value">0.05</span>
-      </div>
-      <div class="parameter-row">
-        <label for="verticalScaleHeight">Vertical Scale Height</label>
-        <input type="range" id="verticalScaleHeight" min="0.02" max="0.15" step="0.01" value="0.05">
-        <span class="parameter-value" id="verticalScaleHeight-value">0.05</span>
-      </div>
-      <div class="parameter-row">
-        <label for="spiralPitchAngle">Spiral Pitch Angle</label>
-        <input type="range" id="spiralPitchAngle" min="8" max="20" step="0.5" value="12.5">
-        <span class="parameter-value" id="spiralPitchAngle-value">12.5</span>
-      </div>
-      <div class="parameter-row">
-        <label for="clusterInfluence">Cluster Influence</label>
-        <input type="range" id="clusterInfluence" min="0" max="0.5" step="0.01" value="0.09">
-        <span class="parameter-value" id="clusterInfluence-value">0.09</span>
-      </div>
-    </div>
-    <div class="parameter-section">
-      <div class="section-title">Nebula Parameters</div>
-      <div class="parameter-row">
-        <label for="baseRadius">Nebula Base Radius</label>
-        <input type="range" id="baseRadius" min="0.1" max="2.0" step="0.05" value="0.1">
-        <span class="parameter-value" id="baseRadius-value">0.1</span>
-      </div>
-      <div class="parameter-row">
-        <label for="armWidth">Nebula Arm Width</label>
-        <input type="range" id="armWidth" min="0.05" max="1.0" step="0.01" value="0.17">
-        <span class="parameter-value" id="armWidth-value">0.17</span>
-      </div>
-      <div class="parameter-row">
-        <label for="armDensityMultiplier">Nebula Arm Density</label>
-        <input type="range" id="armDensityMultiplier" min="1.0" max="10.0" step="0.1" value="5.0">
-        <span class="parameter-value" id="armDensityMultiplier-value">5.0</span>
-      </div>
-      <div class="parameter-row">
-        <label for="numNebulaParticles">Nebula Particles (Legacy)</label>
-        <input type="range" id="numNebulaParticles" min="1000" max="50000" step="1000" value="20000">
-        <span class="parameter-value" id="numNebulaParticles-value">20000</span>
-      </div>
-      <div class="parameter-row">
-        <label for="densityFactor">Nebula Density</label>
-        <input type="range" id="densityFactor" min="0.1" max="50" step="0.5" value="49.6">
-        <span class="parameter-value" id="densityFactor-value">49.6</span>
-      </div>
-      <div class="parameter-row">
-        <label for="rayMarchSteps">Ray March Steps</label>
-        <input type="range" id="rayMarchSteps" min="32" max="128" step="8" value="96">
-        <span class="parameter-value" id="rayMarchSteps-value">96</span>
-      </div>
-      <div class="parameter-row">
-        <label for="absorptionCoefficient">Absorption</label>
-        <input type="range" id="absorptionCoefficient" min="0.1" max="5" step="0.1" value="0.1">
-        <span class="parameter-value" id="absorptionCoefficient-value">0.1</span>
-      </div>
-      <div class="parameter-row">
-        <label for="scatteringCoefficient">Scattering</label>
-        <input type="range" id="scatteringCoefficient" min="1" max="20" step="0.5" value="20">
-        <span class="parameter-value" id="scatteringCoefficient-value">20</span>
-      </div>
-      <div class="parameter-row">
-        <label for="godRaysIntensity">God Rays Intensity</label>
-        <input type="range" id="godRaysIntensity" min="0" max="2" step="0.01" value="0.33">
-        <span class="parameter-value" id="godRaysIntensity-value">0.33</span>
-      </div>
-      <div class="parameter-row">
-        <label for="anisotropyG">Anisotropy G</label>
-        <input type="range" id="anisotropyG" min="-1" max="1" step="0.01" value="0.41">
-        <span class="parameter-value" id="anisotropyG-value">0.41</span>
-      </div>
-      <div class="parameter-row">
-        <label for="centralLightIntensity">Central Light Intensity</label>
-        <input type="range" id="centralLightIntensity" min="0" max="2" step="0.01" value="0.09">
-        <span class="parameter-value" id="centralLightIntensity-value">0.09</span>
-      </div>
-    </div>
-    <div class="parameter-section">
-      <div class="section-title">Dust Parameters</div>
-      <div class="parameter-row">
-        <label for="numSmokeParticles">Smoke Particles</label>
-        <input type="range" id="numSmokeParticles" min="1000" max="50000" step="1000" value="2000">
-        <span class="parameter-value" id="numSmokeParticles-value">2000</span>
-      </div>
-      <div class="parameter-row">
-        <label for="smokeParticleSize">Smoke Particle Size</label>
-        <input type="range" id="smokeParticleSize" min="0.1" max="12.0" step="0.1" value="12.0">
-        <span class="parameter-value" id="smokeParticleSize-value">12.0</span>
-      </div>
-      <div class="parameter-row">
-        <label for="smokeNoiseIntensity">Smoke Noise Intensity</label>
-        <input type="range" id="smokeNoiseIntensity" min="0.1" max="5.0" step="0.1" value="1.1">
-        <span class="parameter-value" id="smokeNoiseIntensity-value">1.1</span>
-      </div>
-      <div class="parameter-row">
-        <label for="smokeParticleColor">Smoke Particle Color</label>
-        <input type="color" id="smokeParticleColor" value="#323252">
-        <span class="parameter-value" id="smokeParticleColor-value">#323252</span>
-      </div>
-    </div>
-  </div>
-  <script>
-    // Parameter menu toggle
-    const paramBtn = document.getElementById('parameters-button');
-    const paramMenu = document.getElementById('parameters-menu');
-    paramBtn.addEventListener('click', () => {
-      paramMenu.style.display = paramMenu.style.display === 'block' ? 'none' : 'block';
-    });
-
-    // Slider bindings for galaxyParams
-    const paramDefs = [
-      { id: 'numStars', key: 'numStars', type: 'int' },
-      { id: 'starSize', key: 'starSize', type: 'float' },
-      { id: 'galacticRadius', key: 'galacticRadius', type: 'float' },
-      { id: 'spiralArms', key: 'spiralArms', type: 'int' },
-      { id: 'coreRadius', key: 'coreRadius', type: 'float' },
-      { id: 'orbitalTimeScale', key: 'orbitalTimeScale', type: 'float' },
-      { id: 'discScaleLength', key: 'discScaleLength', type: 'float' },
-      { id: 'bulgeRadius', key: 'bulgeRadius', type: 'float' },
-      { id: 'verticalScaleHeight', key: 'verticalScaleHeight', type: 'float' },
-      { id: 'spiralPitchAngle', key: 'spiralPitchAngle', type: 'float' },
-      { id: 'clusterInfluence', key: 'clusterInfluence', type: 'float' },
-      // New Nebula Params
-      { id: 'baseRadius', key: 'baseRadius', type: 'float' },
-      { id: 'armWidth', key: 'armWidth', type: 'float' },
-      { id: 'armDensityMultiplier', key: 'armDensityMultiplier', type: 'float' },
-      // Existing Nebula/Volume Params
-      { id: 'numNebulaParticles', key: 'numNebulaParticles', type: 'int' },
-      { id: 'densityFactor', key: 'densityFactor', type: 'float' },
-      { id: 'rayMarchSteps', key: 'rayMarchSteps', type: 'int' },
-      { id: 'absorptionCoefficient', key: 'absorptionCoefficient', type: 'float' },
-      { id: 'scatteringCoefficient', key: 'scatteringCoefficient', type: 'float' },
-      { id: 'godRaysIntensity', key: 'godRaysIntensity', type: 'float' },
-      { id: 'anisotropyG', key: 'anisotropyG', type: 'float' },
-      { id: 'centralLightIntensity', key: 'centralLightIntensity', type: 'float' },
-      // Dust Params
-      { id: 'numSmokeParticles', key: 'numSmokeParticles', type: 'int' },
-      { id: 'smokeParticleSize', key: 'smokeParticleSize', type: 'float' },
-      { id: 'smokeNoiseIntensity', key: 'smokeNoiseIntensity', type: 'float' },
-      { id: 'smokeParticleColor', key: 'smokeParticleColor', type: 'color' },
-    ];
-
-    // Wait for script.js to load and galaxyParams to be available
-    function updateSliderBindings() {
-      if (typeof window.galaxyParams === 'undefined') {
-        setTimeout(updateSliderBindings, 100);
-        return;
-      }
-      paramDefs.forEach(def => {
-        const slider = document.getElementById(def.id);
-        const valueSpan = document.getElementById(def.id + '-value');
-        if (!slider || !valueSpan) return;
-        slider.addEventListener('input', e => {
-          let val;
-          if (def.type === 'color') {
-            val = e.target.value; // Keep as hex string
-            valueSpan.textContent = val;
-          } else {
-            val = def.type === 'int' ? parseInt(e.target.value) : parseFloat(e.target.value);
-            valueSpan.textContent = val;
-          }
-          window.galaxyParams[def.key] = val;
-          if (window.handleParamChange) window.handleParamChange(def.key, val);
-        });
-      });
-    }
-    // Expose galaxyParams for menu
-    window.addEventListener('DOMContentLoaded', () => {
-      updateSliderBindings();
-    });
-  </script>
-  <script type="module" src="/js/script.js"></script>
-</body>
-</html></content>
-<parameter name="filePath">/Users/art/Documents/code/intelligence-web/content/visualizations/galaxy/_index.md
-
-
-</div>
-    </main>
+    </nav>
+  </header>
+  <main>
     
-<footer class="footer">
-        <span>&copy; 2025 <a href="http://localhost:1313/">Intelligence Web</a></span> · 
+<section class="hero">
+  <div class="hero-copy">
+    <h1>Intelligence, Engineered</h1>
+    <p>A curated journal of experiments at the frontier of software + AI. We explore GPU simulation, generative models, interactive visualizations, and production engineering patterns— distilled into actionable, elegant artifacts.</p>
+    <div class="hero-buttons">
+      <a class="btn" href="/visualizations/">Explore Visualizations</a>
+      <a class="btn alt" href="/docs/">Read Docs</a>
+    </div>
+  </div>
+  <div class="hero-art">
+    <canvas id="sparkCanvas" width="520" height="400" style="width:100%;aspect-ratio:13/10;border-radius:18px;background:linear-gradient(135deg,#102030,#070b11);box-shadow:0 0 0 1px #233243,0 4px 22px -6px rgba(0,0,0,.6);"></canvas>
+  </div>
+</section>
 
-    <span>
-        Powered by
-        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
-        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
-    </span>
-</footer>
-<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
-        <path d="M12 6H0l6-6z" />
-    </svg>
-</a>
+<section class="section">
+  <div class="section-head">
+    <h2>Latest Entries</h2>
+    <a href="/index.xml" class="btn alt" style="--btn-fg:var(--accent-alt);">RSS</a>
+  </div>
+  <div class="grid">
+    
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Featured Domains</h2>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h3>GPU Simulation</h3>
+      <p>Hybrid WebGPU/WebGL approaches, fluid dynamics, large-scale particle systems, and shader-driven aesthetics.</p>
+      <a class="more" href="/visualizations/">Dive In</a>
+    </div>
+    <div class="card">
+      <h3>Generative Interfaces</h3>
+      <p>Interactive AI tooling patterns: prompts-as-UX, semantic retrieval, and adaptive rendering techniques.</p>
+      <a class="more" href="/docs/">Learn More</a>
+    </div>
+    <div class="card">
+      <h3>Production Patterns</h3>
+      <p>Resilient backend/service design, observability pipelines, and performance-first data flows.</p>
+      <a class="more" href="/docs/">Explore</a>
+    </div>
+    <div class="card">
+      <h3>Visualization Craft</h3>
+      <p>Readable code + expressive visuals. SDFs, marching techniques, camera ergonomics, and perceptual color.</p>
+      <a class="more" href="/visualizations/">Browse</a>
+    </div>
+  </div>
+</section>
 
 <script>
-    let menu = document.getElementById('menu')
-    if (menu) {
-        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
-        menu.onscroll = function () {
-            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
-        }
-    }
 
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener("click", function (e) {
-            e.preventDefault();
-            var id = this.getAttribute("href").substr(1);
-            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
-                    behavior: "smooth"
-                });
-            } else {
-                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
-            }
-            if (id === "top") {
-                history.replaceState(null, null, " ");
-            } else {
-                history.pushState(null, null, `#${id}`);
-            }
-        });
-    });
-
+(function(){
+  const c=document.getElementById('sparkCanvas');if(!c)return;const ctx=c.getContext('2d');const w=c.width,h=c.height;let t=0;const P=Array.from({length:60},()=>({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.6,vy:(Math.random()-.5)*.6,r:Math.random()*2+1}));
+  function frame(){t++;ctx.fillStyle='rgba(8,14,22,.14)';ctx.fillRect(0,0,w,h);for(const p of P){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>w)p.vx*=-1;if(p.y<0||p.y>h)p.vy*=-1;ctx.beginPath();const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);g.addColorStop(0,'rgba(125,211,255,.9)');g.addColorStop(.5,'rgba(79,156,255,.35)');g.addColorStop(1,'rgba(79,156,255,0)');ctx.fillStyle=g;ctx.arc(p.x,p.y,p.r*4,0,Math.PI*2);ctx.fill();}
+  requestAnimationFrame(frame);}frame();})();
 </script>
-<script>
-    var mybutton = document.getElementById("top-link");
-    window.onscroll = function () {
-        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
-            mybutton.style.visibility = "visible";
-            mybutton.style.opacity = "1";
-        } else {
-            mybutton.style.visibility = "hidden";
-            mybutton.style.opacity = "0";
-        }
-    };
 
-</script>
-<script>
-    document.getElementById("theme-toggle").addEventListener("click", () => {
-        if (document.body.className.includes("dark")) {
-            document.body.classList.remove('dark');
-            localStorage.setItem("pref-theme", 'light');
-        } else {
-            document.body.classList.add('dark');
-            localStorage.setItem("pref-theme", 'dark');
-        }
-    })
-
-</script>
+  </main>
+  <footer class="footer">
+    <div>
+      <strong>Intelligence Web</strong><br />
+      Cutting-edge AI & Software Engineering Journal.
+    </div>
+    <div>
+      <div>Built with Hugo.</div>
+      <div>&copy; 2025 Intelligence Dev</div>
+    </div>
+  </footer>
 </body>
-
 </html>
