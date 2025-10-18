@@ -17,15 +17,3 @@ theme = 'PaperMod'
   name = "Home"
   url = "/"
   weight = 10
-
-[[menu.main]]
-  identifier = "visualizations"
-  name = "Visualizations"
-  url = "/visualizations/"
-  weight = 20
-
-[[menu.main]]
-  identifier = "docs"
-  name = "Documentation"
-  url = "/docs/"
-  weight = 30
