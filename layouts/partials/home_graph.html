@@ -22,9 +22,51 @@
     if (!svg) return;
   var width = 1000, height = 600;
   var nodeCount = 28;
+    var maxNodes = 60; // safety cap to avoid runaway growth
+    var nextId = nodeCount;
 
   var linkGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
   var glowGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  // Add a new node every 2 seconds; connect to 3 nearest neighbors and pop-in size
+  function addNode(){
+    if (nodes.length >= maxNodes) return; // hit cap, stop adding
+    var targetR = 3 + Math.random()*3;
+    var n = { id: nextId++, x: width/2 + (Math.random()-0.5)*60, y: height/2 + (Math.random()-0.5)*60, vx:0, vy:0, r: 0 };
+    // nearest 3 existing nodes
+    var nearest = nodes.map(function(m, idx){
+      var dx = m.x - n.x, dy = m.y - n.y; return { d: dx*dx + dy*dy, idx: idx };
+    }).sort(function(a,b){ return a.d - b.d; }).slice(0, Math.min(3, nodes.length));
+
+    // push node first so update() sees it
+    nodes.push(n);
+
+    // SVG elements for glow and node
+    var g = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    g.setAttribute('class','node node-glow');
+    glowGroup.appendChild(g);
+    glowEls.push(g);
+
+    var c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('class', 'node' + ((n.id % 2) ? ' b' : ''));
+    nodeGroup.appendChild(c);
+    nodeEls.push(c);
+
+    // links to nearest neighbors
+    nearest.forEach(function(entry){
+      var e = document.createElementNS('http://www.w3.org/2000/svg','line');
+      e.setAttribute('class','link');
+      e.setAttribute('stroke-opacity', 1);
+      linkGroup.appendChild(e);
+      linkEls.push(e);
+      links.push({ source: entry.idx, target: nodes.length-1, w: 1 });
+    });
+
+    // pop-in animation on radius via anime (v2 supports object props)
+    anime({ targets: n, r: targetR, duration: 600, easing: 'easeOutBack' });
+  }
+
+  // kick off interval
+  setInterval(addNode, 2000);
   var nodeGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
   svg.appendChild(linkGroup);
   svg.appendChild(glowGroup);
