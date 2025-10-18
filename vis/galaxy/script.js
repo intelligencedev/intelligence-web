@@ -305,7 +305,7 @@ function setupDensityTexture() {
 
     // Initialize Web Worker
     if (window.Worker) {
-        densityWorker = new Worker('/js/densityWorker.js');
+        densityWorker = new Worker('densityWorker.js');
         densityWorker.onmessage = function(e) {
             const { textureData } = e.data;
             console.log("Received density data from worker, size:", textureData.byteLength);

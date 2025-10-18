@@ -1,212 +1,785 @@
 <!DOCTYPE html>
-<html lang="en" dir="auto">
-
+<html lang="en">
 <head>
-	<meta name="generator" content="Hugo 0.149.0"><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<meta name="robots" content="noindex, nofollow">
-<title>Intelligence Web</title>
-
-<meta name="description" content="A collection of interactive visualizations and documentation">
-<meta name="author" content="Intelligence Dev">
-<link rel="canonical" href="http://localhost:1313/">
-<link crossorigin="anonymous" href="/assets/css/stylesheet.8fe10233a706bc87f2e08b3cf97b8bd4c0a80f10675a143675d59212121037c0.css" integrity="sha256-j&#43;ECM6cGvIfy4Is8&#43;XuL1MCoDxBnWhQ2ddWSEhIQN8A=" rel="preload stylesheet" as="style">
-<link rel="icon" href="http://localhost:1313/favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
-<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
-<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
-<meta name="theme-color" content="#2e2e33">
-<meta name="msapplication-TileColor" content="#2e2e33">
-<link rel="alternate" type="application/rss+xml" href="http://localhost:1313/index.xml">
-<link rel="alternate" hreflang="en" href="http://localhost:1313/">
-<noscript>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>intelligence.dev - Advanced Technical Intelligence</title>
+    <script src="https://cdn.jsdelivr.net/npm/animejs/dist/bundles/anime.umd.min.js"></script>
     <style>
-        #theme-toggle,
-        .top-link {
-            display: none;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-    </style>
-    <style>
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --theme: rgb(29, 30, 32);
-                --entry: rgb(46, 46, 51);
-                --primary: rgb(218, 218, 219);
-                --secondary: rgb(155, 156, 157);
-                --tertiary: rgb(65, 66, 68);
-                --content: rgb(196, 196, 197);
-                --code-block-bg: rgb(46, 46, 51);
-                --code-bg: rgb(55, 56, 62);
-                --border: rgb(51, 51, 51);
+        :root {
+            --primary: #00ff88;
+            --secondary: #0088ff;
+            --accent: #ff0088;
+            --dark: #0a0a0f;
+            --darker: #050508;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: var(--dark);
+            color: #ffffff;
+            overflow-x: hidden;
+            min-height: 100vh;
+            cursor: none;
+        }
+
+        /* Custom Cursor */
+        .cursor {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            mix-blend-mode: difference;
+            transition: transform 0.2s ease;
+        }
+
+        .cursor-follower {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            mix-blend-mode: difference;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            padding: 2rem;
+        }
+
+        /* Morphing Background Grid */
+        .morph-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            gap: 1px;
+            opacity: 0.1;
+        }
+
+        .morph-cell {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            transform-origin: center;
+        }
+
+        /* Main Title */
+        .title-container {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .main-title {
+            font-size: clamp(3rem, 12vw, 8rem);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 0.9;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .title-word {
+            display: inline-block;
+            position: relative;
+        }
+
+        .title-char {
+            display: inline-block;
+            transform-origin: center;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 40px rgba(0, 255, 136, 0.3);
+        }
+
+        .subtitle {
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            font-weight: 300;
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.6);
+            overflow: hidden;
+        }
+
+        .subtitle-char {
+            display: inline-block;
+            transform: translateY(100%);
+            opacity: 0;
+        }
+
+        /* SVG Morphing Shapes */
+        .svg-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .morph-shape {
+            fill: none;
+            stroke-width: 2;
+            stroke: var(--primary);
+            opacity: 0.2;
+        }
+
+        /* Feature Cards */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto 4rem;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            cursor: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .feature-card:hover::before {
+            opacity: 0.1;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary);
+        }
+
+        .feature-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .feature-desc {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Visualizations Grid */
+        .viz-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 0 2rem 4rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .viz-item {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .viz-item::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, var(--primary), transparent);
+            opacity: 0;
+            transition: all 0.5s ease;
+            transform: translate(-50%, -50%);
+        }
+
+        .viz-item:hover::before {
+            width: 300%;
+            height: 300%;
+            opacity: 0.2;
+        }
+
+        .viz-item:hover {
+            border-color: var(--primary);
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 20px 60px rgba(0, 255, 136, 0.3);
+        }
+
+        .viz-label {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Animated Lines */
+        .line-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .animated-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            opacity: 0.3;
+        }
+
+        /* Section Titles */
+        .section-title {
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            position: relative;
+            z-index: 10;
+        }
+
+        .section-title-char {
+            display: inline-block;
+            transform-origin: center;
+        }
+
+        /* Floating Elements */
+        .float-element {
+            position: fixed;
+            width: 100px;
+            height: 100px;
+            border: 2px solid var(--primary);
+            border-radius: 20px;
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Scroll Indicator */
+        .scroll-indicator {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.9rem;
+            letter-spacing: 0.2em;
+        }
+
+        .scroll-line {
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(to bottom, var(--primary), transparent);
+        }
+
+        /* Glitch Effect */
+        @keyframes glitch {
+            0%, 100% { transform: translate(0); }
+            33% { transform: translate(-2px, 2px); }
+            66% { transform: translate(2px, -2px); }
+        }
+
+        .glitch {
+            position: relative;
+        }
+
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+        }
+
+        .glitch:hover::before {
+            animation: glitch 0.3s infinite;
+            color: var(--secondary);
+            opacity: 0.8;
+            z-index: -1;
+        }
+
+        .glitch:hover::after {
+            animation: glitch 0.3s infinite reverse;
+            color: var(--accent);
+            opacity: 0.8;
+            z-index: -2;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .morph-grid {
+                grid-template-columns: repeat(10, 1fr);
+                grid-template-rows: repeat(10, 1fr);
             }
 
-            .list {
-                background: var(--theme);
+            .features {
+                grid-template-columns: 1fr;
             }
 
-            .list:not(.dark)::-webkit-scrollbar-track {
-                background: 0 0;
+            .viz-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
 
-            .list:not(.dark)::-webkit-scrollbar-thumb {
-                border-color: var(--theme);
+            .cursor,
+            .cursor-follower {
+                display: none;
+            }
+
+            body {
+                cursor: auto;
+            }
+
+            .viz-item,
+            .feature-card {
+                cursor: pointer;
             }
         }
 
+        /* Loading Animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--darker);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-text {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
     </style>
-</noscript>
 </head>
+<body>
+    <!-- Custom Cursor -->
+    <div class="cursor"></div>
+    <div class="cursor-follower"></div>
 
-<body class="list" id="top">
-<script>
-    if (localStorage.getItem("pref-theme") === "dark") {
-        document.body.classList.add('dark');
-    } else if (localStorage.getItem("pref-theme") === "light") {
-        document.body.classList.remove('dark')
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.body.classList.add('dark');
-    }
+    <!-- Loading Overlay -->
+    <div class="loading-overlay">
+        <div class="loading-text">LOADING...</div>
+    </div>
 
-</script>
+    <!-- Hero Section -->
+    <section class="hero">
+        <!-- Morphing Grid Background -->
+        <div class="morph-grid" id="morphGrid"></div>
 
-<header class="header">
-    <nav class="nav">
-        <div class="logo">
-            <a href="http://localhost:1313/" accesskey="h" title="Intelligence Web (Alt + H)">Intelligence Web</a>
-            <div class="logo-switches">
-                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
-                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
-                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"></circle>
-                        <line x1="12" y1="1" x2="12" y2="3"></line>
-                        <line x1="12" y1="21" x2="12" y2="23"></line>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                        <line x1="1" y1="12" x2="3" y2="12"></line>
-                        <line x1="21" y1="12" x2="23" y2="12"></line>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                    </svg>
-                </button>
+        <!-- SVG Morphing Shapes -->
+        <svg class="svg-container" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
+            <path class="morph-shape" id="morphShape1" d="M500,250 L750,500 L500,750 L250,500 Z"/>
+            <path class="morph-shape" id="morphShape2" d="M200,200 L800,200 L800,800 L200,800 Z"/>
+            <path class="morph-shape" id="morphShape3" d="M500,200 Q800,500 500,800 Q200,500 500,200 Z"/>
+        </svg>
+
+        <!-- Animated Lines -->
+        <div class="line-container" id="lineContainer"></div>
+
+        <!-- Floating Elements -->
+        <div class="float-element" style="top: 10%; left: 10%;"></div>
+        <div class="float-element" style="top: 20%; right: 15%;"></div>
+        <div class="float-element" style="bottom: 15%; left: 20%;"></div>
+        <div class="float-element" style="bottom: 25%; right: 10%;"></div>
+
+        <!-- Title -->
+        <div class="title-container">
+            <h1 class="main-title" id="mainTitle">
+                <span class="title-word" id="titleWord1"></span>
+                <span class="title-word" id="titleWord2"></span>
+            </h1>
+            <div class="subtitle" id="subtitle"></div>
+        </div>
+
+        <!-- Scroll Indicator -->
+        <div class="scroll-indicator">
+            <span>SCROLL</span>
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section style="padding: 4rem 0;">
+        <h2 class="section-title" id="featuresTitle"></h2>
+        <div class="features" id="features">
+            <div class="feature-card">
+                <div class="feature-content">
+                    <div class="feature-icon">🤖</div>
+                    <h3 class="feature-title">Artificial Intelligence</h3>
+                    <p class="feature-desc">Deep dives into machine learning, neural networks, and the future of AI systems.</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-content">
+                    <div class="feature-icon">💻</div>
+                    <h3 class="feature-title">Software Development</h3>
+                    <p class="feature-desc">Advanced programming patterns, architectures, and development methodologies.</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-content">
+                    <div class="feature-icon">🌌</div>
+                    <h3 class="feature-title">Simulations</h3>
+                    <p class="feature-desc">Computational modeling, physics engines, and interactive visualizations.</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-content">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Performance</h3>
+                    <p class="feature-desc">Optimization techniques, benchmarking, and high-performance computing.</p>
+                </div>
             </div>
         </div>
-        <ul id="menu">
-            <li>
-                <a href="http://localhost:1313/" title="Home">
-                    <span class="active">Home</span>
-                </a>
-            </li>
-            <li>
-                <a href="http://localhost:1313/visualizations/" title="Visualizations">
-                    <span>Visualizations</span>
-                </a>
-            </li>
-            <li>
-                <a href="http://localhost:1313/docs/" title="Documentation">
-                    <span>Documentation</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
-</header>
-<main class="main"> 
-<div class="post-content"><h1 id="intelligence-web">Intelligence Web<a hidden class="anchor" aria-hidden="true" href="#intelligence-web">#</a></h1>
-<p>Welcome to Intelligence Web, a collection of interactive visualizations and documentation.</p>
-<h2 id="visualizations">Visualizations<a hidden class="anchor" aria-hidden="true" href="#visualizations">#</a></h2>
-<p>Explore our interactive visualizations:</p>
-<ul>
-<li><a href="/visualizations/galaxy/">Galaxy Simulation</a></li>
-<li><a href="/visualizations/clouds/">Clouds</a></li>
-<li><a href="/visualizations/moonshot/">Moonshot</a></li>
-<li><a href="/visualizations/vortex/">Vortex</a></li>
-<li><a href="/visualizations/vterrain/">Virtual Terrain</a></li>
-<li><a href="/visualizations/orbits/">Orbits Shader</a></li>
-</ul>
-<h2 id="documentation">Documentation<a hidden class="anchor" aria-hidden="true" href="#documentation">#</a></h2>
-<p>Coming soon&hellip;</p>
+    </section>
 
+    <!-- Visualizations Section -->
+    <section style="padding: 4rem 0;">
+        <h2 class="section-title" id="vizTitle"></h2>
+        <div class="viz-grid" id="vizGrid">
+            <a href="/vis/galaxy/" class="viz-item glitch" data-text="GALAXY">
+                <span class="viz-label">GALAXY</span>
+            </a>
+            <a href="/vis/vortex/" class="viz-item glitch" data-text="VORTEX">
+                <span class="viz-label">VORTEX</span>
+            </a>
+            <a href="/vis/moonshot/" class="viz-item glitch" data-text="MOONSHOT">
+                <span class="viz-label">MOONSHOT</span>
+            </a>
+            <a href="/vis/clouds/" class="viz-item glitch" data-text="CLOUDS">
+                <span class="viz-label">CLOUDS</span>
+            </a>
+            <a href="/vis/vterrain/" class="viz-item glitch" data-text="TERRAIN">
+                <span class="viz-label">TERRAIN</span>
+            </a>
+        </div>
+    </section>
 
-</div>
-    </main>
-    
-<footer class="footer">
-        <span>&copy; 2025 <a href="http://localhost:1313/">Intelligence Web</a></span> · 
+    <script>
+        // Check if anime loaded and remove loading overlay immediately for debugging
+        setTimeout(() => {
+            document.querySelector('.loading-overlay').style.display = 'none';
+        }, 500);
 
-    <span>
-        Powered by
-        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
-        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
-    </span>
-</footer>
-<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
-        <path d="M12 6H0l6-6z" />
-    </svg>
-</a>
-
-<script>
-    let menu = document.getElementById('menu')
-    if (menu) {
-        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
-        menu.onscroll = function () {
-            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        if (typeof anime === 'undefined') {
+            console.error('Anime.js failed to load!');
+            document.body.innerHTML = '<div style="color: white; padding: 50px;">ERROR: Anime.js failed to load</div>';
+        } else {
+            console.log('Anime.js loaded successfully');
+            initAnimations();
         }
-    }
 
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener("click", function (e) {
-            e.preventDefault();
-            var id = this.getAttribute("href").substr(1);
-            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
-                    behavior: "smooth"
+        function initAnimations() {
+            try {
+                // Initialize anime.js v4
+                const { animate, createTimeline, stagger, random } = anime;
+
+                // Custom Cursor
+                const cursor = document.querySelector('.cursor');
+                const follower = document.querySelector('.cursor-follower');
+
+                let mouseX = 0, mouseY = 0;
+                let cursorX = 0, cursorY = 0;
+                let followerX = 0, followerY = 0;
+
+                document.addEventListener('mousemove', (e) => {
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
                 });
-            } else {
-                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+
+                function updateCursor() {
+                    cursorX += (mouseX - cursorX) * 0.2;
+                    cursorY += (mouseY - cursorY) * 0.2;
+                    followerX += (mouseX - followerX) * 0.1;
+                    followerY += (mouseY - followerY) * 0.1;
+
+                    cursor.style.transform = `translate(${cursorX - 10}px, ${cursorY - 10}px)`;
+                    follower.style.transform = `translate(${followerX - 4}px, ${followerY - 4}px)`;
+
+                    requestAnimationFrame(updateCursor);
+                }
+                updateCursor();
+
+                // Split text into characters
+                function splitText(element, text) {
+                    element.innerHTML = '';
+                    [...text].forEach(char => {
+                        const span = document.createElement('span');
+                        span.className = element.id === 'subtitle' ? 'subtitle-char' : 
+                                         element.classList.contains('section-title') ? 'section-title-char' : 'title-char';
+                        span.textContent = char === ' ' ? '\u00A0' : char;
+                        element.appendChild(span);
+                    });
+                }
+
+                // Initialize title text
+                const word1 = document.getElementById('titleWord1');
+                const word2 = document.getElementById('titleWord2');
+                splitText(word1, 'intelligence');
+                splitText(word2, '.dev');
+                splitText(document.getElementById('subtitle'), 'ADVANCED TECHNICAL INTELLIGENCE');
+                splitText(document.getElementById('featuresTitle'), 'EXPLORE');
+                splitText(document.getElementById('vizTitle'), 'VISUALIZATIONS');
+
+                // Create morph grid
+                const morphGrid = document.getElementById('morphGrid');
+                const gridSize = window.innerWidth > 768 ? 400 : 100;
+                for (let i = 0; i < gridSize; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'morph-cell';
+                    morphGrid.appendChild(cell);
+                }
+
+                // Create animated lines
+                const lineContainer = document.getElementById('lineContainer');
+                for (let i = 0; i < 5; i++) {
+                    const line = document.createElement('div');
+                    line.className = 'animated-line';
+                    line.style.top = `${random(0, 100)}%`;
+                    line.style.width = '0%';
+                    lineContainer.appendChild(line);
+                }
+
+                // Title animation with stagger
+                animate('.title-char', {
+                    translateY: [100, 0],
+                    opacity: [0, 1],
+                    rotate: [45, 0],
+                    scale: [0, 1],
+                    duration: 1200,
+                    delay: stagger(30),
+                    ease: 'outExpo'
+                });
+
+                // Subtitle animation
+                animate('.subtitle-char', {
+                    translateY: [50, 0],
+                    opacity: [0, 1],
+                    duration: 800,
+                    delay: stagger(20),
+                    ease: 'outExpo'
+                });
+
+                // Morphing grid animation
+                animate('.morph-cell', {
+                    scale: [0, 1],
+                    rotate: [0, 180],
+                    duration: 2000,
+                    delay: stagger(5),
+                    ease: 'inOutQuad',
+                    loop: true,
+                    direction: 'alternate'
+                });
+
+                // SVG morphing
+                const shapes = [
+                    'M500,250 L750,500 L500,750 L250,500 Z',
+                    'M500,200 Q800,500 500,800 Q200,500 500,200 Z',
+                    'M300,300 L700,300 L700,700 L300,700 Z',
+                    'M500,200 L800,600 L500,900 L200,600 Z'
+                ];
+
+                ['morphShape1', 'morphShape2', 'morphShape3'].forEach((id, index) => {
+                    animate(`#${id}`, {
+                        d: shapes,
+                        duration: 4000 + (index * 1000),
+                        delay: index * 500,
+                        loop: true,
+                        ease: 'inOutQuad'
+                    });
+                });
+
+                // Animated lines
+                animate('.animated-line', {
+                    width: ['0%', '100%'],
+                    duration: 3000,
+                    delay: stagger(600),
+                    loop: true,
+                    ease: 'inOutQuad'
+                });
+
+                // Floating elements
+                animate('.float-element', {
+                    translateX: () => random(-50, 50),
+                    translateY: () => random(-50, 50),
+                    rotate: [0, 360],
+                    scale: [1, 1.2, 1],
+                    duration: 8000,
+                    delay: stagger(1000),
+                    loop: true,
+                    ease: 'inOutQuad'
+                });
+
+                // Scroll-triggered section animations
+                animate('#featuresTitle .section-title-char', {
+                    translateY: [50, 0],
+                    opacity: [0, 1],
+                    rotate: [180, 0],
+                    scale: [0, 1],
+                    duration: 800,
+                    delay: stagger(40),
+                    ease: 'outExpo',
+                    autoplay: anime.onScroll({
+                        enter: 'play',
+                        threshold: 0.5
+                    })
+                });
+
+                animate('.feature-card', {
+                    translateY: [100, 0],
+                    opacity: [0, 1],
+                    scale: [0.8, 1],
+                    rotate: [10, 0],
+                    duration: 1000,
+                    delay: stagger(150),
+                    ease: 'outExpo',
+                    autoplay: anime.onScroll({
+                        enter: 'play',
+                        threshold: 0.3
+                    })
+                });
+
+                animate('#vizTitle .section-title-char', {
+                    translateY: [50, 0],
+                    opacity: [0, 1],
+                    scale: [2, 1],
+                    duration: 800,
+                    delay: stagger(40),
+                    ease: 'outExpo',
+                    autoplay: anime.onScroll({
+                        enter: 'play',
+                        threshold: 0.5
+                    })
+                });
+
+                animate('.viz-item', {
+                    translateY: [100, 0],
+                    opacity: [0, 1],
+                    scale: [0, 1],
+                    rotate: [45, 0],
+                    duration: 1200,
+                    delay: stagger(100),
+                    ease: 'outExpo',
+                    autoplay: anime.onScroll({
+                        enter: 'play',
+                        threshold: 0.3
+                    })
+                });
+
+                // Scroll indicator animation
+                animate('.scroll-line', {
+                    scaleY: [0, 1],
+                    duration: 1500,
+                    delay: 2000,
+                    loop: true,
+                    ease: 'inOutQuad',
+                    direction: 'alternate'
+                });
+
+                // Parallax effect on scroll
+                window.addEventListener('scroll', () => {
+                    const scrollY = window.scrollY;
+                    document.querySelectorAll('.float-element').forEach((el, index) => {
+                        const speed = 0.5 + (index * 0.1);
+                        el.style.transform = `translateY(${scrollY * speed}px)`;
+                    });
+                });
+
+                console.log('All animations initialized successfully!');
+
+            } catch(error) {
+                console.error('Animation initialization error:', error);
+                document.body.innerHTML = '<div style="color: white; padding: 50px;"><h1>Animation Error</h1><pre>' + error.message + '\n' + error.stack + '</pre></div>';
             }
-            if (id === "top") {
-                history.replaceState(null, null, " ");
-            } else {
-                history.pushState(null, null, `#${id}`);
-            }
-        });
-    });
-
-</script>
-<script>
-    var mybutton = document.getElementById("top-link");
-    window.onscroll = function () {
-        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
-            mybutton.style.visibility = "visible";
-            mybutton.style.opacity = "1";
-        } else {
-            mybutton.style.visibility = "hidden";
-            mybutton.style.opacity = "0";
         }
-    };
-
-</script>
-<script>
-    document.getElementById("theme-toggle").addEventListener("click", () => {
-        if (document.body.className.includes("dark")) {
-            document.body.classList.remove('dark');
-            localStorage.setItem("pref-theme", 'light');
-        } else {
-            document.body.classList.add('dark');
-            localStorage.setItem("pref-theme", 'dark');
-        }
-    })
-
-</script>
+    </script>
 </body>
-
 </html>

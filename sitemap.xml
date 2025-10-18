@@ -4,22 +4,8 @@
   <url>
     <loc>http://localhost:1313/categories/</loc>
   </url><url>
-    <loc>http://localhost:1313/visualizations/clouds/</loc>
-  </url><url>
-    <loc>http://localhost:1313/visualizations/galaxy/</loc>
-  </url><url>
     <loc>http://localhost:1313/</loc>
   </url><url>
-    <loc>http://localhost:1313/visualizations/moonshot/</loc>
-  </url><url>
-    <loc>http://localhost:1313/visualizations/orbits/</loc>
-  </url><url>
     <loc>http://localhost:1313/tags/</loc>
-  </url><url>
-    <loc>http://localhost:1313/visualizations/vterrain/</loc>
-  </url><url>
-    <loc>http://localhost:1313/visualizations/</loc>
-  </url><url>
-    <loc>http://localhost:1313/visualizations/vortex/</loc>
   </url>
 </urlset>
