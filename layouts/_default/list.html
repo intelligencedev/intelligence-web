@@ -1,65 +1,7 @@
-{{ define "main" }}
-  {{ if .IsHome }}
-    {{ partial "home_graph.html" . }}
-  {{ end }}
-  {{- template "_papermod_list" . -}}
-{{ end }}
-
-{{ define "_papermod_list" }}
-  {{/* include original PaperMod list content by copying or delegating: use theme's list via partial */}}
-  {{- $tpl := resources.Get "_ignore" -}}
-  {{/* Fallback: render the theme list using the base template logic */}}
-  {{- $pages := union .RegularPages .Sections }}
-  {{- if .IsHome }}
-    {{- $pages = where site.RegularPages "Type" "in" site.Params.mainSections }}
-    {{- $pages = where $pages "Params.hiddenInHomeList" "!=" "true" }}
-  {{- end }}
-  {{- $paginator := .Paginate $pages }}
-
-  {{- if and .IsHome site.Params.homeInfoParams (eq $paginator.PageNumber 1) }}
-    {{- partial "home_info.html" . }}
-  {{- end }}
-
-  {{- $term := .Data.Term }}
-  {{- range $index, $page := $paginator.Pages }}
-    {{- $class := "post-entry" }}
-    {{- $user_preferred := or site.Params.disableSpecial1stPost site.Params.homeInfoParams }}
-    {{- if (and $.IsHome (eq $paginator.PageNumber 1) (eq $index 0) (not $user_preferred)) }}
-      {{- $class = "first-entry" }}
-    {{- else if $term }}
-      {{- $class = "post-entry tag-entry" }}
-    {{- end }}
-    <article class="{{ $class }}">
-      {{- $isHidden := (.Param "cover.hiddenInList") | default (.Param "cover.hidden") | default false }}
-      {{- partial "cover.html" (dict "cxt" . "IsSingle" false "isHidden" $isHidden) }}
-      <header class="entry-header">
-        <h2 class="entry-hint-parent">
-          {{- .Title }}
-          {{- if .Draft }}<span class="entry-hint" title="Draft">• Draft</span>{{- end }}
-        </h2>
-      </header>
-      {{- if (ne (.Param "hideSummary") true) }}
-        <div class="entry-content">
-          <p>{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
-        </div>
-      {{- end }}
-      {{- if not (.Param "hideMeta") }}
-        <footer class="entry-footer">{{- partial "post_meta.html" . -}}</footer>
-      {{- end }}
-      <a class="entry-link" aria-label="post link to {{ .Title | plainify }}" href="{{ .Permalink }}"></a>
-    </article>
-  {{- end }}
-
-  {{- if gt $paginator.TotalPages 1 }}
-    <footer class="page-footer">
-      <nav class="pagination">
-        {{- if $paginator.HasPrev }}
-          <a class="prev" href="{{ $paginator.Prev.URL | absURL }}">«&nbsp;{{ i18n "prev_page" }}{{- if (.Param "ShowPageNums") }} {{- sub $paginator.PageNumber 1 }}/{{ $paginator.TotalPages }}{{- end }}</a>
-        {{- end }}
-        {{- if $paginator.HasNext }}
-          <a class="next" href="{{ $paginator.Next.URL | absURL }}">{{- i18n "next_page" }} {{- if (.Param "ShowPageNums") }} {{- add 1 $paginator.PageNumber }}/{{ $paginator.TotalPages }}{{- end }} »</a>
-        {{- end }}
-      </nav>
-    </footer>
-  {{- end }}
-{{ end }}
+{{/* Override the theme's list.html for the homepage and other lists.
+   When Hugo renders the home page it uses the list template (._default/list.html).
+   This site-level override reads the static/index.html file and emits it verbatim
+   so nothing from the theme (baseof.html, partials) will wrap or modify it.
+*/}}
+{{- $path := "static/index.html" -}}
+{{- $content := readFile $path -}}

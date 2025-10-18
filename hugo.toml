@@ -1,11 +1,11 @@
-baseURL = 'http://localhost'
+baseURL = 'https://intelligence.dev/'
 languageCode = 'en-us'
-title = 'Intelligence Web'
+title = 'intelligence.dev'
 theme = 'PaperMod'
 
 [params]
-  author = "Intelligence Dev"
-  description = "A collection of interactive visualizations and documentation"
+  author = "Manifold"
+  description = "The intelligence.dev website for Manifold."
 
 [markup]
   [markup.goldmark]
