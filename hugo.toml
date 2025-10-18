@@ -3,6 +3,9 @@ languageCode = 'en-us'
 title = 'intelligence.dev'
 theme = 'PaperMod'
 
+# Do not generate a Hugo-rendered homepage; use static/index.html as the root instead.
+disableKinds = ["home"]
+
 [params]
   author = "Manifold"
   description = "The intelligence.dev website for Manifold."
