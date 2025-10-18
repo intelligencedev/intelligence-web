@@ -1,607 +1,367 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="auto">
+
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>intelligence.dev — Advanced Technical Intelligence</title>
-    <meta name="description" content="Articles and experiments on artificial intelligence, software engineering, and computational simulation." />
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <script src="https://cdn.jsdelivr.net/npm/animejs/dist/bundles/anime.umd.min.js"></script>
+	<meta name="generator" content="Hugo 0.149.0"><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Intelligence Web</title>
+
+<meta name="description" content="A collection of interactive visualizations and documentation">
+<meta name="author" content="Intelligence Dev">
+<link rel="canonical" href="http://localhost/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.8fe10233a706bc87f2e08b3cf97b8bd4c0a80f10675a143675d59212121037c0.css" integrity="sha256-j&#43;ECM6cGvIfy4Is8&#43;XuL1MCoDxBnWhQ2ddWSEhIQN8A=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" type="application/rss+xml" href="http://localhost/index.xml">
+<link rel="alternate" hreflang="en" href="http://localhost/">
+<noscript>
     <style>
-        :root{
-            --bg:#0b0c10;
-            --panel:#0f1117;
-            --text:#e6edf3;
-            --muted:#8b98a5;
-            --brand:#61f4d0;
-            --brand-2:#6aaefc;
-            --border:rgba(230,237,243,0.08);
-            --shadow:0 10px 30px rgba(0,0,0,0.35);
-        }
-        *{box-sizing:border-box}
-        html,body{height:100%}
-        body{
-            margin:0;
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-            color:var(--text);
-            background:radial-gradient(1200px 800px at 80% -10%, rgba(106,174,252,0.10), transparent 60%),
-                                 radial-gradient(900px 700px at 10% 20%, rgba(97,244,208,0.10), transparent 60%),
-                                 var(--bg);
-            line-height:1.6;
-        }
-        a{color:inherit;text-decoration:none}
-        .wrap{max-width:1100px;margin:0 auto;padding:24px}
-
-        /* Header */
-        header{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
-        .brand{display:flex;align-items:center;gap:12px}
-        .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--brand-2));box-shadow:var(--shadow)}
-        .brand h1{font-size:18px;margin:0;font-weight:650;letter-spacing:.2px}
-        nav ul{display:flex;gap:18px;list-style:none;margin:0;padding:0}
-        nav a{color:var(--muted)}
-        nav a:hover{color:var(--text)}
-
-        /* Hero */
-        .hero{display:grid;grid-template-columns:1.15fr 1fr;gap:48px;align-items:center;padding:72px 0}
-        .title{font-size:clamp(32px,6vw,64px);font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:0}
-        .title .accent{background:linear-gradient(90deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-        .subtitle{color:var(--muted);margin-top:16px;font-size:clamp(16px,2.5vw,18px)}
-        .cta-row{display:flex;gap:14px;margin-top:28px}
-        .btn{padding:12px 18px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.02);backdrop-filter:saturate(140%) blur(4px);color:var(--text)}
-        .btn.primary{border-color:transparent;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#061014;font-weight:700}
-        .meta{display:flex;gap:18px;margin-top:22px;color:var(--muted);font-size:14px}
-
-        /* Feature list */
-        .features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px}
-        .card{border:1px solid var(--border);border-radius:14px;padding:18px;background:var(--panel);box-shadow:var(--shadow)}
-        .card h3{margin:0 0 6px 0;font-size:16px}
-        .card p{margin:0;color:var(--muted);font-size:14px}
-
-        /* Visual teaser */
-        .scene{position:relative;height:360px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#0f1219,#0b0c10)}
-        .orb{position:absolute;inset:auto;left:10%;top:18%;width:140px;height:140px;border-radius:50%;filter:blur(8px);background:radial-gradient(circle at 30% 30%,rgba(97,244,208,.9),rgba(97,244,208,.0) 65%)}
-        .orb.b{left:auto;right:14%;top:30%;width:220px;height:220px;background:radial-gradient(circle at 30% 30%,rgba(106,174,252,.85),rgba(106,174,252,0) 65%)}
-        .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(230,237,243,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(230,237,243,0.06) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(70% 70% at 50% 50%, #000, transparent)}
-        .underline{display:inline-block;height:3px;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:2px;margin-top:8px}
-
-        footer{padding:64px 0 24px 0;color:var(--muted);font-size:14px}
-        footer .grid{background-size:32px 32px;opacity:.4}
-
-        /* Responsive */
-        @media (max-width: 980px){
-            .hero{grid-template-columns:1fr;gap:28px;padding:48px 0}
-            .scene{height:280px}
-            .features{grid-template-columns:1fr 1fr}
-        }
-        @media (max-width: 640px){
-            .features{grid-template-columns:1fr}
-            nav{display:none}
+        #theme-toggle,
+        .top-link {
+            display: none;
         }
 
-        /* Reduce motion */
-        @media (prefers-reduced-motion: reduce){
-            *{animation: none !important; transition: none !important}
-        }
     </style>
-</head>
-<body>
-    <div class="wrap">
-        <header aria-label="Site header">
-            <div class="brand">
-                <div class="logo" aria-hidden="true"></div>
-                <h1>intelligence.dev</h1>
-            </div>
-            <nav aria-label="Primary">
-                <ul>
-                    <li><a href="#articles">Articles</a></li>
-                    <li><a href="#topics">Topics</a></li>
-                    <li><a href="#visuals">Visuals</a></li>
-                </ul>
-            </nav>
-        </header>
-
-        <main>
-            <section class="hero" id="hero">
-                <div>
-                    <h2 class="title">
-                        Purposeful writing on <span class="accent">AI</span>,
-                        engineering, and simulation
-                        <span class="underline" id="title-underline" aria-hidden="true"></span>
-                    </h2>
-                    <p class="subtitle">Deep, practical articles without the noise. We focus on systems that learn, code that lasts, and models that run fast.</p>
-                    <div class="cta-row">
-                        <a class="btn primary" href="#articles">Read latest</a>
-                        <a class="btn" href="/vis/galaxy/">View experiments</a>
-                    </div>
-                    <div class="meta" role="contentinfo">
-                        <span>New posts every month</span>
-                        <span>Open-source experiments</span>
-                        <span>No ads, no fluff</span>
-                    </div>
-                </div>
-                <div class="scene" aria-hidden="true">
-                    <div class="grid"></div>
-                    <div class="orb" id="orbA"></div>
-                    <div class="orb b" id="orbB"></div>
-                </div>
-            </section>
-
-            <section id="topics" aria-labelledby="topics-title">
-                <h3 id="topics-title" style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Focus areas</h3>
-                <div class="features">
-                    <article class="card">
-                        <h3>Artificial Intelligence</h3>
-                        <p>Training dynamics, evaluation, and agents in real systems.</p>
-                    </article>
-                    <article class="card">
-                        <h3>Software Engineering</h3>
-                        <p>Patterns, reliability, observability, and pragmatic performance.</p>
-                    </article>
-                    <article class="card">
-                        <h3>Simulation</h3>
-                        <p>Techniques for large-scale simulation and interactive visuals.</p>
-                    </article>
-                </div>
-            </section>
-
-            <section id="visuals" style="margin-top:48px">
-                <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Experiments</h3>
-                <div class="features">
-                    <a class="card" href="/vis/galaxy/"><h3>Galaxy</h3><p>N‑body inspired particle fields.</p></a>
-                    <a class="card" href="/vis/vortex/"><h3>Vortex</h3><p>Fluid-like shader exploration.</p></a>
-                    <a class="card" href="/vis/vterrain/"><h3>Terrain</h3><p>Procedural landscapes.</p></a>
-                </div>
-            </section>
-        </main>
-
-        <footer>
-            <div class="grid" aria-hidden="true" style="height:1px"></div>
-            <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:18px">
-                <span>© <span id="year"></span> intelligence.dev</span>
-                <span><a href="https://github.com/intelligencedev" target="_blank" rel="noopener">GitHub</a></span>
-            </div>
-        </footer>
-    </div>
-
-    <script>
-        // Wait for window load to ensure DOM is ready and all animations can start
-        window.addEventListener('load', function(){
-            const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            document.getElementById('year').textContent = new Date().getFullYear();
-
-            // If anime isn't available or user prefers reduced motion, skip animations.
-            if (typeof anime === 'undefined' || prefersReduced) {
-                if (typeof anime === 'undefined') console.warn('anime.js not available; animations skipped.');
-                return;
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --code-block-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
             }
 
-            const { animate, stagger } = anime;                // Headline: underline draw
-                const underline = document.getElementById('title-underline');
-                animate(underline, {
-                    width: ['0%', '100%'],
-                    duration: 900,
-                    delay: 200,
-                    easing: 'outCubic'
-                });
-
-                // Cards: rise into view on load (1 pass, no loop)
-                animate('.card', {
-                    transform: ['translateY(8px)', 'translateY(0px)'],
-                    opacity: [0, 1],
-                    duration: 500,
-                    delay: stagger(80, { start: 350 }),
-                    easing: 'outCubic'
-                });
-
-                // Orbs: slow, purposeful drift
-                animate('#orbA', {
-                    transform: [
-                        'translate(0px, 0px) scale(1)',
-                        'translate(18px, 10px) scale(1.06)',
-                        'translate(-12px, 16px) scale(1)'
-                    ],
-                    duration: 10000,
-                    easing: 'inOutSine',
-                    loop: true,
-                    alternate: true
-                });
-                animate('#orbB', {
-                    transform: [
-                        'translate(0px, 0px) scale(1)',
-                        'translate(-16px, 8px) scale(1.04)',
-                        'translate(12px, 18px) scale(1)'
-                    ],
-                    duration: 12000,
-                    easing: 'inOutSine',
-                    loop: true,
-                    alternate: true
-                });
-            });
-        </script>
-</body>
-</html>
-
-            .viz-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .list {
+                background: var(--theme);
             }
 
-            .cursor,
-            .cursor-follower {
-                display: none;
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
             }
 
-            body {
-                cursor: auto;
-            }
-
-            .viz-item,
-            .feature-card {
-                cursor: pointer;
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
             }
         }
 
-        /* Loading Animation */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--darker);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .loading-text {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
     </style>
+</noscript>
+<script defer src="https://cdn.jsdelivr.net/npm/animejs@2.2.0/anime.min.js"></script>
+<style>
+   
+  html, body { overflow-x: hidden; }
+
+   
+  .home-hero { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  .home-hero .scene { position: relative; height: 360px; border: 1px solid rgba(230,237,243,0.08); border-radius: 16px; overflow: hidden; background: linear-gradient(180deg,#0f1219,#0b0c10); }
+  .home-hero .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(230,237,243,0.06) 1px,transparent 1px), linear-gradient(90deg,rgba(230,237,243,0.06) 1px,transparent 1px); background-size: 40px 40px; mask-image: radial-gradient(70% 70% at 50% 50%, #000, transparent); }
+  .home-hero svg { position: absolute; inset: 0; width: 100%; height: 100%; display:block; }
+  .home-hero .link { stroke: rgba(230,237,243,0.25); stroke-width: 1.25; }
+  .home-hero .node { fill: #61f4d0; }
+  .home-hero .node.b { fill: #6aaefc; }
+  .home-hero .node-glow { filter: blur(6px); opacity: .35; }
+
+  @media (max-width: 980px){ .home-hero .scene{ height: 280px; } }
+</style>
+<meta property="og:url" content="http://localhost/">
+  <meta property="og:site_name" content="Intelligence Web">
+  <meta property="og:title" content="Home">
+  <meta property="og:description" content="intelligence.dev Welcome to intelligence.dev - Under Reconstruction
+Documentation Manifold Quickstart: A step-by-step guide to deploy Manifold locally using Docker. ">
+  <meta property="og:locale" content="en-us">
+  <meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Home">
+<meta name="twitter:description" content="A collection of interactive visualizations and documentation">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Intelligence Web",
+  "url": "http://localhost/",
+  "description": "A collection of interactive visualizations and documentation",
+  "logo": "http://localhost/favicon.ico",
+  "sameAs": [
+      
+  ]
+}
+</script>
 </head>
-<body>
-    <!-- Custom Cursor -->
-    <div class="cursor"></div>
-    <div class="cursor-follower"></div>
 
-    <!-- Loading Overlay -->
-    <div class="loading-overlay">
-        <div class="loading-text">LOADING...</div>
-    </div>
+<body class="list" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <!-- Morphing Grid Background -->
-        <div class="morph-grid" id="morphGrid"></div>
+</script>
 
-        <!-- SVG Morphing Shapes -->
-        <svg class="svg-container" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
-            <path class="morph-shape" id="morphShape1" d="M500,250 L750,500 L500,750 L250,500 Z"/>
-            <path class="morph-shape" id="morphShape2" d="M200,200 L800,200 L800,800 L200,800 Z"/>
-            <path class="morph-shape" id="morphShape3" d="M500,200 Q800,500 500,800 Q200,500 500,200 Z"/>
-        </svg>
-
-        <!-- Animated Lines -->
-        <div class="line-container" id="lineContainer"></div>
-
-        <!-- Floating Elements -->
-        <div class="float-element" style="top: 10%; left: 10%;"></div>
-        <div class="float-element" style="top: 20%; right: 15%;"></div>
-        <div class="float-element" style="bottom: 15%; left: 20%;"></div>
-        <div class="float-element" style="bottom: 25%; right: 10%;"></div>
-
-        <!-- Title -->
-        <div class="title-container">
-            <h1 class="main-title" id="mainTitle">
-                <span class="title-word" id="titleWord1"></span>
-                <span class="title-word" id="titleWord2"></span>
-            </h1>
-            <div class="subtitle" id="subtitle"></div>
-        </div>
-
-        <!-- Scroll Indicator -->
-        <div class="scroll-indicator">
-            <span>SCROLL</span>
-            <div class="scroll-line"></div>
-        </div>
-    </section>
-
-    <!-- Features Section -->
-    <section style="padding: 4rem 0;">
-        <h2 class="section-title" id="featuresTitle"></h2>
-        <div class="features" id="features">
-            <div class="feature-card">
-                <div class="feature-content">
-                    <div class="feature-icon">🤖</div>
-                    <h3 class="feature-title">Artificial Intelligence</h3>
-                    <p class="feature-desc">Deep dives into machine learning, neural networks, and the future of AI systems.</p>
-                </div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-content">
-                    <div class="feature-icon">💻</div>
-                    <h3 class="feature-title">Software Development</h3>
-                    <p class="feature-desc">Advanced programming patterns, architectures, and development methodologies.</p>
-                </div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-content">
-                    <div class="feature-icon">🌌</div>
-                    <h3 class="feature-title">Simulations</h3>
-                    <p class="feature-desc">Computational modeling, physics engines, and interactive visualizations.</p>
-                </div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-content">
-                    <div class="feature-icon">⚡</div>
-                    <h3 class="feature-title">Performance</h3>
-                    <p class="feature-desc">Optimization techniques, benchmarking, and high-performance computing.</p>
-                </div>
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="http://localhost/" accesskey="h" title="Intelligence Web (Alt + H)">Intelligence Web</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
             </div>
         </div>
-    </section>
+        <ul id="menu">
+            <li>
+                <a href="http://localhost/" title="Home">
+                    <span class="active">Home</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+  
+    <section class="home-hero" aria-label="Visualization">
+  <div class="scene" aria-hidden="true">
+    <div class="grid"></div>
+    <svg id="home-graph" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  </div>
+</section>
+<script>
+(function(){
+  function start(){
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      
+      var svg = document.getElementById('home-graph');
+      if (!svg) return;
+      var c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx','500'); c.setAttribute('cy','300'); c.setAttribute('r','40'); c.setAttribute('fill','#6aaefc'); c.setAttribute('opacity','0.6');
+      svg.appendChild(c);
+      return;
+    }
+    if (typeof anime === 'undefined') return; 
 
-    <!-- Visualizations Section -->
-    <section style="padding: 4rem 0;">
-        <h2 class="section-title" id="vizTitle"></h2>
-        <div class="viz-grid" id="vizGrid">
-            <a href="/vis/galaxy/" class="viz-item glitch" data-text="GALAXY">
-                <span class="viz-label">GALAXY</span>
-            </a>
-            <a href="/vis/vortex/" class="viz-item glitch" data-text="VORTEX">
-                <span class="viz-label">VORTEX</span>
-            </a>
-            <a href="/vis/moonshot/" class="viz-item glitch" data-text="MOONSHOT">
-                <span class="viz-label">MOONSHOT</span>
-            </a>
-            <a href="/vis/clouds/" class="viz-item glitch" data-text="CLOUDS">
-                <span class="viz-label">CLOUDS</span>
-            </a>
-            <a href="/vis/vterrain/" class="viz-item glitch" data-text="TERRAIN">
-                <span class="viz-label">TERRAIN</span>
-            </a>
-        </div>
-    </section>
+    var svg = document.getElementById('home-graph');
+    if (!svg) return;
+  var width = 1000, height = 600;
+  var nodeCount = 28;
 
-    <script>
-        // Check if anime loaded and remove loading overlay immediately for debugging
-        setTimeout(() => {
-            document.querySelector('.loading-overlay').style.display = 'none';
-        }, 500);
+  var linkGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  var glowGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  var nodeGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  svg.appendChild(linkGroup);
+  svg.appendChild(glowGroup);
+  svg.appendChild(nodeGroup);
 
-        if (typeof anime === 'undefined') {
-            console.error('Anime.js failed to load!');
-            document.body.innerHTML = '<div style="color: white; padding: 50px;">ERROR: Anime.js failed to load</div>';
+  var nodes = Array.from({length: nodeCount}, function(_, i){
+    return { id:i, x: Math.random()*width, y: Math.random()*height, vx: 0, vy: 0, r: 3+Math.random()*3 };
+  });
+
+  var links = [];
+  for (var i=0;i<nodeCount;i++){
+    for (var j=i+1;j<nodeCount;j++){
+      if (Math.abs(i-j) <= 2 && Math.random() < 0.9) links.push({ source:i, target:j, w:1 });
+      else if (Math.random() < 0.06) links.push({ source:i, target:j, w:0.6 });
+    }
+  }
+
+  var linkEls = links.map(function(l){
+    var e = document.createElementNS('http://www.w3.org/2000/svg','line');
+    e.setAttribute('class','link');
+    e.setAttribute('stroke-opacity', l.w);
+    linkGroup.appendChild(e);
+    return e;
+  });
+
+  var glowEls = nodes.map(function(n){
+    var e = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    e.setAttribute('class','node node-glow');
+    glowGroup.appendChild(e);
+    return e;
+  });
+  var nodeEls = nodes.map(function(n,i){
+    var e = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    e.setAttribute('class', 'node' + (i % 2 ? ' b' : ''));
+    nodeGroup.appendChild(e);
+    return e;
+  });
+
+  function update(){
+    for (var i=0;i<links.length;i++){
+      var l = links[i];
+      var a = nodes[l.source], b = nodes[l.target];
+      linkEls[i].setAttribute('x1', a.x);
+      linkEls[i].setAttribute('y1', a.y);
+      linkEls[i].setAttribute('x2', b.x);
+      linkEls[i].setAttribute('y2', b.y);
+    }
+    for (var k=0;k<nodes.length;k++){
+      var n = nodes[k];
+      nodeEls[k].setAttribute('cx', n.x);
+      nodeEls[k].setAttribute('cy', n.y);
+      nodeEls[k].setAttribute('r', n.r);
+      glowEls[k].setAttribute('cx', n.x);
+      glowEls[k].setAttribute('cy', n.y);
+      glowEls[k].setAttribute('r', n.r*3.5);
+    }
+  }
+
+  function tick(){
+    for (var i=0;i<nodes.length;i++){
+      var n = nodes[i];
+      for (var j=i+1;j<nodes.length;j++){
+        var m = nodes[j];
+        var dx = n.x - m.x, dy = n.y - m.y;
+        var d2 = dx*dx + dy*dy + 0.01;
+        var inv = 60 / d2;
+        var fx = dx * inv, fy = dy * inv;
+        n.vx += fx; n.vy += fy; m.vx -= fx; m.vy -= fy;
+      }
+    }
+    for (var l=0;l<links.length;l++){
+      var link = links[l];
+      var a = nodes[link.source], b = nodes[link.target];
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      var target = 70, k = 0.02;
+      var F = (dist - target) * k;
+      var ux = dx / dist, uy = dy / dist;
+      var fx = F * ux, fy = F * uy;
+      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+    }
+    for (var i2=0;i2<nodes.length;i2++){
+      var p = nodes[i2];
+      p.vx += (width/2 - p.x) * 0.0008;
+      p.vy += (height/2 - p.y) * 0.0008;
+      p.vx *= 0.92; p.vy *= 0.92;
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 20) { p.x = 20; p.vx *= -0.6; }
+      if (p.x > width-20) { p.x = width-20; p.vx *= -0.6; }
+      if (p.y < 20) { p.y = 20; p.vy *= -0.6; }
+      if (p.y > height-20) { p.y = height-20; p.vy *= -0.6; }
+    }
+    update();
+  }
+
+    
+    var scene = svg.closest('.scene');
+    if (scene) { scene.style.opacity = '0.001'; requestAnimationFrame(function(){ scene.style.transition='opacity .6s ease'; scene.style.opacity='1'; }); }
+
+    anime({ targets: {}, duration: Infinity, update: tick, easing: 'linear' });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>
+
+  
+  
+
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2025 <a href="http://localhost/">Intelligence Web</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
         } else {
-            console.log('Anime.js loaded successfully');
-            initAnimations();
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
         }
+    };
 
-        function initAnimations() {
-            try {
-                // Initialize anime.js v4
-                const { animate, createTimeline, stagger, random } = anime;
-
-                // Custom Cursor
-                const cursor = document.querySelector('.cursor');
-                const follower = document.querySelector('.cursor-follower');
-
-                let mouseX = 0, mouseY = 0;
-                let cursorX = 0, cursorY = 0;
-                let followerX = 0, followerY = 0;
-
-                document.addEventListener('mousemove', (e) => {
-                    mouseX = e.clientX;
-                    mouseY = e.clientY;
-                });
-
-                function updateCursor() {
-                    cursorX += (mouseX - cursorX) * 0.2;
-                    cursorY += (mouseY - cursorY) * 0.2;
-                    followerX += (mouseX - followerX) * 0.1;
-                    followerY += (mouseY - followerY) * 0.1;
-
-                    cursor.style.transform = `translate(${cursorX - 10}px, ${cursorY - 10}px)`;
-                    follower.style.transform = `translate(${followerX - 4}px, ${followerY - 4}px)`;
-
-                    requestAnimationFrame(updateCursor);
-                }
-                updateCursor();
-
-                // Split text into characters
-                function splitText(element, text) {
-                    element.innerHTML = '';
-                    [...text].forEach(char => {
-                        const span = document.createElement('span');
-                        span.className = element.id === 'subtitle' ? 'subtitle-char' : 
-                                         element.classList.contains('section-title') ? 'section-title-char' : 'title-char';
-                        span.textContent = char === ' ' ? '\u00A0' : char;
-                        element.appendChild(span);
-                    });
-                }
-
-                // Initialize title text
-                const word1 = document.getElementById('titleWord1');
-                const word2 = document.getElementById('titleWord2');
-                splitText(word1, 'intelligence');
-                splitText(word2, '.dev');
-                splitText(document.getElementById('subtitle'), 'ADVANCED TECHNICAL INTELLIGENCE');
-                splitText(document.getElementById('featuresTitle'), 'EXPLORE');
-                splitText(document.getElementById('vizTitle'), 'VISUALIZATIONS');
-
-                // Create morph grid
-                const morphGrid = document.getElementById('morphGrid');
-                const gridSize = window.innerWidth > 768 ? 400 : 100;
-                for (let i = 0; i < gridSize; i++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'morph-cell';
-                    morphGrid.appendChild(cell);
-                }
-
-                // Create animated lines
-                const lineContainer = document.getElementById('lineContainer');
-                for (let i = 0; i < 5; i++) {
-                    const line = document.createElement('div');
-                    line.className = 'animated-line';
-                    line.style.top = `${random(0, 100)}%`;
-                    line.style.width = '0%';
-                    lineContainer.appendChild(line);
-                }
-
-                // Title animation with stagger
-                animate('.title-char', {
-                    translateY: [100, 0],
-                    opacity: [0, 1],
-                    rotate: [45, 0],
-                    scale: [0, 1],
-                    duration: 1200,
-                    delay: stagger(30),
-                    ease: 'outExpo'
-                });
-
-                // Subtitle animation
-                animate('.subtitle-char', {
-                    translateY: [50, 0],
-                    opacity: [0, 1],
-                    duration: 800,
-                    delay: stagger(20),
-                    ease: 'outExpo'
-                });
-
-                // Morphing grid animation
-                animate('.morph-cell', {
-                    scale: [0, 1],
-                    rotate: [0, 180],
-                    duration: 2000,
-                    delay: stagger(5),
-                    ease: 'inOutQuad',
-                    loop: true,
-                    direction: 'alternate'
-                });
-
-                // SVG morphing
-                const shapes = [
-                    'M500,250 L750,500 L500,750 L250,500 Z',
-                    'M500,200 Q800,500 500,800 Q200,500 500,200 Z',
-                    'M300,300 L700,300 L700,700 L300,700 Z',
-                    'M500,200 L800,600 L500,900 L200,600 Z'
-                ];
-
-                ['morphShape1', 'morphShape2', 'morphShape3'].forEach((id, index) => {
-                    animate(`#${id}`, {
-                        d: shapes,
-                        duration: 4000 + (index * 1000),
-                        delay: index * 500,
-                        loop: true,
-                        ease: 'inOutQuad'
-                    });
-                });
-
-                // Animated lines
-                animate('.animated-line', {
-                    width: ['0%', '100%'],
-                    duration: 3000,
-                    delay: stagger(600),
-                    loop: true,
-                    ease: 'inOutQuad'
-                });
-
-                // Floating elements
-                animate('.float-element', {
-                    translateX: () => random(-50, 50),
-                    translateY: () => random(-50, 50),
-                    rotate: [0, 360],
-                    scale: [1, 1.2, 1],
-                    duration: 8000,
-                    delay: stagger(1000),
-                    loop: true,
-                    ease: 'inOutQuad'
-                });
-
-                // Scroll-triggered section animations
-                animate('#featuresTitle .section-title-char', {
-                    translateY: [50, 0],
-                    opacity: [0, 1],
-                    rotate: [180, 0],
-                    scale: [0, 1],
-                    duration: 800,
-                    delay: stagger(40),
-                    ease: 'outExpo',
-                    autoplay: anime.onScroll({
-                        enter: 'play',
-                        threshold: 0.5
-                    })
-                });
-
-                animate('.feature-card', {
-                    translateY: [100, 0],
-                    opacity: [0, 1],
-                    scale: [0.8, 1],
-                    rotate: [10, 0],
-                    duration: 1000,
-                    delay: stagger(150),
-                    ease: 'outExpo',
-                    autoplay: anime.onScroll({
-                        enter: 'play',
-                        threshold: 0.3
-                    })
-                });
-
-                animate('#vizTitle .section-title-char', {
-                    translateY: [50, 0],
-                    opacity: [0, 1],
-                    scale: [2, 1],
-                    duration: 800,
-                    delay: stagger(40),
-                    ease: 'outExpo',
-                    autoplay: anime.onScroll({
-                        enter: 'play',
-                        threshold: 0.5
-                    })
-                });
-
-                animate('.viz-item', {
-                    translateY: [100, 0],
-                    opacity: [0, 1],
-                    scale: [0, 1],
-                    rotate: [45, 0],
-                    duration: 1200,
-                    delay: stagger(100),
-                    ease: 'outExpo',
-                    autoplay: anime.onScroll({
-                        enter: 'play',
-                        threshold: 0.3
-                    })
-                });
-
-                // Scroll indicator animation
-                animate('.scroll-line', {
-                    scaleY: [0, 1],
-                    duration: 1500,
-                    delay: 2000,
-                    loop: true,
-                    ease: 'inOutQuad',
-                    direction: 'alternate'
-                });
-
-                // Parallax effect on scroll
-                window.addEventListener('scroll', () => {
-                    const scrollY = window.scrollY;
-                    document.querySelectorAll('.float-element').forEach((el, index) => {
-                        const speed = 0.5 + (index * 0.1);
-                        el.style.transform = `translateY(${scrollY * speed}px)`;
-                    });
-                });
-
-                console.log('All animations initialized successfully!');
-
-            } catch(error) {
-                console.error('Animation initialization error:', error);
-                document.body.innerHTML = '<div style="color: white; padding: 50px;"><h1>Animation Error</h1><pre>' + error.message + '\n' + error.stack + '</pre></div>';
-            }
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
         }
-    </script>
+    })
+
+</script>
 </body>
+
 </html>

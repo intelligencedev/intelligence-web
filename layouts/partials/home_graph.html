@@ -1,0 +1,136 @@
+<section class="home-hero" aria-label="Visualization">
+  <div class="scene" aria-hidden="true">
+    <div class="grid"></div>
+    <svg id="home-graph" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  </div>
+</section>
+<script>
+(function(){
+  function start(){
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // Static render only
+      var svg = document.getElementById('home-graph');
+      if (!svg) return;
+      var c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx','500'); c.setAttribute('cy','300'); c.setAttribute('r','40'); c.setAttribute('fill','#6aaefc'); c.setAttribute('opacity','0.6');
+      svg.appendChild(c);
+      return;
+    }
+    if (typeof anime === 'undefined') return; // anime not loaded yet
+
+    var svg = document.getElementById('home-graph');
+    if (!svg) return;
+  var width = 1000, height = 600;
+  var nodeCount = 28;
+
+  var linkGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  var glowGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  var nodeGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  svg.appendChild(linkGroup);
+  svg.appendChild(glowGroup);
+  svg.appendChild(nodeGroup);
+
+  var nodes = Array.from({length: nodeCount}, function(_, i){
+    return { id:i, x: Math.random()*width, y: Math.random()*height, vx: 0, vy: 0, r: 3+Math.random()*3 };
+  });
+
+  var links = [];
+  for (var i=0;i<nodeCount;i++){
+    for (var j=i+1;j<nodeCount;j++){
+      if (Math.abs(i-j) <= 2 && Math.random() < 0.9) links.push({ source:i, target:j, w:1 });
+      else if (Math.random() < 0.06) links.push({ source:i, target:j, w:0.6 });
+    }
+  }
+
+  var linkEls = links.map(function(l){
+    var e = document.createElementNS('http://www.w3.org/2000/svg','line');
+    e.setAttribute('class','link');
+    e.setAttribute('stroke-opacity', l.w);
+    linkGroup.appendChild(e);
+    return e;
+  });
+
+  var glowEls = nodes.map(function(n){
+    var e = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    e.setAttribute('class','node node-glow');
+    glowGroup.appendChild(e);
+    return e;
+  });
+  var nodeEls = nodes.map(function(n,i){
+    var e = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    e.setAttribute('class', 'node' + (i % 2 ? ' b' : ''));
+    nodeGroup.appendChild(e);
+    return e;
+  });
+
+  function update(){
+    for (var i=0;i<links.length;i++){
+      var l = links[i];
+      var a = nodes[l.source], b = nodes[l.target];
+      linkEls[i].setAttribute('x1', a.x);
+      linkEls[i].setAttribute('y1', a.y);
+      linkEls[i].setAttribute('x2', b.x);
+      linkEls[i].setAttribute('y2', b.y);
+    }
+    for (var k=0;k<nodes.length;k++){
+      var n = nodes[k];
+      nodeEls[k].setAttribute('cx', n.x);
+      nodeEls[k].setAttribute('cy', n.y);
+      nodeEls[k].setAttribute('r', n.r);
+      glowEls[k].setAttribute('cx', n.x);
+      glowEls[k].setAttribute('cy', n.y);
+      glowEls[k].setAttribute('r', n.r*3.5);
+    }
+  }
+
+  function tick(){
+    for (var i=0;i<nodes.length;i++){
+      var n = nodes[i];
+      for (var j=i+1;j<nodes.length;j++){
+        var m = nodes[j];
+        var dx = n.x - m.x, dy = n.y - m.y;
+        var d2 = dx*dx + dy*dy + 0.01;
+        var inv = 60 / d2;
+        var fx = dx * inv, fy = dy * inv;
+        n.vx += fx; n.vy += fy; m.vx -= fx; m.vy -= fy;
+      }
+    }
+    for (var l=0;l<links.length;l++){
+      var link = links[l];
+      var a = nodes[link.source], b = nodes[link.target];
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      var target = 70, k = 0.02;
+      var F = (dist - target) * k;
+      var ux = dx / dist, uy = dy / dist;
+      var fx = F * ux, fy = F * uy;
+      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+    }
+    for (var i2=0;i2<nodes.length;i2++){
+      var p = nodes[i2];
+      p.vx += (width/2 - p.x) * 0.0008;
+      p.vy += (height/2 - p.y) * 0.0008;
+      p.vx *= 0.92; p.vy *= 0.92;
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 20) { p.x = 20; p.vx *= -0.6; }
+      if (p.x > width-20) { p.x = width-20; p.vx *= -0.6; }
+      if (p.y < 20) { p.y = 20; p.vy *= -0.6; }
+      if (p.y > height-20) { p.y = height-20; p.vy *= -0.6; }
+    }
+    update();
+  }
+
+    // Fade in scene slightly to confirm running
+    var scene = svg.closest('.scene');
+    if (scene) { scene.style.opacity = '0.001'; requestAnimationFrame(function(){ scene.style.transition='opacity .6s ease'; scene.style.opacity='1'; }); }
+
+    anime({ targets: {}, duration: Infinity, update: tick, easing: 'linear' });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>
