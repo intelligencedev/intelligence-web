@@ -1,403 +1,225 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>intelligence.dev - Advanced Technical Intelligence</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>intelligence.dev — Advanced Technical Intelligence</title>
+    <meta name="description" content="Articles and experiments on artificial intelligence, software engineering, and computational simulation." />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <script src="https://cdn.jsdelivr.net/npm/animejs/dist/bundles/anime.umd.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root{
+            --bg:#0b0c10;
+            --panel:#0f1117;
+            --text:#e6edf3;
+            --muted:#8b98a5;
+            --brand:#61f4d0;
+            --brand-2:#6aaefc;
+            --border:rgba(230,237,243,0.08);
+            --shadow:0 10px 30px rgba(0,0,0,0.35);
         }
+        *{box-sizing:border-box}
+        html,body{height:100%}
+        body{
+            margin:0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+            color:var(--text);
+            background:radial-gradient(1200px 800px at 80% -10%, rgba(106,174,252,0.10), transparent 60%),
+                                 radial-gradient(900px 700px at 10% 20%, rgba(97,244,208,0.10), transparent 60%),
+                                 var(--bg);
+            line-height:1.6;
+        }
+        a{color:inherit;text-decoration:none}
+        .wrap{max-width:1100px;margin:0 auto;padding:24px}
 
-        :root {
-            --primary: #00ff88;
-            --secondary: #0088ff;
-            --accent: #ff0088;
-            --dark: #0a0a0f;
-            --darker: #050508;
-        }
+        /* Header */
+        header{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
+        .brand{display:flex;align-items:center;gap:12px}
+        .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--brand-2));box-shadow:var(--shadow)}
+        .brand h1{font-size:18px;margin:0;font-weight:650;letter-spacing:.2px}
+        nav ul{display:flex;gap:18px;list-style:none;margin:0;padding:0}
+        nav a{color:var(--muted)}
+        nav a:hover{color:var(--text)}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background: var(--dark);
-            color: #ffffff;
-            overflow-x: hidden;
-            min-height: 100vh;
-            cursor: none;
-        }
+        /* Hero */
+        .hero{display:grid;grid-template-columns:1.15fr 1fr;gap:48px;align-items:center;padding:72px 0}
+        .title{font-size:clamp(32px,6vw,64px);font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:0}
+        .title .accent{background:linear-gradient(90deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+        .subtitle{color:var(--muted);margin-top:16px;font-size:clamp(16px,2.5vw,18px)}
+        .cta-row{display:flex;gap:14px;margin-top:28px}
+        .btn{padding:12px 18px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.02);backdrop-filter:saturate(140%) blur(4px);color:var(--text)}
+        .btn.primary{border-color:transparent;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#061014;font-weight:700}
+        .meta{display:flex;gap:18px;margin-top:22px;color:var(--muted);font-size:14px}
 
-        /* Custom Cursor */
-        .cursor {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--primary);
-            border-radius: 50%;
-            position: fixed;
-            pointer-events: none;
-            z-index: 9999;
-            mix-blend-mode: difference;
-            transition: transform 0.2s ease;
-        }
+        /* Feature list */
+        .features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px}
+        .card{border:1px solid var(--border);border-radius:14px;padding:18px;background:var(--panel);box-shadow:var(--shadow)}
+        .card h3{margin:0 0 6px 0;font-size:16px}
+        .card p{margin:0;color:var(--muted);font-size:14px}
 
-        .cursor-follower {
-            width: 8px;
-            height: 8px;
-            background: var(--primary);
-            border-radius: 50%;
-            position: fixed;
-            pointer-events: none;
-            z-index: 9998;
-            mix-blend-mode: difference;
-        }
+        /* Visual teaser */
+        .scene{position:relative;height:360px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#0f1219,#0b0c10)}
+        .orb{position:absolute;inset:auto;left:10%;top:18%;width:140px;height:140px;border-radius:50%;filter:blur(8px);background:radial-gradient(circle at 30% 30%,rgba(97,244,208,.9),rgba(97,244,208,.0) 65%)}
+        .orb.b{left:auto;right:14%;top:30%;width:220px;height:220px;background:radial-gradient(circle at 30% 30%,rgba(106,174,252,.85),rgba(106,174,252,0) 65%)}
+        .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(230,237,243,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(230,237,243,0.06) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(70% 70% at 50% 50%, #000, transparent)}
+        .underline{display:inline-block;height:3px;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:2px;margin-top:8px}
 
-        /* Hero Section */
-        .hero {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            overflow: hidden;
-            padding: 2rem;
-        }
-
-        /* Morphing Background Grid */
-        .morph-grid {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: grid;
-            grid-template-columns: repeat(20, 1fr);
-            grid-template-rows: repeat(20, 1fr);
-            gap: 1px;
-            opacity: 0.1;
-        }
-
-        .morph-cell {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            transform-origin: center;
-        }
-
-        /* Main Title */
-        .title-container {
-            position: relative;
-            z-index: 10;
-            text-align: center;
-            margin-bottom: 4rem;
-        }
-
-        .main-title {
-            font-size: clamp(3rem, 12vw, 8rem);
-            font-weight: 900;
-            letter-spacing: -0.03em;
-            line-height: 0.9;
-            margin-bottom: 2rem;
-            position: relative;
-        }
-
-        .title-word {
-            display: inline-block;
-            position: relative;
-        }
-
-        .title-char {
-            display: inline-block;
-            transform-origin: center;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-shadow: 0 0 40px rgba(0, 255, 136, 0.3);
-        }
-
-        .subtitle {
-            font-size: clamp(1rem, 3vw, 1.5rem);
-            font-weight: 300;
-            letter-spacing: 0.5em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.6);
-            overflow: hidden;
-        }
-
-        .subtitle-char {
-            display: inline-block;
-            transform: translateY(100%);
-            opacity: 0;
-        }
-
-        /* SVG Morphing Shapes */
-        .svg-container {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-        }
-
-        .morph-shape {
-            fill: none;
-            stroke-width: 2;
-            stroke: var(--primary);
-            opacity: 0.2;
-        }
-
-        /* Feature Cards */
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-            max-width: 1200px;
-            width: 100%;
-            margin: 0 auto 4rem;
-            padding: 0 2rem;
-            position: relative;
-            z-index: 10;
-        }
-
-        .feature-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 2rem;
-            position: relative;
-            overflow: hidden;
-            cursor: none;
-            transition: border-color 0.3s ease;
-        }
-
-        .feature-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .feature-card:hover::before {
-            opacity: 0.1;
-        }
-
-        .feature-card:hover {
-            border-color: var(--primary);
-        }
-
-        .feature-content {
-            position: relative;
-            z-index: 2;
-        }
-
-        .feature-icon {
-            width: 60px;
-            height: 60px;
-            margin-bottom: 1.5rem;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-        }
-
-        .feature-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            color: var(--primary);
-        }
-
-        .feature-desc {
-            font-size: 1rem;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        /* Visualizations Grid */
-        .viz-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            max-width: 1200px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 0 2rem 4rem;
-            position: relative;
-            z-index: 10;
-        }
-
-        .viz-item {
-            aspect-ratio: 1;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            color: white;
-            font-size: 1.2rem;
-            font-weight: 600;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .viz-item::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            background: radial-gradient(circle, var(--primary), transparent);
-            opacity: 0;
-            transition: all 0.5s ease;
-            transform: translate(-50%, -50%);
-        }
-
-        .viz-item:hover::before {
-            width: 300%;
-            height: 300%;
-            opacity: 0.2;
-        }
-
-        .viz-item:hover {
-            border-color: var(--primary);
-            transform: translateY(-10px) scale(1.05);
-            box-shadow: 0 20px 60px rgba(0, 255, 136, 0.3);
-        }
-
-        .viz-label {
-            position: relative;
-            z-index: 2;
-        }
-
-        /* Animated Lines */
-        .line-container {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-        }
-
-        .animated-line {
-            position: absolute;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--primary), transparent);
-            opacity: 0.3;
-        }
-
-        /* Section Titles */
-        .section-title {
-            font-size: clamp(2rem, 6vw, 4rem);
-            font-weight: 800;
-            text-align: center;
-            margin-bottom: 3rem;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            position: relative;
-            z-index: 10;
-        }
-
-        .section-title-char {
-            display: inline-block;
-            transform-origin: center;
-        }
-
-        /* Floating Elements */
-        .float-element {
-            position: fixed;
-            width: 100px;
-            height: 100px;
-            border: 2px solid var(--primary);
-            border-radius: 20px;
-            opacity: 0.1;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        /* Scroll Indicator */
-        .scroll-indicator {
-            position: fixed;
-            bottom: 2rem;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.9rem;
-            letter-spacing: 0.2em;
-        }
-
-        .scroll-line {
-            width: 2px;
-            height: 40px;
-            background: linear-gradient(to bottom, var(--primary), transparent);
-        }
-
-        /* Glitch Effect */
-        @keyframes glitch {
-            0%, 100% { transform: translate(0); }
-            33% { transform: translate(-2px, 2px); }
-            66% { transform: translate(2px, -2px); }
-        }
-
-        .glitch {
-            position: relative;
-        }
-
-        .glitch::before,
-        .glitch::after {
-            content: attr(data-text);
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-        }
-
-        .glitch:hover::before {
-            animation: glitch 0.3s infinite;
-            color: var(--secondary);
-            opacity: 0.8;
-            z-index: -1;
-        }
-
-        .glitch:hover::after {
-            animation: glitch 0.3s infinite reverse;
-            color: var(--accent);
-            opacity: 0.8;
-            z-index: -2;
-        }
+        footer{padding:64px 0 24px 0;color:var(--muted);font-size:14px}
+        footer .grid{background-size:32px 32px;opacity:.4}
 
         /* Responsive */
-        @media (max-width: 768px) {
-            .morph-grid {
-                grid-template-columns: repeat(10, 1fr);
-                grid-template-rows: repeat(10, 1fr);
+        @media (max-width: 980px){
+            .hero{grid-template-columns:1fr;gap:28px;padding:48px 0}
+            .scene{height:280px}
+            .features{grid-template-columns:1fr 1fr}
+        }
+        @media (max-width: 640px){
+            .features{grid-template-columns:1fr}
+            nav{display:none}
+        }
+
+        /* Reduce motion */
+        @media (prefers-reduced-motion: reduce){
+            *{animation: none !important; transition: none !important}
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header aria-label="Site header">
+            <div class="brand">
+                <div class="logo" aria-hidden="true"></div>
+                <h1>intelligence.dev</h1>
+            </div>
+            <nav aria-label="Primary">
+                <ul>
+                    <li><a href="#articles">Articles</a></li>
+                    <li><a href="#topics">Topics</a></li>
+                    <li><a href="#visuals">Visuals</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <section class="hero" id="hero">
+                <div>
+                    <h2 class="title">
+                        Purposeful writing on <span class="accent">AI</span>,
+                        engineering, and simulation
+                        <span class="underline" id="title-underline" aria-hidden="true"></span>
+                    </h2>
+                    <p class="subtitle">Deep, practical articles without the noise. We focus on systems that learn, code that lasts, and models that run fast.</p>
+                    <div class="cta-row">
+                        <a class="btn primary" href="#articles">Read latest</a>
+                        <a class="btn" href="/vis/galaxy/">View experiments</a>
+                    </div>
+                    <div class="meta" role="contentinfo">
+                        <span>New posts every month</span>
+                        <span>Open-source experiments</span>
+                        <span>No ads, no fluff</span>
+                    </div>
+                </div>
+                <div class="scene" aria-hidden="true">
+                    <div class="grid"></div>
+                    <div class="orb" id="orbA"></div>
+                    <div class="orb b" id="orbB"></div>
+                </div>
+            </section>
+
+            <section id="topics" aria-labelledby="topics-title">
+                <h3 id="topics-title" style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Focus areas</h3>
+                <div class="features">
+                    <article class="card">
+                        <h3>Artificial Intelligence</h3>
+                        <p>Training dynamics, evaluation, and agents in real systems.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Software Engineering</h3>
+                        <p>Patterns, reliability, observability, and pragmatic performance.</p>
+                    </article>
+                    <article class="card">
+                        <h3>Simulation</h3>
+                        <p>Techniques for large-scale simulation and interactive visuals.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section id="visuals" style="margin-top:48px">
+                <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Experiments</h3>
+                <div class="features">
+                    <a class="card" href="/vis/galaxy/"><h3>Galaxy</h3><p>N‑body inspired particle fields.</p></a>
+                    <a class="card" href="/vis/vortex/"><h3>Vortex</h3><p>Fluid-like shader exploration.</p></a>
+                    <a class="card" href="/vis/vterrain/"><h3>Terrain</h3><p>Procedural landscapes.</p></a>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="grid" aria-hidden="true" style="height:1px"></div>
+            <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:18px">
+                <span>© <span id="year"></span> intelligence.dev</span>
+                <span><a href="https://github.com/intelligencedev" target="_blank" rel="noopener">GitHub</a></span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Wait for window load to ensure DOM is ready and all animations can start
+        window.addEventListener('load', function(){
+            const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            document.getElementById('year').textContent = new Date().getFullYear();
+
+            // If anime isn't available or user prefers reduced motion, skip animations.
+            if (typeof anime === 'undefined' || prefersReduced) {
+                if (typeof anime === 'undefined') console.warn('anime.js not available; animations skipped.');
+                return;
             }
 
-            .features {
-                grid-template-columns: 1fr;
-            }
+            const { animate, stagger } = anime;                // Headline: underline draw
+                const underline = document.getElementById('title-underline');
+                animate(underline, {
+                    width: ['0%', '100%'],
+                    duration: 900,
+                    delay: 200,
+                    easing: 'outCubic'
+                });
+
+                // Cards: rise into view on load (1 pass, no loop)
+                animate('.card', {
+                    transform: ['translateY(8px)', 'translateY(0px)'],
+                    opacity: [0, 1],
+                    duration: 500,
+                    delay: stagger(80, { start: 350 }),
+                    easing: 'outCubic'
+                });
+
+                // Orbs: slow, purposeful drift
+                animate('#orbA', {
+                    transform: [
+                        'translate(0px, 0px) scale(1)',
+                        'translate(18px, 10px) scale(1.06)',
+                        'translate(-12px, 16px) scale(1)'
+                    ],
+                    duration: 10000,
+                    easing: 'inOutSine',
+                    loop: true,
+                    alternate: true
+                });
+                animate('#orbB', {
+                    transform: [
+                        'translate(0px, 0px) scale(1)',
+                        'translate(-16px, 8px) scale(1.04)',
+                        'translate(12px, 18px) scale(1)'
+                    ],
+                    duration: 12000,
+                    easing: 'inOutSine',
+                    loop: true,
+                    alternate: true
+                });
+            });
+        </script>
+</body>
+</html>
 
             .viz-grid {
                 grid-template-columns: repeat(2, 1fr);
