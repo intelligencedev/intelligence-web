@@ -153,7 +153,7 @@ Documentation Manifold Quickstart: A step-by-step guide to deploy Manifold local
   
     <section class="home-hero" aria-label="Visualization">
   <div class="scene" aria-hidden="true">
-    <div class="grid"></div>
+    <div class="grid" style="z-index:0"></div>
     <svg id="home-graph" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
   </div>
 </section>
@@ -169,7 +169,7 @@ Documentation Manifold Quickstart: A step-by-step guide to deploy Manifold local
       svg.appendChild(c);
       return;
     }
-    if (typeof anime === 'undefined') return; 
+  if (typeof anime === 'undefined') return; 
 
     var svg = document.getElementById('home-graph');
     if (!svg) return;
@@ -277,13 +277,27 @@ Documentation Manifold Quickstart: A step-by-step guide to deploy Manifold local
     var scene = svg.closest('.scene');
     if (scene) { scene.style.opacity = '0.001'; requestAnimationFrame(function(){ scene.style.transition='opacity .6s ease'; scene.style.opacity='1'; }); }
 
-    anime({ targets: {}, duration: Infinity, update: tick, easing: 'linear' });
+    
+    update();
+    
+    var driver = { t: 0 };
+    anime({ targets: driver, t: 1000000, duration: 600000, easing: 'linear', update: tick, loop: true });
+  }
+
+  function boot(){
+    if (typeof anime !== 'undefined') { start(); return; }
+    
+    var max = 80, count = 0;
+    (function tick(){
+      if (typeof anime !== 'undefined') return start();
+      if (count++ < max) setTimeout(tick, 50);
+    })();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start);
+    document.addEventListener('DOMContentLoaded', boot);
   } else {
-    start();
+    boot();
   }
 })();
 </script>

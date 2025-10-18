@@ -1,6 +1,6 @@
 <section class="home-hero" aria-label="Visualization">
   <div class="scene" aria-hidden="true">
-    <div class="grid"></div>
+    <div class="grid" style="z-index:0"></div>
     <svg id="home-graph" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
   </div>
 </section>
@@ -16,7 +16,7 @@
       svg.appendChild(c);
       return;
     }
-    if (typeof anime === 'undefined') return; // anime not loaded yet
+  if (typeof anime === 'undefined') return; // early guard; boot() will retry
 
     var svg = document.getElementById('home-graph');
     if (!svg) return;
@@ -124,13 +124,27 @@
     var scene = svg.closest('.scene');
     if (scene) { scene.style.opacity = '0.001'; requestAnimationFrame(function(){ scene.style.transition='opacity .6s ease'; scene.style.opacity='1'; }); }
 
-    anime({ targets: {}, duration: Infinity, update: tick, easing: 'linear' });
+    // initial render
+    update();
+    // numeric driver for v2 reliability
+    var driver = { t: 0 };
+    anime({ targets: driver, t: 1000000, duration: 600000, easing: 'linear', update: tick, loop: true });
+  }
+
+  function boot(){
+    if (typeof anime !== 'undefined') { start(); return; }
+    // retry a few times until anime is available
+    var max = 80, count = 0;
+    (function tick(){
+      if (typeof anime !== 'undefined') return start();
+      if (count++ < max) setTimeout(tick, 50);
+    })();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start);
+    document.addEventListener('DOMContentLoaded', boot);
   } else {
-    start();
+    boot();
   }
 })();
 </script>
