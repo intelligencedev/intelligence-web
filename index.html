@@ -108,10 +108,10 @@
             <section class="hero" id="hero">
                 <div>
                     <h2 class="title">
-                        The home of <span class="accent">Manifold</span>
+                        Think. Type. <span class="accent">Done.</span>
                         <span class="underline" id="title-underline" aria-hidden="true"></span>
                     </h2>
-                    <p class="subtitle">Deep, practical articles without the noise. We focus on systems that learn, code that lasts, and models that run fast.</p>
+                    <p class="subtitle">Manifold is a platform for researching, developing, and deploying systems using AI specialists.</p>
                     <div class="cta-row">
                         <a class="btn primary" href="#articles">Read latest</a>
                         <a class="btn" href="/vis/galaxy/">View experiments</a>
@@ -133,22 +133,22 @@
                 <h3 id="topics-title" style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Focus areas</h3>
                 <div class="features">
                     <article class="card">
-                        <h3>Artificial Intelligence</h3>
-                        <p>Training dynamics, evaluation, and agents in real systems.</p>
+                        <h3>AI Specialists</h3>
+                        <p>Design AI specialists with access to tools and MCP servers.</p>
                     </article>
                     <article class="card">
-                        <h3>Software Engineering</h3>
-                        <p>Patterns, reliability, observability, and pragmatic performance.</p>
+                        <h3>Workflow Canvas</h3>
+                        <p>Design workflows using a visual node based interface.</p>
                     </article>
                     <article class="card">
-                        <h3>Simulation</h3>
-                        <p>Techniques for large-scale simulation and interactive visuals.</p>
+                        <h3>Projects, Experiments, Visualization</h3>
+                        <p>Manifold provides tools for designing and visualizing simple or complex software systems.</p>
                     </article>
                 </div>
             </section>
 
             <section id="visuals" style="margin-top:48px">
-                <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Experiments</h3>
+                <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Made with Manifold</h3>
                 <div class="features">
                     <a class="card" href="/vis/galaxy/"><h3>Galaxy</h3><p>N‑body inspired particle fields.</p></a>
                     <a class="card" href="/vis/vortex/"><h3>Vortex</h3><p>Fluid-like shader exploration.</p></a>
@@ -180,14 +180,14 @@
 
             // anime.js v2 compatible usage (no destructuring helpers)
             // Headline underline
-            var underline = document.getElementById('title-underline');
-            anime({
-                targets: underline,
-                width: ['0%', '100%'],
-                duration: 900,
-                delay: 200,
-                easing: 'easeOutCubic'
-            });
+            // var underline = document.getElementById('title-underline');
+            // anime({
+            //     targets: underline,
+            //     width: ['0%', '100%'],
+            //     duration: 900,
+            //     delay: 200,
+            //     easing: 'easeOutCubic'
+            // });
 
             // Cards rise-in
             anime({
@@ -202,8 +202,8 @@
             // Graph visualization (nodes + links) inside #graph SVG
             var svg = document.getElementById('graph');
             var width = 1000, height = 600;
-            var nodeCount = 28;
-            var maxNodes = 60;
+            var nodeCount = 9;
+            var maxNodes = 21;
             var nextId = nodeCount;
 
             // Create SVG groups
@@ -293,7 +293,7 @@
                         var dx = n.x - m.x;
                         var dy = n.y - m.y;
                         var d2 = dx*dx + dy*dy + 0.01;
-                        var inv = 60 / d2; // repulsive strength
+                        var inv = 10 / d2; // repulsive strength
                         var fx = dx * inv;
                         var fy = dy * inv;
                         n.vx += fx; n.vy += fy;
@@ -373,7 +373,7 @@
             anime({
                 targets: driver,
                 t: 1000000,
-                duration: 600000,
+                duration: 600,
                 easing: 'linear',
                 update: tick,
                 loop: true

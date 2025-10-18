@@ -2,31 +2,31 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Tags on Intelligence Web</title>
-    <link>http://localhost/tags/</link>
+    <link>http://localhost:1313/tags/</link>
     <description>Recent content in Tags on Intelligence Web</description>
     <generator>Hugo -- 0.149.0</generator>
     <language>en-us</language>
     <lastBuildDate>Sat, 18 Oct 2025 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://localhost/tags/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://localhost:1313/tags/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Deployment</title>
-      <link>http://localhost/tags/deployment/</link>
+      <link>http://localhost:1313/tags/deployment/</link>
       <pubDate>Sat, 18 Oct 2025 00:00:00 +0000</pubDate>
-      <guid>http://localhost/tags/deployment/</guid>
+      <guid>http://localhost:1313/tags/deployment/</guid>
       <description></description>
     </item>
     <item>
       <title>Manifold</title>
-      <link>http://localhost/tags/manifold/</link>
+      <link>http://localhost:1313/tags/manifold/</link>
       <pubDate>Sat, 18 Oct 2025 00:00:00 +0000</pubDate>
-      <guid>http://localhost/tags/manifold/</guid>
+      <guid>http://localhost:1313/tags/manifold/</guid>
       <description></description>
     </item>
     <item>
       <title>Quickstart</title>
-      <link>http://localhost/tags/quickstart/</link>
+      <link>http://localhost:1313/tags/quickstart/</link>
       <pubDate>Sat, 18 Oct 2025 00:00:00 +0000</pubDate>
-      <guid>http://localhost/tags/quickstart/</guid>
+      <guid>http://localhost:1313/tags/quickstart/</guid>
       <description></description>
     </item>
   </channel>
