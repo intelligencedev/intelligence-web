@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Deployment on Intelligence Web</title>
-    <link>http://localhost/tags/deployment/</link>
+    <link>http://localhost:1313/tags/deployment/</link>
     <description>Recent content in Deployment on Intelligence Web</description>
     <generator>Hugo -- 0.149.0</generator>
     <language>en-us</language>
     <lastBuildDate>Sat, 18 Oct 2025 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://localhost/tags/deployment/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://localhost:1313/tags/deployment/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Manifold Quickstart</title>
-      <link>http://localhost/manifold-quickstart/</link>
+      <link>http://localhost:1313/manifold-quickstart/</link>
       <pubDate>Sat, 18 Oct 2025 00:00:00 +0000</pubDate>
-      <guid>http://localhost/manifold-quickstart/</guid>
+      <guid>http://localhost:1313/manifold-quickstart/</guid>
       <description>Step-by-step guide to deploying Manifold with Docker.</description>
     </item>
   </channel>
