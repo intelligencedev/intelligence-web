@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+	<meta name="generator" content="Hugo 0.149.0"><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>intelligence.dev — Advanced Technical Intelligence</title>
@@ -383,5 +384,186 @@
             setInterval(addNode, 2000);
             });
         </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>intelligence.dev — Advanced Technical Intelligence</title>
+    <meta name="description" content="Articles and experiments on artificial intelligence, software engineering, and computational simulation." />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <script defer src="https://cdn.jsdelivr.net/npm/animejs@2.2.0/anime.min.js"></script>
+    <style>
+        :root{
+            --bg:#0b0c10;
+            --panel:#0f1117;
+            --text:#e6edf3;
+            --muted:#8b98a5;
+            --brand:#61f4d0;
+            --brand-2:#6aaefc;
+            --border:rgba(230,237,243,0.08);
+            --shadow:0 10px 30px rgba(0,0,0,0.35);
+        }
+        *{box-sizing:border-box}
+    html,body{height:100%; overflow-x:hidden}
+        body{
+            margin:0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+            color:var(--text);
+            background:radial-gradient(1200px 800px at 80% -10%, rgba(106,174,252,0.10), transparent 60%),
+                                 radial-gradient(900px 700px at 10% 20%, rgba(97,244,208,0.10), transparent 60%),
+                                 var(--bg);
+            line-height:1.6;
+        }
+        a{color:inherit;text-decoration:none}
+        .wrap{max-width:1100px;margin:0 auto;padding:24px}
+
+         
+        header{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
+        .brand{display:flex;align-items:center;gap:12px}
+        .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--brand-2));box-shadow:var(--shadow)}
+        .brand h1{font-size:18px;margin:0;font-weight:650;letter-spacing:.2px}
+        nav ul{display:flex;gap:18px;list-style:none;margin:0;padding:0}
+        nav a{color:var(--muted)}
+        nav a:hover{color:var(--text)}
+
+         
+        .hero{display:grid;grid-template-columns:1.15fr 1fr;gap:48px;align-items:center;padding:72px 0}
+        .title{font-size:clamp(32px,6vw,64px);font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:0}
+        .title .accent{background:linear-gradient(90deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+        .subtitle{color:var(--muted);margin-top:16px;font-size:clamp(16px,2.5vw,18px)}
+        .cta-row{display:flex;gap:14px;margin-top:28px}
+        .btn{padding:12px 18px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.02);backdrop-filter:saturate(140%) blur(4px);color:var(--text)}
+        .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+        .btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:var(--bg);border:none}
+        .btn-primary:hover{transform:scale(1.05) translateY(-1px)}
+
+         
+        #viz{position:relative;width:100%;height:400px;background:var(--panel);border-radius:16px;border:1px solid var(--border);overflow:hidden}
+        .viz-content{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted)}
+
+         
+        .projects{padding:80px 0}
+        .section-title{font-size:32px;font-weight:700;margin-bottom:48px;text-align:center}
+        .project-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:32px}
+        .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;transition:all 0.3s ease}
+        .card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+        .card h3{margin:0 0 16px;font-size:20px;font-weight:600}
+        .card p{color:var(--muted);margin:0 0 20px}
+        .tag{display:inline-block;padding:4px 12px;background:rgba(97,244,208,0.12);color:var(--brand);border-radius:20px;font-size:12px;margin-right:8px}
+
+         
+        footer{text-align:center;padding:48px 0;color:var(--muted)}
+
+         
+        @media (max-width: 768px) {
+            .hero{grid-template-columns:1fr;gap:32px;text-align:center}
+            .cta-row{justify-content:center}
+            .project-grid{grid-template-columns:1fr}
+            .wrap{padding:16px}
+        }
+
+         
+        .fade-in{opacity:0;animation:fadeIn 0.8s ease forwards}
+        @keyframes fadeIn{to{opacity:1}}
+        .slide-up{transform:translateY(20px);opacity:0;animation:slideUp 0.8s ease forwards}
+        @keyframes slideUp{to{transform:translateY(0);opacity:1}}
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <div class="brand">
+                <div class="logo"></div>
+                <h1>intelligence.dev</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#projects">Projects</a></li>
+                    <li><a href="/manifold-quickstart/">Manifold</a></li>
+                    <li><a href="#about">About</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <section class="hero fade-in">
+                <div>
+                    <h1 class="title">Advanced <span class="accent">Technical Intelligence</span></h1>
+                    <p class="subtitle">Exploring the frontiers of artificial intelligence, software engineering, and computational simulation through research, experimentation, and practical applications.</p>
+                    <div class="cta-row">
+                        <a href="/manifold-quickstart/" class="btn btn-primary">Get Started with Manifold</a>
+                        <a href="#projects" class="btn">Explore Projects</a>
+                    </div>
+                </div>
+                <div id="viz">
+                    <div class="viz-content">Interactive visualization loading...</div>
+                </div>
+            </section>
+
+            <section class="projects slide-up" id="projects">
+                <h2 class="section-title">Featured Projects</h2>
+                <div class="project-grid">
+                    <div class="card">
+                        <h3>Manifold Agent System</h3>
+                        <p>A sophisticated multi-agent orchestration platform designed for complex computational workflows and AI coordination.</p>
+                        <div>
+                            <span class="tag">Go</span>
+                            <span class="tag">AI Agents</span>
+                            <span class="tag">Orchestration</span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Interactive Visualizations</h3>
+                        <p>WebGL-powered data visualization experiments pushing the boundaries of browser-based computational graphics.</p>
+                        <div>
+                            <span class="tag">WebGL</span>
+                            <span class="tag">JavaScript</span>
+                            <span class="tag">Data Viz</span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Technical Documentation</h3>
+                        <p>Comprehensive guides and tutorials covering advanced software engineering concepts and implementation strategies.</p>
+                        <div>
+                            <span class="tag">Documentation</span>
+                            <span class="tag">Tutorials</span>
+                            <span class="tag">Best Practices</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer id="about">
+            <p>&copy; 2025 intelligence.dev • Advancing the state of technical intelligence</p>
+        </footer>
+    </div>
+
+    <script>
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animationDelay = '0.2s';
+                    entry.target.style.animationFillMode = 'forwards';
+                }
+            });
+        });
+
+        document.querySelectorAll('.slide-up').forEach(el => {
+            observer.observe(el);
+        });
+
+        
+        if (typeof anime !== 'undefined') {
+            
+            setTimeout(() => {
+                document.querySelector('.viz-content').textContent = 'Visualization components ready';
+            }, 1000);
+        }
+    </script>
 </body>
 </html>
