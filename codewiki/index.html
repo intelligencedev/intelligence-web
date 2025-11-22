@@ -5,6 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manifold - Technical Documentation</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        (function(){
+            // Force light mode for this page.
+            try {
+                // Mark theme as light on the root element
+                document.documentElement.setAttribute('data-theme', 'light');
+                // Remove common dark-mode classes if present
+                document.documentElement.classList.remove('dark', 'theme-dark');
+                document.body && document.body.classList && document.body.classList.remove('dark', 'theme-dark');
+                // Prefer the light color scheme at the UA/CSSOM level
+                document.documentElement.style.colorScheme = 'light';
+
+                // Add a small CSS override to defeat prefers-color-scheme or dark-theme rules
+                var s = document.createElement('style');
+                s.setAttribute('data-generated', 'force-light-mode');
+                s.appendChild(document.createTextNode('\n/* Force light color-scheme and key variables for this page */\n:root { color-scheme: light !important; --bg-color: #ffffff !important; --text-color: #24292e !important; --sidebar-bg: #f6f8fa !important; --border-color: #e1e4e8 !important; --code-bg: #f6f8fa !important; }\nhtml.dark, html.theme-dark, body.dark { background: #ffffff !important; color: #24292e !important; }\n'));
+                document.head.appendChild(s);
+            } catch (e) {
+                console && console.warn && console.warn('force-light-mode error', e);
+            }
+        })();
+    </script>
     <style>
         :root {
             --sidebar-width: 280px;
