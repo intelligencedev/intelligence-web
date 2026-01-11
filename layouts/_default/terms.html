@@ -1,0 +1,18 @@
+{{ define "main" }}
+  <header class="page-header">
+    <h1 class="page-title">{{ .Title }}</h1>
+  </header>
+
+  {{ if .Data.Terms }}
+    <ul class="page-list">
+      {{ range .Data.Terms.Alphabetical }}
+        <li class="page-list-item">
+          <a class="page-link" href="{{ .Page.RelPermalink }}">{{ .Page.Title }}</a>
+          <span class="page-meta">({{ .Count }})</span>
+        </li>
+      {{ end }}
+    </ul>
+  {{ else }}
+    <p class="muted">No terms yet.</p>
+  {{ end }}
+{{ end }}

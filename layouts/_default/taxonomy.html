@@ -1,0 +1,20 @@
+{{ define "main" }}
+  <header class="page-header">
+    <h1 class="page-title">{{ .Title }}</h1>
+  </header>
+
+  {{ $pages := .Pages }}
+  {{ if $pages }}
+    <ul class="page-list">
+      {{ range $pages.ByDate.Reverse }}
+        <li class="page-list-item">
+          <a class="page-link" href="{{ .RelPermalink }}">{{ .Title }}</a>
+          {{ with .Date }}<span class="page-meta">{{ .Format "2006-01-02" }}</span>{{ end }}
+          {{ with .Params.description }}<div class="page-desc">{{ . }}</div>{{ end }}
+        </li>
+      {{ end }}
+    </ul>
+  {{ else }}
+    <p class="muted">Nothing here yet.</p>
+  {{ end }}
+{{ end }}

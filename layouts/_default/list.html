@@ -1,7 +1,31 @@
-{{/* Override the theme's list.html for the homepage and other lists.
-   When Hugo renders the home page it uses the list template (._default/list.html).
-   This site-level override reads the static/index.html file and emits it verbatim
-   so nothing from the theme (baseof.html, partials) will wrap or modify it.
-*/}}
-{{- $path := "static/index.html" -}}
-{{- $content := readFile $path -}}
+{{ define "main" }}
+   <header class="page-header">
+      <h1 class="page-title">{{ .Title }}</h1>
+      {{ with .Params.description }}<p class="page-desc">{{ . }}</p>{{ end }}
+   </header>
+
+   {{ if .Content }}
+      <div class="content">
+         {{ .Content }}
+      </div>
+   {{ end }}
+
+   {{ $pages := .Pages }}
+   {{ if and (not $pages) .RegularPages }}
+      {{ $pages = .RegularPages }}
+   {{ end }}
+
+   {{ if $pages }}
+      <ul class="page-list">
+         {{ range $pages.ByDate.Reverse }}
+            <li class="page-list-item">
+               <a class="page-link" href="{{ .RelPermalink }}">{{ .Title }}</a>
+               {{ with .Date }}<span class="page-meta">{{ .Format "2006-01-02" }}</span>{{ end }}
+               {{ with .Params.description }}<div class="page-desc">{{ . }}</div>{{ end }}
+            </li>
+         {{ end }}
+      </ul>
+   {{ else }}
+      <p class="muted">Nothing here yet.</p>
+   {{ end }}
+{{ end }}

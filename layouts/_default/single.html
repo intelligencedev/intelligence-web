@@ -1,0 +1,22 @@
+{{ define "main" }}
+  <article>
+    <header class="page-header">
+      <h1 class="page-title">{{ .Title }}</h1>
+      {{ with .Date }}<div class="page-meta">{{ .Format "2006-01-02" }}</div>{{ end }}
+      {{ with .Params.description }}<p class="page-desc">{{ . }}</p>{{ end }}
+    </header>
+
+    <div class="content">
+      {{ .Content }}
+    </div>
+
+    {{ with (.GetTerms "tags") }}
+      <hr />
+      <div class="muted">Tags:
+        {{ range $i, $t := . }}
+          {{ if $i }}, {{ end }}<a href="{{ $t.RelPermalink }}">{{ $t.LinkTitle }}</a>
+        {{ end }}
+      </div>
+    {{ end }}
+  </article>
+{{ end }}

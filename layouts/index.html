@@ -7,3 +7,5 @@
 */}}
 {{- $path := printf "%s" "static/index.html" -}}
 {{- $content := readFile $path -}}
+
+{{- $content | safeHTML -}}
