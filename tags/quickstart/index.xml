@@ -1,1 +1,14 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Quickstart on intelligence.dev</title><link>https://intelligence.dev/tags/quickstart/</link><description>Recent content in Quickstart on intelligence.dev</description><generator>Hugo -- 0.149.0</generator><language>en-us</language><lastBuildDate>Sat, 18 Oct 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://intelligence.dev/tags/quickstart/index.xml" rel="self" type="application/rss+xml"/><item><title>Manifold Quickstart</title><link>https://intelligence.dev/manifold-quickstart/</link><pubDate>Sat, 18 Oct 2025 00:00:00 +0000</pubDate><guid>https://intelligence.dev/manifold-quickstart/</guid><description>Step-by-step guide to deploying Manifold with Docker.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Quickstart on intelligence.dev</title><link>https://intelligence.dev/tags/quickstart/</link><description>Recent content in Quickstart on intelligence.dev</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Sat, 18 Oct 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://intelligence.dev/tags/quickstart/index.xml" rel="self" type="application/rss+xml"/><item><title>Manifold Quickstart</title><link>https://intelligence.dev/manifold-quickstart/</link><pubDate>Sat, 18 Oct 2025 00:00:00 +0000</pubDate><guid>https://intelligence.dev/manifold-quickstart/</guid><description>&lt;h1 id="overview"&gt;Overview&lt;/h1&gt;
+&lt;p&gt;This guide walks you through deploying Manifold locally using Docker. Follow these steps to get up and running quickly.&lt;/p&gt;
+&lt;h2 id="prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Docker&lt;/strong&gt; installed and running&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Git&lt;/strong&gt; for cloning and updating submodules&lt;/li&gt;
+&lt;li&gt;An &lt;strong&gt;OpenAI API key&lt;/strong&gt; (for AI features)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="step-1-prepare-environment-files"&gt;Step 1: Prepare Environment Files&lt;/h2&gt;
+&lt;p&gt;Rename the example environment and config files:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cp example.env .env
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cp config.yaml.example config.yaml
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="step-2-configure-openai-api-key"&gt;Step 2: Configure OpenAI API Key&lt;/h2&gt;
+&lt;p&gt;Edit your &lt;code&gt;.env&lt;/code&gt; file to set your real OpenAI API key:&lt;/p&gt;</description></item></channel></rss>

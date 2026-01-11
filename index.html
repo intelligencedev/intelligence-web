@@ -57,6 +57,18 @@
         .card h3{margin:0 0 6px 0;font-size:16px}
         .card p{margin:0;color:var(--muted);font-size:14px}
 
+    /* Screenshots */
+    .screenshot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+    .screenshot{padding:0;overflow:hidden}
+    .screenshot img{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;cursor:zoom-in}
+
+    /* Lightbox modal */
+    .lightbox{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(2px);z-index:1000}
+    .lightbox.open{display:grid}
+    .lightbox-content{position:relative;max-width:min(95vw,1200px);max-height:90vh}
+    .lightbox-content img{display:block;max-width:100%;max-height:90vh;width:auto;height:auto;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);background:var(--panel)}
+    .lightbox-close{position:absolute;top:8px;right:8px;border:1px solid var(--border);background:rgba(0,0,0,0.5);color:var(--text);padding:6px 10px;border-radius:8px;cursor:pointer}
+
     /* Visual teaser */
     .scene{position:relative;height:360px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#0f1219,#0b0c10)}
     .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(230,237,243,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(230,237,243,0.06) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(70% 70% at 50% 50%, #000, transparent);z-index:0}
@@ -75,10 +87,12 @@
             .hero{grid-template-columns:1fr;gap:28px;padding:48px 0}
             .scene{height:280px}
             .features{grid-template-columns:1fr 1fr}
+            .screenshot-grid{grid-template-columns:1fr 1fr}
         }
         @media (max-width: 640px){
             .features{grid-template-columns:1fr}
             nav{display:none}
+            .screenshot-grid{grid-template-columns:1fr}
         }
 
         /* Reduce motion */
@@ -91,15 +105,11 @@
     <div class="wrap">
         <header aria-label="Site header">
             <div class="brand">
-                <div class="logo" aria-hidden="true"></div>
                 <h1>intelligence.dev</h1>
             </div>
             <nav aria-label="Primary">
                 <ul>
-                    <li><a href="#articles">Articles</a></li>
-                    <li><a href="#topics">Topics</a></li>
-                    <li><a href="#visuals">Visuals</a></li>
-                    <li><a href="/manifold-quickstart/">Docs</a></li>
+                    <li><a href="/codewiki/">Manifold Code Wiki</a></li>
                 </ul>
             </nav>
         </header>
@@ -112,25 +122,24 @@
                         <span class="underline" id="title-underline" aria-hidden="true"></span>
                     </h2>
                     <p class="subtitle">Manifold is a platform for researching, developing, and deploying systems using AI specialists.</p>
-                    <div class="cta-row">
-                        <a class="btn primary" href="#articles">Read latest</a>
-                        <a class="btn" href="/vis/galaxy/">View experiments</a>
-                        <a class="btn" href="/manifold-quickstart/">Manifold Docs</a>
-                    </div>
                     <div class="meta" role="contentinfo">
-                        <span>New posts every month</span>
-                        <span>Open-source experiments</span>
-                        <span>No ads, no fluff</span>
+                        <span>Connect ideas</span>
+                        <span>Collaborate with Specialists</span>
+                        <span>Create your vision</span>
+                    </div>
+                    <div class="cta-row">
+                        <a class="btn primary" href="https://github.com/intelligencedev/manifold/tree/develop">Deploy Manifold</a>
                     </div>
                 </div>
                 <div class="scene" aria-hidden="true">
                     <div class="grid"></div>
                     <svg id="graph" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
                 </div>
+
             </section>
 
             <section id="topics" aria-labelledby="topics-title">
-                <h3 id="topics-title" style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Focus areas</h3>
+                <h3 id="topics-title" style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Features</h3>
                 <div class="features">
                     <article class="card">
                         <h3>AI Specialists</h3>
@@ -144,6 +153,22 @@
                         <h3>Projects, Experiments, Visualization</h3>
                         <p>Manifold provides tools for designing and visualizing simple or complex software systems.</p>
                     </article>
+                </div>
+            </section>
+
+            <!-- Screenshots section -->
+            <section id="screenshots" style="margin-top:48px" aria-labelledby="screenshots-title">
+                <h3 id="screenshots-title" style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Screenshots</h3>
+                <div class="screenshot-grid">
+                    <figure class="card screenshot">
+                        <img src="/assets/img/chat.png" alt="Chat interface screenshot" loading="lazy" decoding="async">
+                    </figure>
+                    <figure class="card screenshot">
+                        <img src="/assets/img/flow.png" alt="Workflow canvas screenshot" loading="lazy" decoding="async">
+                    </figure>
+                    <figure class="card screenshot">
+                        <img src="/assets/img/specialists.png" alt="Specialists view screenshot" loading="lazy" decoding="async">
+                    </figure>
                 </div>
             </section>
 
@@ -164,6 +189,14 @@
                 <span><a href="https://github.com/intelligencedev" target="_blank" rel="noopener">GitHub</a></span>
             </div>
         </footer>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Image preview">
+        <div class="lightbox-content" role="document">
+            <button type="button" class="lightbox-close" aria-label="Close preview">✕</button>
+            <img id="lightbox-img" alt="">
+        </div>
     </div>
 
     <script>
@@ -381,6 +414,37 @@
 
             // Start periodic additions
             setInterval(addNode, 2000);
+
+            // Lightbox for screenshots
+            var lb = document.getElementById('lightbox');
+            var lbImg = document.getElementById('lightbox-img');
+            var closeBtn = lb.querySelector('.lightbox-close');
+
+            function openLightbox(src, alt){
+                lbImg.src = src;
+                lbImg.alt = alt || '';
+                lb.classList.add('open');
+                lb.setAttribute('aria-hidden','false');
+                document.body.style.overflow = 'hidden';
+                try { closeBtn.focus(); } catch (e) {}
+            }
+            function closeLightbox(){
+                lb.classList.remove('open');
+                lb.setAttribute('aria-hidden','true');
+                document.body.style.overflow = '';
+            }
+            document.querySelectorAll('.screenshot img').forEach(function(img){
+                img.addEventListener('click', function(){
+                    openLightbox(img.getAttribute('src'), img.getAttribute('alt'));
+                });
+            });
+            lb.addEventListener('click', function(e){
+                if (e.target === lb) closeLightbox();
+            });
+            closeBtn.addEventListener('click', closeLightbox);
+            document.addEventListener('keydown', function(e){
+                if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
+            });
             });
         </script>
 </body>
