@@ -1,9 +1,13 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+if (!window.__GALAXY_APP_LOADED__) {
+  import('./src/app.js');
+}
+
+// Legacy monolith retained for reference below.
+// TODO: Remove once the new modular app has fully replaced this file.
+
+// Prevent the legacy script from executing if someone still imports `script.js`.
+// The real entrypoint is `src/app.js`.
+if (false) {
 
 const starTypes = [
     { type: "O-type", colorRange: { min: [0.2, 0.2, 0.9], max: [0.4, 0.4, 1] }, luminosityRange: { min: 2.5, max: 5.0 } },
@@ -202,14 +206,14 @@ window.galaxyParams = {
     armWidth: 0.17, // Width of nebula arms
     armDensityMultiplier: 5.0, // Max density boost on nebula arms
     // Volumetric nebula parameters (replacing old smoke particles)
-    densityFactor: 49.6, // Increased for better visibility
-    absorptionCoefficient: 0.1, // Reduced for better visibility
-    scatteringCoefficient: 20.0,
+    densityFactor: 12.0,
+    absorptionCoefficient: 0.2,
+    scatteringCoefficient: 3.0,
     rayMarchSteps: 96,
-    godRaysIntensity: 0.33,
+    godRaysIntensity: 0.55,
     sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
-    anisotropyG: 0.41,
-    centralLightIntensity: 0.09,
+    anisotropyG: 0.55,
+    centralLightIntensity: 0.6,
     // Dust/Smoke Params
     numSmokeParticles: 2000,
     smokeParticleSize: 12.0, // Increased for better visibility
@@ -1719,3 +1723,5 @@ window.addEventListener('resize', () => {
 
 // Start the animation loop
 animate();
+
+}

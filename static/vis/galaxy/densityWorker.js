@@ -71,14 +71,32 @@ function armFalloff(r, theta, params) {
     const armWidth = params.armWidth || 0.35;
     const numArms = params.spiralArms || 2;
 
+    function wrapAngle(a) {
+        // Wrap to [-PI, PI]
+        a = (a + Math.PI) % (2.0 * Math.PI);
+        if (a < 0) a += 2.0 * Math.PI;
+        return a - Math.PI;
+    }
+
+    // We want arms to extend all the way to galacticRadius.
+    // Using atan2(theta) directly in r = r0 * exp(b * theta) only covers a small range of theta
+    // and collapses the arm structure near the core.
+    // Instead: for a given radius, compute the arm's expected theta, then measure *arc-length*
+    // distance from the point to the arm centerline.
+
+    const rSafe = Math.max(r, baseRadius * 0.75);
     for (let arm = 0; arm < numArms; ++arm) {
         const offset = arm * (2.0 * Math.PI / numArms);
-        const rOnArm = baseRadius * Math.exp(b * (theta - offset));
-        const d = Math.abs(r - rOnArm);  // radial distance to arm's centre-line
+        const thetaOnArm = (b !== 0)
+            ? (Math.log(rSafe / baseRadius) / b + offset)
+            : offset;
+
+        const dTheta = wrapAngle(theta - thetaOnArm);
+        const d = rSafe * dTheta; // world-space distance approximation along the arc
         minD2 = Math.min(minD2, d * d);
     }
 
-    // Gaussian profile – width ≈ params.armWidth
+    // Gaussian profile – width ≈ params.armWidth (in world units)
     const sigma2 = armWidth * armWidth;
     if (sigma2 === 0) return 0; // Avoid division by zero if armWidth is 0
     return Math.exp(-minD2 / (2.0 * sigma2));
@@ -196,8 +214,12 @@ self.onmessage = function(e) {
                 const clusterInfluence = getClusterInfluence(posVec, clusterCenters);
 
                 // 4. Exponential Disc Profile (more realistic)
-                const verticalDensity = Math.exp(-Math.abs(worldZ) / (verticalScaleHeight || galacticRadius * 0.06));
-                const radialDensity = Math.exp(-r / (discScaleLength || galacticRadius * 0.35));
+                // verticalScaleHeight and discScaleLength are authored in *normalized galaxy units*
+                // (as they are in the UI/params.js). Convert to world units here.
+                const verticalScaleWorld = (verticalScaleHeight || 0.05) * galacticRadius;
+                const discScaleWorld = (discScaleLength || 0.35) * galacticRadius;
+                const verticalDensity = Math.exp(-Math.abs(worldZ) / Math.max(verticalScaleWorld, 1e-6));
+                const radialDensity = Math.exp(-r / Math.max(discScaleWorld, 1e-6));
                 const discDensity = verticalDensity * radialDensity;
 
                 // 5. Central bulge enhancement
@@ -211,9 +233,10 @@ self.onmessage = function(e) {
                 let temperature = mix(0.35, 0.7, armMask);          // cool blue knots on the arms
                 temperature += noiseVal * 0.15 + clusterInfluence * 0.15;
                 
-                // Clamp values for HDR storage
+                // Clamp values for storage
                 finalDensity = Math.max(0, Math.min(finalDensity * 2.0, 8.0)); // Increased max HDR value
-                temperature = Math.max(0, Math.min(temperature, 2.0));
+                // Temperature/albedo is authored in [0..1] and used for coloring/dustiness in the shader.
+                temperature = Math.max(0, Math.min(temperature, 1.0));
 
                 data[index] = finalDensity;     // R channel - density
                 data[index + 1] = temperature;  // G channel - temperature/color
