@@ -5,7 +5,7 @@ This folder contains the modularized WebGL galaxy renderer. The entry point is `
 ## Layout
 - `app.js`: Main bootstrapper, animation loop, and UI bindings.
 - `params.js`: Shared parameters and constants.
-- `camera.js`: Camera and intro animation setup.
+- `camera.js`: Camera setup.
 - `rendering.js`: Renderer, controls, post-processing, and resize handling.
 - `particles.js`: Star and dust particle systems.
 - `structures.js`: Galaxy structure math and clustering.

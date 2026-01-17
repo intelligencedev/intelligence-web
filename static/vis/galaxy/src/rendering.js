@@ -131,9 +131,9 @@ export function createPostProcessing({
 
     bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      // Strength / radius tuned for a subtle cinematic bloom.
-      0.85,
-      0.35,
+      // Strength / radius tuned for a tighter, cinematic bloom around stars.
+      0.55,
+      0.25,
       0.0
     );
     composer.addPass(bloomPass);

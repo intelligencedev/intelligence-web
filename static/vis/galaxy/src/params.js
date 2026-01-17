@@ -21,7 +21,7 @@ export const controlParams = {
 
 export const galaxyParams = {
   numStars: 10000,
-  starSize: 0.005,
+  starSize: 0.0032,
   galacticRadius: 4,
   spiralArms: 2,
   coreRadius: 0.05,
@@ -38,18 +38,12 @@ export const galaxyParams = {
   armDensityMultiplier: 5.0, // Max density boost on nebula arms
   // Volumetric nebula parameters (replacing old smoke particles)
   // Tuned for physically-based extinction (sigmaT = sigmaA + sigmaS) so stars still shine through.
-  densityFactor: 12.0,
-  absorptionCoefficient: 0.2,
-  scatteringCoefficient: 3.0,
+  densityFactor: 14.0,
+  absorptionCoefficient: 0.28,
+  scatteringCoefficient: 5.2,
   rayMarchSteps: 96,
-  godRaysIntensity: 0.55,
+  godRaysIntensity: 0.35,
   sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
-  anisotropyG: 0.55,
-  centralLightIntensity: 0.6,
-  // Dust/Smoke Params
-  // Legacy sprite-based dust (kept for experimentation; set to 0 to rely on volumetrics).
-  numSmokeParticles: 0,
-  smokeParticleSize: 12.0, // Increased for better visibility
-  smokeNoiseIntensity: 1.1,
-  smokeParticleColor: '#323252' // Dark blue-gray color
+  anisotropyG: 0.35,
+  centralLightIntensity: 0.9
 };

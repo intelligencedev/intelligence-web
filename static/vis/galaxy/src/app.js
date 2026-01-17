@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { galaxyParams, controlParams } from './params.js';
-import { createCamera, setupCameraIntro } from './camera.js';
+import { createCamera } from './camera.js';
 import { createRenderer, createControls, createBlueNoiseUpdater, createPostProcessing, handleResize } from './rendering.js';
-import { createStarField, createSmokeField, regenerateSmoke } from './particles.js';
+import { createStarField } from './particles.js';
 import { generateClusterCenters } from './structures.js';
 import { setupDensityTexture, DENSITY_TEXTURE_SIZE } from './density.js';
 import { createVolumetricSmokeShader } from './shaders.js';
@@ -15,11 +15,9 @@ const camera = createCamera();
 const renderer = createRenderer(document.body);
 
 const controls = createControls(camera, renderer);
-const cameraAnimation = setupCameraIntro({
-  camera,
-  controls,
-  onComplete: () => console.log('Camera intro animation completed')
-});
+camera.position.set(144, -56, -164);
+controls.target.set(0, 0, 0);
+controls.update();
 
 const galaxyGroup = new THREE.Group();
 scene.add(galaxyGroup);
@@ -42,14 +40,6 @@ let starField = createStarField({
   galaxyParams,
   galaxyGroup,
   sharedGalaxyClusters
-});
-
-let { smokePoints, smokeData } = createSmokeField({
-  galaxyParams,
-  galaxyGroup,
-  camera,
-  blueNoiseTexture,
-  globalTime
 });
 
 let composer = null;
@@ -98,7 +88,6 @@ function animate() {
   lastFrameTime = currentTime;
   globalTime += deltaTime;
 
-  cameraAnimation.update(globalTime);
   controls.update();
 
   camera.updateMatrixWorld();
@@ -119,24 +108,6 @@ function animate() {
     if (smokePass.uniforms.tDepth && composer?.readBuffer?.depthTexture) {
       smokePass.uniforms.tDepth.value = composer.readBuffer.depthTexture;
     }
-  }
-
-  if (smokePoints && smokeData) {
-    const posAttr = smokePoints.geometry.attributes.position;
-    for (let i = 0; i < smokeData.length; i++) {
-      const data = smokeData[i];
-      const omega = Math.sqrt(4.3e-6 / Math.pow(data.r, 3));
-      const theta = data.theta0 - omega * globalTime * galaxyParams.orbitalTimeScale;
-      const x = data.r * Math.cos(theta);
-      const y = data.r * Math.sin(theta);
-      posAttr.setXYZ(i, x, y, data.z);
-    }
-    posAttr.needsUpdate = true;
-  }
-
-  if (smokePoints && smokePoints.material) {
-    smokePoints.material.uniforms.uTime.value = globalTime;
-    smokePoints.material.uniforms.uCameraPosition.value.copy(camera.position);
   }
 
   const cameraInfo = document.getElementById('camera-info');
@@ -166,37 +137,6 @@ window.handleParamChange = function handleParamChange(key, val) {
     'discScaleLength', 'bulgeRadius', 'verticalScaleHeight', 'spiralPitchAngle',
     'clusterInfluence', 'baseRadius'
   ];
-  const smokeRegen = ['numSmokeParticles'];
-  const smokeStructKeys = ['galacticRadius', 'spiralArms', 'baseRadius', 'spiralPitchAngle', 'verticalScaleHeight'];
-
-  if (smokeStructKeys.includes(key)) {
-    const result = regenerateSmoke({
-      galaxyGroup,
-      smokePoints,
-      smokeData,
-      galaxyParams,
-      camera,
-      blueNoiseTexture,
-      globalTime
-    });
-    smokePoints = result.smokePoints;
-    smokeData = result.smokeData;
-  }
-
-  // Allow toggling legacy smoke on/off even when it wasn't previously created.
-  if (smokeRegen.includes(key)) {
-    const result = regenerateSmoke({
-      galaxyGroup,
-      smokePoints,
-      smokeData,
-      galaxyParams,
-      camera,
-      blueNoiseTexture,
-      globalTime
-    });
-    smokePoints = result.smokePoints;
-    smokeData = result.smokeData;
-  }
 
   const needsDensityRegen = densityRegenKeys.includes(key);
   const needsStarRegen = starRegenKeys.includes(key);
@@ -257,18 +197,6 @@ window.handleParamChange = function handleParamChange(key, val) {
     if (key === 'galacticRadius' && smokePass.uniforms.boxMin) {
       smokePass.uniforms.boxMin.value.set(-val, -val, -val * 0.5);
       smokePass.uniforms.boxMax.value.set(val, val, val * 0.5);
-    }
-  }
-
-  if (smokePoints) {
-    if (key === 'smokeParticleSize') {
-      smokePoints.material.uniforms.uSize.value = val;
-    }
-    if (key === 'smokeNoiseIntensity') {
-      smokePoints.material.uniforms.uNoiseIntensity.value = val;
-    }
-    if (key === 'smokeParticleColor') {
-      smokePoints.material.uniforms.uSmokeColor.value.setHex(val.replace('#', '0x'));
     }
   }
 };

@@ -174,14 +174,14 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       }
 
       vec3 getNebulaColor(float temperature) {
-        vec3 coolColor = vec3(0.15, 0.35, 1.0);
-        vec3 dustColor = vec3(0.6, 0.3, 0.1);
-        vec3 warmColor = vec3(1.0, 0.9, 0.75);
+        vec3 coolColor = vec3(0.12, 0.28, 0.95);
+        vec3 dustColor = vec3(0.55, 0.25, 0.12);
+        vec3 warmColor = vec3(1.0, 0.86, 0.7);
 
-        if (temperature < 0.4) {
-          return mix(dustColor, coolColor, smoothstep(0.05, 0.4, temperature));
+        if (temperature < 0.35) {
+          return mix(dustColor, coolColor, smoothstep(0.05, 0.35, temperature));
         }
-        return mix(coolColor, warmColor, smoothstep(0.4, 1.0, temperature));
+        return mix(coolColor, warmColor, smoothstep(0.35, 1.0, temperature));
       }
 
       // Simple emissive term for hot gas near the core.
@@ -278,9 +278,15 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
 
             vec3 nebulaColor = getNebulaColor(temperature);
 
+            // Let bright stars influence nearby scattering so the nebula feels lit by the field.
+            vec3 starTint = pow(sceneColor.rgb, vec3(1.25));
+            float starLuma = dot(sceneColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+            float starInfluence = smoothstep(0.04, 0.55, starLuma) * (1.0 - clamp(density * 0.2, 0.0, 0.85));
+            nebulaColor = mix(nebulaColor, starTint, starInfluence);
+
             // Local emission (e.g. hot gas near the core), attenuated by the current transmittance.
             // Keep it subtle; bloom will do the cinematic lift.
-            vec3 emission = coreEmission(currentPos, density, temperature) * 0.015;
+            vec3 emission = coreEmission(currentPos, density, temperature) * 0.018;
             accumulatedColor += emission * transmittance * dt;
 
             // Energy-conserving single scattering: integrates scattering over the segment using
