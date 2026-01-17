@@ -235,6 +235,21 @@
         <span class="parameter-value" id="densityFactor-value">14.0</span>
       </div>
       <div class="parameter-row">
+        <label for="nebulaCoolColor">Nebula Cool Color</label>
+        <input type="color" id="nebulaCoolColor" value="#1f47f2">
+        <span class="parameter-value" id="nebulaCoolColor-value">#1f47f2</span>
+      </div>
+      <div class="parameter-row">
+        <label for="nebulaDustColor">Nebula Dust Color</label>
+        <input type="color" id="nebulaDustColor" value="#8c401f">
+        <span class="parameter-value" id="nebulaDustColor-value">#8c401f</span>
+      </div>
+      <div class="parameter-row">
+        <label for="nebulaWarmColor">Nebula Warm Color</label>
+        <input type="color" id="nebulaWarmColor" value="#ffdbb3">
+        <span class="parameter-value" id="nebulaWarmColor-value">#ffdbb3</span>
+      </div>
+      <div class="parameter-row">
         <label for="rayMarchSteps">Ray March Steps</label>
         <input type="range" id="rayMarchSteps" min="32" max="128" step="8" value="96">
         <span class="parameter-value" id="rayMarchSteps-value">96</span>
@@ -296,6 +311,10 @@
       { id: 'armDensityMultiplier', key: 'armDensityMultiplier', type: 'float' },
       // Existing Nebula/Volume Params
       { id: 'densityFactor', key: 'densityFactor', type: 'float' },
+      // Nebula palette
+      { id: 'nebulaCoolColor', key: 'nebulaCoolColor', type: 'color' },
+      { id: 'nebulaDustColor', key: 'nebulaDustColor', type: 'color' },
+      { id: 'nebulaWarmColor', key: 'nebulaWarmColor', type: 'color' },
       { id: 'rayMarchSteps', key: 'rayMarchSteps', type: 'int' },
       { id: 'absorptionCoefficient', key: 'absorptionCoefficient', type: 'float' },
       { id: 'scatteringCoefficient', key: 'scatteringCoefficient', type: 'float' },
@@ -314,6 +333,10 @@
         const slider = document.getElementById(def.id);
         const valueSpan = document.getElementById(def.id + '-value');
         if (!slider || !valueSpan) return;
+        if (def.type === 'color' && window.galaxyParams[def.key]) {
+          slider.value = window.galaxyParams[def.key];
+          valueSpan.textContent = slider.value;
+        }
         slider.addEventListener('input', e => {
           let val;
           if (def.type === 'color') {

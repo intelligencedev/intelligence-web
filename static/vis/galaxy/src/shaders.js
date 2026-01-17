@@ -6,6 +6,16 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
     typeof galaxyParams?.centralLightIntensity === 'number' ? galaxyParams.centralLightIntensity : 1.0
   );
 
+  const initialNebulaCool = new THREE.Color(
+    typeof galaxyParams?.nebulaCoolColor === 'string' ? galaxyParams.nebulaCoolColor : '#1f47f2'
+  );
+  const initialNebulaDust = new THREE.Color(
+    typeof galaxyParams?.nebulaDustColor === 'string' ? galaxyParams.nebulaDustColor : '#8c401f'
+  );
+  const initialNebulaWarm = new THREE.Color(
+    typeof galaxyParams?.nebulaWarmColor === 'string' ? galaxyParams.nebulaWarmColor : '#ffdbb3'
+  );
+
   return {
     uniforms: {
       tDiffuse: { value: null },
@@ -24,6 +34,9 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       godRaysIntensity: { value: typeof galaxyParams?.godRaysIntensity === 'number' ? galaxyParams.godRaysIntensity : 0.0 },
       lightPosition: { value: (galaxyParams?.sunPosition ? galaxyParams.sunPosition.clone() : new THREE.Vector3(0, 0, 0)) },
       lightIntensity: { value: initialLightIntensity },
+      nebulaCoolColor: { value: initialNebulaCool },
+      nebulaDustColor: { value: initialNebulaDust },
+      nebulaWarmColor: { value: initialNebulaWarm },
       densityFactor: { value: typeof galaxyParams?.densityFactor === 'number' ? galaxyParams.densityFactor : 15.0 },
       steps: { value: typeof galaxyParams?.rayMarchSteps === 'number' ? galaxyParams.rayMarchSteps : 96 },
       shadowSteps: { value: 12 },
@@ -58,6 +71,9 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       uniform float godRaysIntensity;
       uniform vec3 lightPosition;
       uniform vec3 lightIntensity;
+      uniform vec3 nebulaCoolColor;
+      uniform vec3 nebulaDustColor;
+      uniform vec3 nebulaWarmColor;
       uniform float densityFactor;
       uniform int steps;
       uniform int shadowSteps;
@@ -174,9 +190,9 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       }
 
       vec3 getNebulaColor(float temperature) {
-        vec3 coolColor = vec3(0.12, 0.28, 0.95);
-        vec3 dustColor = vec3(0.55, 0.25, 0.12);
-        vec3 warmColor = vec3(1.0, 0.86, 0.7);
+        vec3 coolColor = nebulaCoolColor;
+        vec3 dustColor = nebulaDustColor;
+        vec3 warmColor = nebulaWarmColor;
 
         if (temperature < 0.35) {
           return mix(dustColor, coolColor, smoothstep(0.05, 0.35, temperature));

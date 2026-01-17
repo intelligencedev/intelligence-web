@@ -41,6 +41,10 @@ export const galaxyParams = {
   densityFactor: 14.0,
   absorptionCoefficient: 0.28,
   scatteringCoefficient: 5.2,
+  // Nebula palette (editable via UI)
+  nebulaCoolColor: '#1f47f2',
+  nebulaDustColor: '#8c401f',
+  nebulaWarmColor: '#ffdbb3',
   rayMarchSteps: 96,
   godRaysIntensity: 0.35,
   sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),

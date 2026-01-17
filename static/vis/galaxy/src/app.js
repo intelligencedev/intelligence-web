@@ -194,6 +194,15 @@ window.handleParamChange = function handleParamChange(key, val) {
     if (key === 'centralLightIntensity') {
       smokePass.uniforms.lightIntensity.value.setRGB(1.0, 0.9, 0.8).multiplyScalar(val);
     }
+    if (key === 'nebulaCoolColor' && smokePass.uniforms.nebulaCoolColor) {
+      smokePass.uniforms.nebulaCoolColor.value.set(val);
+    }
+    if (key === 'nebulaDustColor' && smokePass.uniforms.nebulaDustColor) {
+      smokePass.uniforms.nebulaDustColor.value.set(val);
+    }
+    if (key === 'nebulaWarmColor' && smokePass.uniforms.nebulaWarmColor) {
+      smokePass.uniforms.nebulaWarmColor.value.set(val);
+    }
     if (key === 'galacticRadius' && smokePass.uniforms.boxMin) {
       smokePass.uniforms.boxMin.value.set(-val, -val, -val * 0.5);
       smokePass.uniforms.boxMax.value.set(val, val, val * 0.5);
