@@ -1,11 +1,17 @@
-import * as THREE from 'three';
-import { galaxyParams, controlParams } from './params.js';
-import { createCamera } from './camera.js';
-import { createRenderer, createControls, createBlueNoiseUpdater, createPostProcessing, handleResize } from './rendering.js';
-import { createStarField } from './particles.js';
-import { generateClusterCenters } from './structures.js';
-import { setupDensityTexture, DENSITY_TEXTURE_SIZE } from './density.js';
-import { createVolumetricSmokeShader } from './shaders.js';
+import * as THREE from "three";
+import { galaxyParams, controlParams } from "./params.js";
+import { createCamera } from "./camera.js";
+import {
+  createRenderer,
+  createControls,
+  createBlueNoiseUpdater,
+  createPostProcessing,
+  handleResize,
+} from "./rendering.js";
+import { createStarField } from "./particles.js";
+import { generateClusterCenters } from "./structures.js";
+import { setupDensityTexture, DENSITY_TEXTURE_SIZE } from "./density.js";
+import { createVolumetricSmokeShader } from "./shaders.js";
 
 window.__GALAXY_APP_LOADED__ = true;
 
@@ -15,8 +21,19 @@ const camera = createCamera();
 const renderer = createRenderer(document.body);
 
 const controls = createControls(camera, renderer);
-camera.position.set(144, -56, -164);
-controls.target.set(0, 0, 0);
+// Default camera pose (from the UI screenshot).
+camera.position.set(-0.31, -1.45, -0.61);
+camera.rotation.set(
+  THREE.MathUtils.degToRad(112.7),
+  THREE.MathUtils.degToRad(-11.1),
+  THREE.MathUtils.degToRad(155.4),
+);
+// OrbitControls drives orientation via `target`; derive a target from the rotation so
+// the initial pose matches and remains stable once controls update.
+{
+  const forward = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
+  controls.target.copy(camera.position).addScaledVector(forward, 1.0);
+}
 controls.update();
 
 const galaxyGroup = new THREE.Group();
@@ -26,7 +43,10 @@ let globalTime = 0;
 let lastFrameTime = performance.now();
 
 const { blueNoiseTexture, updateSmokePass } = createBlueNoiseUpdater();
-const volumetricSmokeShader = createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture });
+const volumetricSmokeShader = createVolumetricSmokeShader({
+  galaxyParams,
+  blueNoiseTexture,
+});
 
 let sharedGalaxyClusters = generateClusterCenters(
   20,
@@ -34,13 +54,13 @@ let sharedGalaxyClusters = generateClusterCenters(
   galaxyParams.spiralArms,
   galaxyParams.baseRadius,
   galaxyParams.spiralPitchAngle,
-  galaxyParams.verticalScaleHeight
+  galaxyParams.verticalScaleHeight,
 );
 
 let starField = createStarField({
   galaxyParams,
   galaxyGroup,
-  sharedGalaxyClusters
+  sharedGalaxyClusters,
 });
 
 let composer = null;
@@ -64,7 +84,7 @@ function initDensityTexture() {
           DENSITY_TEXTURE_SIZE,
           volumetricSmokeShader,
           blueNoiseTexture,
-          galaxyParams
+          galaxyParams,
         });
         composer = post.composer;
         smokePass = post.smokePass;
@@ -73,7 +93,7 @@ function initDensityTexture() {
       } else if (smokePass && smokePass.uniforms) {
         smokePass.uniforms.tDensity.value = densityTexture;
       }
-    }
+    },
   });
   densityTexture = result.densityTexture;
   densityWorker = result.densityWorker;
@@ -101,7 +121,9 @@ function animate() {
   if (smokePass) {
     smokePass.uniforms.u_time.value = globalTime;
     smokePass.uniforms.cameraPos.value.copy(camera.position);
-    smokePass.uniforms.invProjectionMatrix.value.copy(camera.projectionMatrixInverse);
+    smokePass.uniforms.invProjectionMatrix.value.copy(
+      camera.projectionMatrixInverse,
+    );
     smokePass.uniforms.invModelViewMatrix.value.copy(camera.matrixWorld);
     if (smokePass.uniforms.steps) {
       smokePass.uniforms.steps.value = galaxyParams.rayMarchSteps;
@@ -111,7 +133,7 @@ function animate() {
     }
   }
 
-  const cameraInfo = document.getElementById('camera-info');
+  const cameraInfo = document.getElementById("camera-info");
   if (cameraInfo) {
     cameraInfo.innerHTML =
       `Camera: x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}<br>` +
@@ -129,28 +151,50 @@ animate();
 
 window.handleParamChange = function handleParamChange(key, val) {
   const densityRegenKeys = [
-    'galacticRadius', 'verticalScaleHeight', 'discScaleLength',
-    'spiralArms', 'spiralPitchAngle', 'baseRadius', 'armWidth',
-    'armDensityMultiplier', 'clusterInfluence'
+    "galacticRadius",
+    "verticalScaleHeight",
+    "discScaleLength",
+    "spiralArms",
+    "spiralPitchAngle",
+    "baseRadius",
+    "armWidth",
+    "armDensityMultiplier",
+    "clusterInfluence",
   ];
   const starRegenKeys = [
-    'numStars', 'starSize', 'coreRadius', 'galacticRadius', 'spiralArms',
-    'discScaleLength', 'bulgeRadius', 'verticalScaleHeight', 'spiralPitchAngle',
-    'clusterInfluence', 'baseRadius'
+    "numStars",
+    "starSize",
+    "coreRadius",
+    "galacticRadius",
+    "spiralArms",
+    "discScaleLength",
+    "bulgeRadius",
+    "verticalScaleHeight",
+    "spiralPitchAngle",
+    "clusterInfluence",
+    "baseRadius",
   ];
 
   const needsDensityRegen = densityRegenKeys.includes(key);
   const needsStarRegen = starRegenKeys.includes(key);
 
   if (needsDensityRegen || needsStarRegen) {
-    if (['galacticRadius', 'spiralArms', 'baseRadius', 'spiralPitchAngle', 'verticalScaleHeight'].includes(key)) {
+    if (
+      [
+        "galacticRadius",
+        "spiralArms",
+        "baseRadius",
+        "spiralPitchAngle",
+        "verticalScaleHeight",
+      ].includes(key)
+    ) {
       sharedGalaxyClusters = generateClusterCenters(
         20,
         galaxyParams.galacticRadius * 0.8,
         galaxyParams.spiralArms,
         galaxyParams.baseRadius,
         galaxyParams.spiralPitchAngle,
-        galaxyParams.verticalScaleHeight
+        galaxyParams.verticalScaleHeight,
       );
     }
   }
@@ -173,51 +217,59 @@ window.handleParamChange = function handleParamChange(key, val) {
     starField = createStarField({
       galaxyParams,
       galaxyGroup,
-      sharedGalaxyClusters
+      sharedGalaxyClusters,
     });
   }
 
-  if (starField && key === 'orbitalTimeScale') {
+  if (starField && key === "orbitalTimeScale") {
     starField.material.uniforms.timeScale.value = val;
   }
-  if (starField && key === 'coreRadius') {
+  if (starField && key === "coreRadius") {
     starField.material.uniforms.coreRadiusUniform.value = val;
   }
 
   if (smokePass) {
-    if (key === 'densityFactor') smokePass.uniforms.densityFactor.value = val;
-    if (key === 'absorptionCoefficient') smokePass.uniforms.absorptionCoefficient.value = val;
-    if (key === 'scatteringCoefficient') smokePass.uniforms.scatteringCoefficient.value = val;
-    if (key === 'rayMarchSteps') smokePass.uniforms.steps.value = val;
-    if (key === 'centralLightIntensity') {
-      smokePass.uniforms.lightIntensity.value.setRGB(1.0, 0.9, 0.8).multiplyScalar(val);
+    if (key === "densityFactor") smokePass.uniforms.densityFactor.value = val;
+    if (key === "absorptionCoefficient")
+      smokePass.uniforms.absorptionCoefficient.value = val;
+    if (key === "scatteringCoefficient")
+      smokePass.uniforms.scatteringCoefficient.value = val;
+    if (key === "rayMarchSteps") smokePass.uniforms.steps.value = val;
+    if (key === "centralLightIntensity") {
+      smokePass.uniforms.lightIntensity.value
+        .setRGB(1.0, 0.9, 0.8)
+        .multiplyScalar(val);
     }
-    if (key === 'nebulaCoolColor' && smokePass.uniforms.nebulaCoolColor) {
+    if (key === "nebulaCoolColor" && smokePass.uniforms.nebulaCoolColor) {
       smokePass.uniforms.nebulaCoolColor.value.set(val);
     }
-    if (key === 'nebulaDustColor' && smokePass.uniforms.nebulaDustColor) {
+    if (key === "nebulaDustColor" && smokePass.uniforms.nebulaDustColor) {
       smokePass.uniforms.nebulaDustColor.value.set(val);
     }
-    if (key === 'nebulaWarmColor' && smokePass.uniforms.nebulaWarmColor) {
+    if (key === "nebulaWarmColor" && smokePass.uniforms.nebulaWarmColor) {
       smokePass.uniforms.nebulaWarmColor.value.set(val);
     }
-    if (key === 'galacticRadius' && smokePass.uniforms.boxMin) {
+    if (key === "galacticRadius" && smokePass.uniforms.boxMin) {
       smokePass.uniforms.boxMin.value.set(-val, -val, -val * 0.5);
       smokePass.uniforms.boxMax.value.set(val, val, val * 0.5);
     }
   }
 };
 
-window.addEventListener('resize', () => {
-  handleResize({
-    camera,
-    renderer,
-    composer,
-    smokePass,
-    bloomPass,
-    blueNoiseTexture
-  });
-}, false);
+window.addEventListener(
+  "resize",
+  () => {
+    handleResize({
+      camera,
+      renderer,
+      composer,
+      smokePass,
+      bloomPass,
+      blueNoiseTexture,
+    });
+  },
+  false,
+);
 
 window.galaxyParams = galaxyParams;
 window.controlParams = controlParams;
