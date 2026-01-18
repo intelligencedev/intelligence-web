@@ -231,8 +231,8 @@
       </div>
       <div class="parameter-row">
         <label for="densityFactor">Nebula Density</label>
-        <input type="range" id="densityFactor" min="0.1" max="50" step="0.5" value="14.0">
-        <span class="parameter-value" id="densityFactor-value">14.0</span>
+        <input type="range" id="densityFactor" min="0.1" max="50" step="0.5" value="8.0">
+        <span class="parameter-value" id="densityFactor-value">8.0</span>
       </div>
       <div class="parameter-row">
         <label for="nebulaCoolColor">Nebula Cool Color</label>
@@ -251,33 +251,23 @@
       </div>
       <div class="parameter-row">
         <label for="rayMarchSteps">Ray March Steps</label>
-        <input type="range" id="rayMarchSteps" min="32" max="128" step="8" value="96">
-        <span class="parameter-value" id="rayMarchSteps-value">96</span>
+        <input type="range" id="rayMarchSteps" min="32" max="128" step="8" value="104">
+        <span class="parameter-value" id="rayMarchSteps-value">104</span>
       </div>
       <div class="parameter-row">
         <label for="absorptionCoefficient">Absorption</label>
-        <input type="range" id="absorptionCoefficient" min="0.1" max="5" step="0.1" value="0.28">
-        <span class="parameter-value" id="absorptionCoefficient-value">0.28</span>
+        <input type="range" id="absorptionCoefficient" min="0.05" max="5" step="0.05" value="0.12">
+        <span class="parameter-value" id="absorptionCoefficient-value">0.12</span>
       </div>
       <div class="parameter-row">
         <label for="scatteringCoefficient">Scattering</label>
-        <input type="range" id="scatteringCoefficient" min="1" max="20" step="0.5" value="5.2">
-        <span class="parameter-value" id="scatteringCoefficient-value">5.2</span>
-      </div>
-      <div class="parameter-row">
-        <label for="godRaysIntensity">God Rays Intensity</label>
-        <input type="range" id="godRaysIntensity" min="0" max="2" step="0.01" value="0.35">
-        <span class="parameter-value" id="godRaysIntensity-value">0.35</span>
-      </div>
-      <div class="parameter-row">
-        <label for="anisotropyG">Anisotropy G</label>
-        <input type="range" id="anisotropyG" min="-1" max="1" step="0.01" value="0.35">
-        <span class="parameter-value" id="anisotropyG-value">0.35</span>
+        <input type="range" id="scatteringCoefficient" min="1" max="20" step="0.5" value="8.5">
+        <span class="parameter-value" id="scatteringCoefficient-value">8.5</span>
       </div>
       <div class="parameter-row">
         <label for="centralLightIntensity">Central Light Intensity</label>
-        <input type="range" id="centralLightIntensity" min="0" max="2" step="0.01" value="0.9">
-        <span class="parameter-value" id="centralLightIntensity-value">0.9</span>
+        <input type="range" id="centralLightIntensity" min="0" max="2" step="0.01" value="1.6">
+        <span class="parameter-value" id="centralLightIntensity-value">1.6</span>
       </div>
     </div>
   </div>
@@ -318,8 +308,6 @@
       { id: 'rayMarchSteps', key: 'rayMarchSteps', type: 'int' },
       { id: 'absorptionCoefficient', key: 'absorptionCoefficient', type: 'float' },
       { id: 'scatteringCoefficient', key: 'scatteringCoefficient', type: 'float' },
-      { id: 'godRaysIntensity', key: 'godRaysIntensity', type: 'float' },
-      { id: 'anisotropyG', key: 'anisotropyG', type: 'float' },
       { id: 'centralLightIntensity', key: 'centralLightIntensity', type: 'float' },
     ];
 

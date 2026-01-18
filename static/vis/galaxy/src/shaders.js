@@ -30,8 +30,7 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       u_time: { value: 0.0 },
       absorptionCoefficient: { value: typeof galaxyParams?.absorptionCoefficient === 'number' ? galaxyParams.absorptionCoefficient : 0.5 },
       scatteringCoefficient: { value: typeof galaxyParams?.scatteringCoefficient === 'number' ? galaxyParams.scatteringCoefficient : 6.0 },
-      phaseG: { value: typeof galaxyParams?.anisotropyG === 'number' ? galaxyParams.anisotropyG : 0.1 },
-      godRaysIntensity: { value: typeof galaxyParams?.godRaysIntensity === 'number' ? galaxyParams.godRaysIntensity : 0.0 },
+      phaseG: { value: 0.35 },
       lightPosition: { value: (galaxyParams?.sunPosition ? galaxyParams.sunPosition.clone() : new THREE.Vector3(0, 0, 0)) },
       lightIntensity: { value: initialLightIntensity },
       nebulaCoolColor: { value: initialNebulaCool },
@@ -68,7 +67,6 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       uniform float absorptionCoefficient;
       uniform float scatteringCoefficient;
       uniform float phaseG;
-      uniform float godRaysIntensity;
       uniform vec3 lightPosition;
       uniform vec3 lightIntensity;
       uniform vec3 nebulaCoolColor;
@@ -134,15 +132,22 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       float absorptionFromDensity(float density, float temperature) {
         // Treat lower-temperature regions as dustier (more absorbing, less luminous).
         float dust = 1.0 - clamp(temperature, 0.0, 1.0);
-        float dustBoost = mix(0.7, 2.25, dust);
+        float dustBoost = mix(0.45, 1.65, dust);
         return absorptionCoefficient * density * dustBoost;
       }
 
       float scatteringFromDensity(float density, float temperature) {
         // Hotter gas contributes more visible scattering, dust contributes less.
         float gas = clamp(temperature, 0.0, 1.0);
-        float scatterBoost = mix(0.35, 1.0, gas);
+        float scatterBoost = mix(0.55, 1.15, gas);
         return scatteringCoefficient * density * scatterBoost;
+      }
+
+      float emissionFromDensity(float density, float temperature) {
+        float hot = smoothstep(0.35, 0.9, temperature);
+        float mid = smoothstep(0.2, 0.55, temperature) * (1.0 - hot * 0.6);
+        float amount = (hot * 0.9 + mid * 0.45) * density;
+        return amount;
       }
 
       float shadowTransmittance(vec3 pos_world, vec3 lightDir, float lightDistance) {
@@ -198,6 +203,13 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
           return mix(dustColor, coolColor, smoothstep(0.05, 0.35, temperature));
         }
         return mix(coolColor, warmColor, smoothstep(0.35, 1.0, temperature));
+      }
+
+      float coreLightFalloff(vec3 pos_world) {
+        float r = length(pos_world.xy);
+        float falloff = 1.0 / (1.0 + 0.06 * r * r);
+        falloff *= exp(-abs(pos_world.z) * 0.35);
+        return falloff;
       }
 
       // Simple emissive term for hot gas near the core.
@@ -270,7 +282,7 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
           float temperature = densityData.g;
 
           if (density > EMPTY_SPACE_THRESHOLD) {
-            float adaptiveFactor = clamp(1.0 / (density * 2.5 + 1.0), 0.25, 1.0);
+            float adaptiveFactor = clamp(1.0 / (density * 1.8 + 1.0), 0.35, 1.0);
             float dt = stepSize * adaptiveFactor;
 
             float sigmaA = absorptionFromDensity(density, temperature);
@@ -284,11 +296,9 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
             // With our conventions, that's equivalent to dot(rayDir, lightDir).
             float cosTheta = dot(rayDir, lightDir);
             float phase = henyeyGreenstein(cosTheta, phaseG);
-            phase *= (1.0 + godRaysIntensity * pow(max(cosTheta, 0.0), 10.0));
 
             float lightDistance = length(lightPosition - currentPos);
-            // A slightly softer falloff keeps the arms lit at cinematic distances.
-            float lightAttenuation = 1.0 / (1.0 + 0.35 * lightDistance * lightDistance);
+            float lightAttenuation = coreLightFalloff(currentPos);
 
             float shadow = shadowTransmittance(currentPos, lightDir, lightDistance);
 
@@ -298,19 +308,21 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
             vec3 starTint = pow(sceneColor.rgb, vec3(1.25));
             float starLuma = dot(sceneColor.rgb, vec3(0.2126, 0.7152, 0.0722));
             float starInfluence = smoothstep(0.04, 0.55, starLuma) * (1.0 - clamp(density * 0.2, 0.0, 0.85));
-            nebulaColor = mix(nebulaColor, starTint, starInfluence);
+            nebulaColor = mix(nebulaColor, starTint, starInfluence * 0.6);
 
+            float volumeEmissionStrength = emissionFromDensity(density, temperature);
+            vec3 volumeEmission = nebulaColor * volumeEmissionStrength * 0.12;
             // Local emission (e.g. hot gas near the core), attenuated by the current transmittance.
             // Keep it subtle; bloom will do the cinematic lift.
-            vec3 emission = coreEmission(currentPos, density, temperature) * 0.018;
-            accumulatedColor += emission * transmittance * dt;
+            vec3 emission = coreEmission(currentPos, density, temperature) * 0.1;
+            accumulatedColor += (emission + volumeEmission) * transmittance * dt;
 
             // Energy-conserving single scattering: integrates scattering over the segment using
             // (1 - exp(-sigmaT * dt)) instead of sigmaS * dt, so dense regions don't blow out.
             float scatterAmount = (1.0 - stepTransmittance) * (sigmaS / max(sigmaT, 1e-6));
 
             vec3 inScatteredLight = lightIntensity * lightAttenuation * shadow * nebulaColor *
-              phase * scatterAmount;
+              phase * scatterAmount * 3.1;
 
             accumulatedColor += inScatteredLight * transmittance;
             transmittance *= stepTransmittance;

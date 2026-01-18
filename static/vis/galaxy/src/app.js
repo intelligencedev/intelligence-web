@@ -187,10 +187,6 @@ window.handleParamChange = function handleParamChange(key, val) {
     if (key === 'absorptionCoefficient') smokePass.uniforms.absorptionCoefficient.value = val;
     if (key === 'scatteringCoefficient') smokePass.uniforms.scatteringCoefficient.value = val;
     if (key === 'rayMarchSteps') smokePass.uniforms.steps.value = val;
-    if (key === 'anisotropyG') smokePass.uniforms.phaseG.value = val;
-    if (key === 'godRaysIntensity' && smokePass.uniforms.godRaysIntensity) {
-      smokePass.uniforms.godRaysIntensity.value = val;
-    }
     if (key === 'centralLightIntensity') {
       smokePass.uniforms.lightIntensity.value.setRGB(1.0, 0.9, 0.8).multiplyScalar(val);
     }

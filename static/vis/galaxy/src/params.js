@@ -38,16 +38,14 @@ export const galaxyParams = {
   armDensityMultiplier: 5.0, // Max density boost on nebula arms
   // Volumetric nebula parameters (replacing old smoke particles)
   // Tuned for physically-based extinction (sigmaT = sigmaA + sigmaS) so stars still shine through.
-  densityFactor: 14.0,
-  absorptionCoefficient: 0.28,
-  scatteringCoefficient: 5.2,
+  densityFactor: 12.0,
+  absorptionCoefficient: 0.05,
+  scatteringCoefficient: 10.0,
   // Nebula palette (editable via UI)
   nebulaCoolColor: '#1f47f2',
   nebulaDustColor: '#8c401f',
   nebulaWarmColor: '#ffdbb3',
-  rayMarchSteps: 96,
-  godRaysIntensity: 0.35,
+  rayMarchSteps: 128,
   sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
-  anisotropyG: 0.35,
-  centralLightIntensity: 0.9
+  centralLightIntensity: 6.0
 };
