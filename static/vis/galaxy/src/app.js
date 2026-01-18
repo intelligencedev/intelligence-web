@@ -33,7 +33,8 @@ let sharedGalaxyClusters = generateClusterCenters(
   galaxyParams.galacticRadius * 0.8,
   galaxyParams.spiralArms,
   galaxyParams.baseRadius,
-  galaxyParams.spiralPitchAngle
+  galaxyParams.spiralPitchAngle,
+  galaxyParams.verticalScaleHeight
 );
 
 let starField = createStarField({
@@ -142,13 +143,14 @@ window.handleParamChange = function handleParamChange(key, val) {
   const needsStarRegen = starRegenKeys.includes(key);
 
   if (needsDensityRegen || needsStarRegen) {
-    if (['galacticRadius', 'spiralArms', 'baseRadius', 'spiralPitchAngle'].includes(key)) {
+    if (['galacticRadius', 'spiralArms', 'baseRadius', 'spiralPitchAngle', 'verticalScaleHeight'].includes(key)) {
       sharedGalaxyClusters = generateClusterCenters(
         20,
         galaxyParams.galacticRadius * 0.8,
         galaxyParams.spiralArms,
         galaxyParams.baseRadius,
-        galaxyParams.spiralPitchAngle
+        galaxyParams.spiralPitchAngle,
+        galaxyParams.verticalScaleHeight
       );
     }
   }

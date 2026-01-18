@@ -21,31 +21,31 @@ export const controlParams = {
 
 export const galaxyParams = {
   numStars: 10000,
-  starSize: 0.0032,
-  galacticRadius: 4,
+  starSize: 0.002,
+  galacticRadius: 4.64,
   spiralArms: 2,
   coreRadius: 0.05,
   orbitalTimeScale: 20.9, // Time scaling factor for orbital motion
   // Galaxy structure parameters
-  discScaleLength: 0.29, // h_r ≈ 0.29 R_gal
+  discScaleLength: 0.43, // h_r ≈ 0.43 R_gal
   bulgeRadius: 0.05, // R < 0.05 R_gal
-  verticalScaleHeight: 0.05, // h_z ≈ 0.05 R_gal
-  spiralPitchAngle: 12.5, // degrees (12.5°)
-  clusterInfluence: 0.09, // 9% of stars snap to clusters
+  verticalScaleHeight: 0.04, // h_z ≈ 0.04 R_gal
+  spiralPitchAngle: 20, // degrees
+  clusterInfluence: 0.11, // 11% of stars snap to clusters
   // New spiral arm parameters
-  baseRadius: 0.1, // For spiral calculations (stars and nebula)
-  armWidth: 0.17, // Width of nebula arms
-  armDensityMultiplier: 5.0, // Max density boost on nebula arms
+  baseRadius: 0.6, // For spiral calculations (stars and nebula)
+  armWidth: 1.0, // Width of nebula arms
+  armDensityMultiplier: 2.3, // Max density boost on nebula arms
   // Volumetric nebula parameters (replacing old smoke particles)
   // Tuned for physically-based extinction (sigmaT = sigmaA + sigmaS) so stars still shine through.
-  densityFactor: 12.0,
-  absorptionCoefficient: 0.05,
-  scatteringCoefficient: 10.0,
+  densityFactor: 0.6,
+  absorptionCoefficient: 1.1,
+  scatteringCoefficient: 2.0,
   // Nebula palette (editable via UI)
   nebulaCoolColor: '#1f47f2',
   nebulaDustColor: '#8c401f',
   nebulaWarmColor: '#ffdbb3',
-  rayMarchSteps: 128,
+  rayMarchSteps: 40,
   sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
-  centralLightIntensity: 6.0
+  centralLightIntensity: 2.0
 };

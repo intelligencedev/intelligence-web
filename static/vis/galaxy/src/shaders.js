@@ -31,6 +31,9 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       absorptionCoefficient: { value: typeof galaxyParams?.absorptionCoefficient === 'number' ? galaxyParams.absorptionCoefficient : 0.5 },
       scatteringCoefficient: { value: typeof galaxyParams?.scatteringCoefficient === 'number' ? galaxyParams.scatteringCoefficient : 6.0 },
       phaseG: { value: 0.35 },
+      // Secondary phase function for back-scattering (silver-lining effect)
+      phaseG2: { value: -0.3 },
+      phaseBlend: { value: 0.3 },
       lightPosition: { value: (galaxyParams?.sunPosition ? galaxyParams.sunPosition.clone() : new THREE.Vector3(0, 0, 0)) },
       lightIntensity: { value: initialLightIntensity },
       nebulaCoolColor: { value: initialNebulaCool },
@@ -38,8 +41,13 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       nebulaWarmColor: { value: initialNebulaWarm },
       densityFactor: { value: typeof galaxyParams?.densityFactor === 'number' ? galaxyParams.densityFactor : 15.0 },
       steps: { value: typeof galaxyParams?.rayMarchSteps === 'number' ? galaxyParams.rayMarchSteps : 96 },
-      shadowSteps: { value: 12 },
-      shadowStrength: { value: 1.0 },
+      shadowSteps: { value: 16 },
+      shadowStrength: { value: 1.2 },
+      // Advanced volumetric parameters
+      multiScatterStrength: { value: 0.35 },
+      ambientDensity: { value: 0.08 },
+      powderStrength: { value: 0.6 },
+      shadowDensityScale: { value: 1.5 },
       noiseTexture: { value: blueNoiseTexture },
       noiseScale: { value: new THREE.Vector2(1, 1) },
       boxMin: { value: new THREE.Vector3(-galaxyParams.galacticRadius, -galaxyParams.galacticRadius, -galaxyParams.galacticRadius * 0.5) },
@@ -67,6 +75,8 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       uniform float absorptionCoefficient;
       uniform float scatteringCoefficient;
       uniform float phaseG;
+      uniform float phaseG2;
+      uniform float phaseBlend;
       uniform vec3 lightPosition;
       uniform vec3 lightIntensity;
       uniform vec3 nebulaCoolColor;
@@ -76,6 +86,10 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       uniform int steps;
       uniform int shadowSteps;
       uniform float shadowStrength;
+      uniform float multiScatterStrength;
+      uniform float ambientDensity;
+      uniform float powderStrength;
+      uniform float shadowDensityScale;
       uniform sampler2D noiseTexture;
       uniform vec2 noiseScale;
       uniform vec3 boxMin;
@@ -88,9 +102,40 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       #define MAX_SHADOW_STEPS 64
       #define EMPTY_SPACE_THRESHOLD 0.001
 
+      // ============================================================
+      // ADVANCED VOLUMETRIC LIGHTING - Based on:
+      // - Beer-Lambert absorption law
+      // - Henyey-Greenstein phase function (dual-lobe for silver lining)
+      // - Light marching with directional derivatives
+      // - Multi-scattering approximation (Horizon Zero Dawn technique)
+      // - Energy-conserving in-scattering
+      // ============================================================
+
+      // Beer-Lambert law: transmittance through medium
+      float beersLaw(float density, float distance) {
+        return exp(-density * distance);
+      }
+
+      // Beer-Powder approximation for enhanced edge lighting (Horizon Zero Dawn)
+      // Creates the characteristic "silver lining" effect on cloud edges
+      float beersPowder(float density, float distance) {
+        float beer = beersLaw(density, distance);
+        float powder = 1.0 - exp(-density * distance * 2.0);
+        return beer * mix(1.0, powder, powderStrength);
+      }
+
+      // Dual-lobe Henyey-Greenstein phase function
+      // Combines forward scattering (g > 0) with back scattering (g < 0)
+      // for more realistic light distribution
       float henyeyGreenstein(float cosTheta, float g) {
         float g2 = g * g;
         return (1.0 - g2) / (4.0 * PI * pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5));
+      }
+
+      float dualLobePhase(float cosTheta, float g1, float g2, float blend) {
+        float phase1 = henyeyGreenstein(cosTheta, g1);
+        float phase2 = henyeyGreenstein(cosTheta, g2);
+        return mix(phase1, phase2, blend);
       }
 
       bool intersectBox(vec3 ro, vec3 rd, vec3 boxMin, vec3 boxMax, out float t0, out float t1) {
@@ -129,6 +174,18 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
         return vec2(density, temperature);
       }
 
+      // Directional derivative for fast diffuse approximation
+      // Samples density gradient in light direction to estimate local illumination
+      float directionalDerivative(vec3 pos, vec3 lightDir, float baseDensity) {
+        float offset = 0.15;
+        vec2 offsetSample = sampleDensity(pos + lightDir * offset);
+        float gradientDensity = offsetSample.x;
+        // Positive derivative = getting denser toward light = darker
+        // Negative derivative = getting less dense toward light = brighter (edge lit)
+        float derivative = clamp((baseDensity - gradientDensity) / offset, -2.0, 2.0);
+        return derivative;
+      }
+
       float absorptionFromDensity(float density, float temperature) {
         // Treat lower-temperature regions as dustier (more absorbing, less luminous).
         float dust = 1.0 - clamp(temperature, 0.0, 1.0);
@@ -150,48 +207,78 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
         return amount;
       }
 
-      float shadowTransmittance(vec3 pos_world, vec3 lightDir, float lightDistance) {
-        float t0;
-        float t1;
+      // Advanced light marching with cone sampling
+      // Samples light energy arriving at a point by marching toward the light source
+      // Uses exponentially increasing step sizes for efficiency
+      struct LightMarchResult {
+        float transmittance;
+        float multiScatter;
+      };
+
+      LightMarchResult lightMarch(vec3 pos_world, vec3 lightDir, float lightDistance) {
+        LightMarchResult result;
+        result.transmittance = 1.0;
+        result.multiScatter = 0.0;
+
+        float t0, t1;
         if (!intersectBox(pos_world, lightDir, boxMin, boxMax, t0, t1)) {
-          return 1.0;
+          return result;
         }
 
         float tStart = max(0.0, t0);
         float tEnd = min(t1, lightDistance);
         if (tEnd <= tStart) {
-          return 1.0;
+          return result;
         }
 
         int actualShadowSteps = min(shadowSteps, MAX_SHADOW_STEPS);
-        float dt = (tEnd - tStart) / float(actualShadowSteps);
+        
+        // Use exponentially increasing step sizes (cone sampling)
+        // This provides better quality near the sample point where shadows matter most
+        float totalDistance = tEnd - tStart;
+        float baseStep = totalDistance / float(actualShadowSteps) * 0.5;
 
-        // Jitter to reduce banding.
+        // Jitter to reduce banding with temporal variation
         float frame = floor(u_time * 60.0);
         float j = texture(noiseTexture, (gl_FragCoord.xy + vec2(frame, frame * 7.0) + pos_world.xy * 37.0) * noiseScale).r;
-        float t = tStart + (0.25 + 0.75 * j) * dt;
+        float t = tStart + j * baseStep * 0.5;
 
         float opticalDepth = 0.0;
+        float multiScatterAccum = 0.0;
+        float stepMultiplier = 1.0;
 
         for (int s = 0; s < MAX_SHADOW_STEPS; ++s) {
-          if (s >= actualShadowSteps || t >= tEnd || opticalDepth > 14.0) break;
+          if (s >= actualShadowSteps || t >= tEnd || opticalDepth > 12.0) break;
+
+          // Exponentially increasing step size (cone sampling)
+          float dt = baseStep * stepMultiplier;
+          stepMultiplier *= 1.15;
 
           vec3 p = pos_world + lightDir * t;
           vec2 d = sampleDensity(p);
-          float density = d.r;
+          float density = d.r * shadowDensityScale;
           float temperature = d.g;
 
           if (density > EMPTY_SPACE_THRESHOLD) {
             float sigmaA = absorptionFromDensity(density, temperature);
             float sigmaS = scatteringFromDensity(density, temperature);
             float extinction = sigmaA + sigmaS;
-            opticalDepth += extinction * dt;
+            
+            float segmentOpticalDepth = extinction * dt;
+            opticalDepth += segmentOpticalDepth;
+            
+            // Multi-scattering approximation: accumulate scattered light that gets
+            // re-scattered toward the viewer. This creates the soft, diffuse look.
+            float localTransmittance = exp(-opticalDepth);
+            multiScatterAccum += localTransmittance * density * dt * 0.5;
           }
 
           t += dt;
         }
 
-        return exp(-opticalDepth * shadowStrength);
+        result.transmittance = exp(-opticalDepth * shadowStrength);
+        result.multiScatter = multiScatterAccum;
+        return result;
       }
 
       vec3 getNebulaColor(float temperature) {
@@ -205,22 +292,38 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
         return mix(coolColor, warmColor, smoothstep(0.35, 1.0, temperature));
       }
 
+      // Light falloff from the central galactic core
+      // Implements inverse-square with artistic adjustments
       float coreLightFalloff(vec3 pos_world) {
         float r = length(pos_world.xy);
-        float falloff = 1.0 / (1.0 + 0.06 * r * r);
-        falloff *= exp(-abs(pos_world.z) * 0.35);
+        // Soft inverse-square falloff with minimum to prevent division issues
+        float falloff = 1.0 / (1.0 + 0.04 * r * r);
+        // Vertical attenuation for disc-like illumination
+        falloff *= exp(-abs(pos_world.z) * 0.3);
         return falloff;
       }
 
-      // Simple emissive term for hot gas near the core.
-      // This helps get the "Hollywood" core glow that still respects extinction.
+      // Core emission for hot gas - creates the central galactic glow
       vec3 coreEmission(vec3 pos_world, float density, float temperature) {
         float r = length(pos_world.xy);
-        float coreMask = exp(-r * 3.5);
-        float hot = smoothstep(0.55, 1.0, temperature);
+        float coreMask = exp(-r * 3.0);
+        float hot = smoothstep(0.5, 1.0, temperature);
         float amount = coreMask * hot * density;
         vec3 warm = vec3(1.0, 0.85, 0.65);
         return warm * amount;
+      }
+
+      // Ambient occlusion approximation using density gradient
+      float ambientOcclusion(vec3 pos, vec3 normal, float baseDensity) {
+        float ao = 1.0;
+        float scale = 0.3;
+        for (int i = 1; i <= 3; i++) {
+          float dist = float(i) * scale;
+          vec2 occSample = sampleDensity(pos + normal * dist);
+          float expectedDensity = baseDensity * exp(-dist * 0.5);
+          ao -= (expectedDensity - occSample.x) * (1.0 / float(i));
+        }
+        return clamp(ao, 0.2, 1.0);
       }
 
       void main() {
@@ -247,8 +350,7 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
         vec3 rayDir = normalize((invModelViewMatrix * vec4(viewPos.xyz, 0.0)).xyz);
         vec3 rayOrigin = cameraPos;
 
-        float tNear;
-        float tFar;
+        float tNear, tFar;
         if (!intersectBox(rayOrigin, rayDir, boxMin, boxMax, tNear, tFar)) {
           gl_FragColor = sceneColor;
           return;
@@ -261,11 +363,19 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
           return;
         }
 
+        // Light direction from galactic center
+        vec3 lightDir = normalize(lightPosition - rayOrigin);
+        float viewLightAngle = dot(rayDir, lightDir);
+
+        // Dual-lobe phase function for forward and back scattering
+        float phase = dualLobePhase(viewLightAngle, phaseG, phaseG2, phaseBlend);
+
         vec3 accumulatedColor = vec3(0.0);
         float transmittance = 1.0;
         float transmittanceToScene = 1.0;
         bool sceneTransmittanceLocked = (!hasSceneDepth) || (sceneDepthT <= tNear);
 
+        // Blue noise dithering with temporal variation
         float frame = floor(u_time * 60.0);
         float noiseVal = texture(noiseTexture, (gl_FragCoord.xy + vec2(frame, frame * 7.0)) * noiseScale).r;
         float stepSize = (tFar - tNear) / float(steps);
@@ -273,8 +383,11 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
 
         int actualSteps = min(steps, MAX_STEPS);
 
+        // Track cumulative optical depth for multi-scattering
+        float cumulativeOpticalDepth = 0.0;
+
         for (int i = 0; i < MAX_STEPS; ++i) {
-          if (i >= actualSteps || currentT >= tFar || transmittance < 0.01) break;
+          if (i >= actualSteps || currentT >= tFar || transmittance < 0.005) break;
 
           vec3 currentPos = rayOrigin + rayDir * currentT;
           vec2 densityData = sampleDensity(currentPos);
@@ -282,55 +395,84 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
           float temperature = densityData.g;
 
           if (density > EMPTY_SPACE_THRESHOLD) {
-            float adaptiveFactor = clamp(1.0 / (density * 1.8 + 1.0), 0.35, 1.0);
+            // Adaptive step size based on density for better quality in dense regions
+            float adaptiveFactor = clamp(1.0 / (density * 2.0 + 1.0), 0.3, 1.0);
             float dt = stepSize * adaptiveFactor;
 
+            // Calculate extinction coefficients
             float sigmaA = absorptionFromDensity(density, temperature);
             float sigmaS = scatteringFromDensity(density, temperature);
             float sigmaT = sigmaA + sigmaS;
-            float stepTransmittance = exp(-sigmaT * dt);
+            
+            // Beer-Powder for enhanced edge lighting
+            float segmentTransmittance = beersPowder(sigmaT, dt);
 
-            vec3 lightDir = normalize(lightPosition - currentPos);
-            // Phase function uses angle between incident light direction (light -> sample)
-            // and view direction (sample -> camera).
-            // With our conventions, that's equivalent to dot(rayDir, lightDir).
-            float cosTheta = dot(rayDir, lightDir);
-            float phase = henyeyGreenstein(cosTheta, phaseG);
-
+            // Local light direction and attenuation
+            vec3 localLightDir = normalize(lightPosition - currentPos);
             float lightDistance = length(lightPosition - currentPos);
             float lightAttenuation = coreLightFalloff(currentPos);
 
-            float shadow = shadowTransmittance(currentPos, lightDir, lightDistance);
+            // Advanced light marching with multi-scattering
+            LightMarchResult lightResult = lightMarch(currentPos, localLightDir, lightDistance);
+            float shadow = lightResult.transmittance;
+            float multiScatter = lightResult.multiScatter;
 
+            // Directional derivative for fast local diffuse
+            float derivative = directionalDerivative(currentPos, localLightDir, density);
+            float localDiffuse = clamp(0.5 + derivative * 0.4, 0.1, 1.0);
+
+            // Nebula color based on temperature
             vec3 nebulaColor = getNebulaColor(temperature);
 
-            // Let bright stars influence nearby scattering so the nebula feels lit by the field.
+            // Star field influence on nearby nebula
             vec3 starTint = pow(sceneColor.rgb, vec3(1.25));
             float starLuma = dot(sceneColor.rgb, vec3(0.2126, 0.7152, 0.0722));
             float starInfluence = smoothstep(0.04, 0.55, starLuma) * (1.0 - clamp(density * 0.2, 0.0, 0.85));
-            nebulaColor = mix(nebulaColor, starTint, starInfluence * 0.6);
+            nebulaColor = mix(nebulaColor, starTint, starInfluence * 0.5);
 
+            // Self-emission from hot gas
             float volumeEmissionStrength = emissionFromDensity(density, temperature);
-            vec3 volumeEmission = nebulaColor * volumeEmissionStrength * 0.12;
-            // Local emission (e.g. hot gas near the core), attenuated by the current transmittance.
-            // Keep it subtle; bloom will do the cinematic lift.
-            vec3 emission = coreEmission(currentPos, density, temperature) * 0.1;
+            vec3 volumeEmission = nebulaColor * volumeEmissionStrength * 0.1;
+            vec3 emission = coreEmission(currentPos, density, temperature) * 0.08;
+            
+            // Accumulate emission attenuated by current transmittance
             accumulatedColor += (emission + volumeEmission) * transmittance * dt;
 
-            // Energy-conserving single scattering: integrates scattering over the segment using
-            // (1 - exp(-sigmaT * dt)) instead of sigmaS * dt, so dense regions don't blow out.
-            float scatterAmount = (1.0 - stepTransmittance) * (sigmaS / max(sigmaT, 1e-6));
+            // ============================================================
+            // SINGLE SCATTERING (Primary lighting)
+            // Energy-conserving integration using (1 - exp(-sigmaT * dt))
+            // ============================================================
+            float scatterAmount = (1.0 - segmentTransmittance) * (sigmaS / max(sigmaT, 1e-6));
+            
+            vec3 singleScatter = lightIntensity * lightAttenuation * shadow * 
+                                 nebulaColor * phase * scatterAmount * localDiffuse * 2.5;
 
-            vec3 inScatteredLight = lightIntensity * lightAttenuation * shadow * nebulaColor *
-              phase * scatterAmount * 3.1;
+            // ============================================================
+            // MULTI-SCATTERING APPROXIMATION
+            // Simulates light that bounces multiple times within the volume
+            // Creates softer, more diffuse illumination in dense regions
+            // ============================================================
+            vec3 multiScatterContrib = lightIntensity * lightAttenuation * 
+                                       nebulaColor * multiScatter * multiScatterStrength;
 
-            accumulatedColor += inScatteredLight * transmittance;
-            transmittance *= stepTransmittance;
+            // ============================================================
+            // AMBIENT TERM
+            // Provides base illumination in heavily shadowed regions
+            // Prevents nebula from becoming completely black
+            // ============================================================
+            vec3 ambient = nebulaColor * ambientDensity * density * dt * 
+                          (1.0 - shadow * 0.7); // More ambient where shadows are deeper
+
+            // Combine all lighting contributions
+            accumulatedColor += (singleScatter + multiScatterContrib + ambient) * transmittance;
+
+            // Update transmittance
+            transmittance *= segmentTransmittance;
+            cumulativeOpticalDepth += sigmaT * dt;
 
             currentT += dt;
 
-            // Lock transmittance at the scene depth (e.g. star depth) so stars are only dimmed
-            // by volume *in front* of them, while still allowing volumetrics *behind* them.
+            // Lock transmittance at scene depth for proper star compositing
             if (!sceneTransmittanceLocked && currentT >= sceneDepthT) {
               transmittanceToScene = transmittance;
               sceneTransmittanceLocked = true;
@@ -344,6 +486,7 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
           transmittanceToScene = transmittance;
         }
 
+        // Final compositing: stars attenuated by volume + accumulated nebula light
         vec3 finalColor = sceneColor.rgb * transmittanceToScene + accumulatedColor;
         gl_FragColor = vec4(finalColor, 1.0);
       }
