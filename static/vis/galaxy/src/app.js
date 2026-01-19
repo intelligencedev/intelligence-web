@@ -95,6 +95,9 @@ function initDensityTexture() {
         smokePass = post.smokePass;
         bloomPass = post.bloomPass;
         updateSmokePass(smokePass);
+        if (smokePass?.uniforms?.timeScale) {
+          smokePass.uniforms.timeScale.value = galaxyParams.orbitalTimeScale;
+        }
       } else if (smokePass && smokePass.uniforms) {
         smokePass.uniforms.tDensity.value = densityTexture;
       }
@@ -254,6 +257,9 @@ window.handleParamChange = function handleParamChange(key, val) {
 
   if (starField && key === "orbitalTimeScale") {
     starField.material.uniforms.timeScale.value = val;
+  }
+  if (smokePass && key === "orbitalTimeScale" && smokePass.uniforms.timeScale) {
+    smokePass.uniforms.timeScale.value = val;
   }
   if (starField && key === "coreRadius") {
     starField.material.uniforms.coreRadiusUniform.value = val;

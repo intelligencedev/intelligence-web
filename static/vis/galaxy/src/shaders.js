@@ -28,6 +28,7 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       invModelViewMatrix: { value: new THREE.Matrix4() },
       screenResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
       u_time: { value: 0.0 },
+      timeScale: { value: typeof galaxyParams?.orbitalTimeScale === 'number' ? galaxyParams.orbitalTimeScale : 1.0 },
       absorptionCoefficient: { value: typeof galaxyParams?.absorptionCoefficient === 'number' ? galaxyParams.absorptionCoefficient : 0.5 },
       scatteringCoefficient: { value: typeof galaxyParams?.scatteringCoefficient === 'number' ? galaxyParams.scatteringCoefficient : 6.0 },
       phaseG: { value: 0.35 },
@@ -72,6 +73,7 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       uniform mat4 invModelViewMatrix;
       uniform vec2 screenResolution;
       uniform float u_time;
+      uniform float timeScale;
       uniform float absorptionCoefficient;
       uniform float scatteringCoefficient;
       uniform float phaseG;
@@ -101,6 +103,12 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       #define MAX_STEPS 128
       #define MAX_SHADOW_STEPS 64
       #define EMPTY_SPACE_THRESHOLD 0.001
+
+      vec3 rotateXY(vec3 p, float angle) {
+        float s = sin(angle);
+        float c = cos(angle);
+        return vec3(c * p.x - s * p.y, s * p.x + c * p.y, p.z);
+      }
 
       // ============================================================
       // ADVANCED VOLUMETRIC LIGHTING - Based on:
@@ -152,7 +160,26 @@ export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) 
       }
 
       vec2 sampleDensity(vec3 pos_world) {
-        vec3 texCoord = (pos_world - boxMin) / (boxMax - boxMin);
+        // Rotate texture lookup to make nebula orbit with the same differential
+        // Keplerian motion as the instanced stars.
+        // Star shader uses: omega(r) = sqrt(GM / r^3) and theta = theta0 - omega * t * timeScale.
+        // Match that here by rotating the density field by -omega(r) * t * timeScale.
+        const float GM = 4.3e-6;
+        float r = max(length(pos_world.xy), 0.01);
+        float omega = sqrt(GM / (r * r * r));
+        float orbitAngle = omega * u_time * timeScale;
+        float s = sin(orbitAngle);
+        float c = cos(orbitAngle);
+        vec3 rotatedPos = vec3(
+          c * pos_world.x - s * pos_world.y,
+          s * pos_world.x + c * pos_world.y,
+          pos_world.z
+        );
+        
+        // Map rotated position to texture coordinates
+        vec3 boxSize = boxMax - boxMin;
+        vec3 boxCenter = (boxMax + boxMin) * 0.5;
+        vec3 texCoord = (rotatedPos - boxCenter) / boxSize + 0.5;
 
         if (any(lessThan(texCoord, vec3(0.0))) || any(greaterThan(texCoord, vec3(1.0)))) {
           return vec2(0.0);
