@@ -20,22 +20,22 @@ export const controlParams = {
 };
 
 export const galaxyParams = {
-  numStars: 51700,
+  numStars: 55000,
   starSize: 0.002,
   backgroundStarCount: 150000,
   backgroundStarInnerRadius: 5.0,
   backgroundStarOuterRadius: 10.0,
-  backgroundStarSize: 0.012,
+  backgroundStarSize: 0.023,
   galacticRadius: 2.07,
-  spiralArms: 2,
+  spiralArms: 5,
   coreRadius: 2.0,
-  orbitalTimeScale: 2.7, // Time scaling factor for orbital motion
+  orbitalTimeScale: 1.7, // Time scaling factor for orbital motion
   // Galaxy structure parameters
   discScaleLength: 0.31, // h_r ≈ 0.43 R_gal
   bulgeRadius: 0.05, // R < 0.05 R_gal
   verticalScaleHeight: 0.02, // h_z ≈ 0.04 R_gal
   spiralPitchAngle: 20, // degrees
-  clusterInfluence: 0.0, // 11% of stars snap to clusters
+  clusterInfluence: 0.08, // 11% of stars snap to clusters
   // New spiral arm parameters
   baseRadius: 0.1, // For spiral calculations (stars and nebula)
   armWidth: 0.73, // Width of nebula arms
@@ -51,5 +51,20 @@ export const galaxyParams = {
   nebulaWarmColor: '#ffdbb3',
   rayMarchSteps: 32,
   sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
-  centralLightIntensity: 0.71
+  centralLightIntensity: 1.2,
+
+  // Black hole lensing (post-process)
+  // Units are screen-relative (radii in normalized screen space where 1.0 ~= screen height).
+  blackHoleEnabled: 1,
+  blackHoleMass: 0.0,
+  blackHoleLensStrength: 0.0,
+  blackHoleHorizonRadius: 0.005,
+  blackHolePhotonRingRadius: 0.01,
+  blackHolePhotonRingWidth: 0.008,
+  blackHolePhotonRingIntensity: 0.15,
+  blackHoleAccretionIntensity: 0.05,
+  blackHoleAccretionRadius: 0.03,
+  blackHoleAccretionWidth: 0.031,
+  blackHoleDiskInclination: 0.24,
+  blackHoleDopplerStrength: 0.72
 };

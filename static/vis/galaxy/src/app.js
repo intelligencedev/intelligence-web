@@ -11,7 +11,7 @@ import {
 import { createBackgroundStarField, createStarField } from "./particles.js";
 import { generateClusterCenters } from "./structures.js";
 import { setupDensityTexture, DENSITY_TEXTURE_SIZE } from "./density.js";
-import { createVolumetricSmokeShader } from "./shaders.js";
+import { createBlackHoleLensingShader, createVolumetricSmokeShader } from "./shaders.js";
 
 window.__GALAXY_APP_LOADED__ = true;
 
@@ -48,6 +48,8 @@ const volumetricSmokeShader = createVolumetricSmokeShader({
   blueNoiseTexture,
 });
 
+const blackHoleShader = createBlackHoleLensingShader({ galaxyParams });
+
 let sharedGalaxyClusters = generateClusterCenters(
   20,
   galaxyParams.galacticRadius * 0.8,
@@ -70,6 +72,7 @@ let backgroundStarField = createBackgroundStarField({
 
 let composer = null;
 let smokePass = null;
+let blackHolePass = null;
 let bloomPass = null;
 let densityTexture = null;
 let densityWorker = null;
@@ -88,11 +91,13 @@ function initDensityTexture() {
           densityTexture,
           DENSITY_TEXTURE_SIZE,
           volumetricSmokeShader,
+          blackHoleShader,
           blueNoiseTexture,
           galaxyParams,
         });
         composer = post.composer;
         smokePass = post.smokePass;
+        blackHolePass = post.blackHolePass;
         bloomPass = post.bloomPass;
         updateSmokePass(smokePass);
         if (smokePass?.uniforms?.timeScale) {
@@ -144,6 +149,30 @@ function animate() {
     if (smokePass.uniforms.tDepth && composer?.readBuffer?.depthTexture) {
       smokePass.uniforms.tDepth.value = composer.readBuffer.depthTexture;
     }
+  }
+
+  if (blackHolePass && blackHolePass.uniforms) {
+    // Project the galactic center (world origin) into screen UV.
+    const center = new THREE.Vector3(0, 0, 0).project(camera);
+    const centerUvX = center.x * 0.5 + 0.5;
+    const centerUvY = center.y * 0.5 + 0.5;
+    if (blackHolePass.uniforms.uCenterUv) {
+      blackHolePass.uniforms.uCenterUv.value.set(centerUvX, centerUvY);
+    }
+    if (blackHolePass.uniforms.uEnabled) {
+      blackHolePass.uniforms.uEnabled.value = galaxyParams.blackHoleEnabled;
+    }
+    if (blackHolePass.uniforms.uMass) blackHolePass.uniforms.uMass.value = galaxyParams.blackHoleMass;
+    if (blackHolePass.uniforms.uLensStrength) blackHolePass.uniforms.uLensStrength.value = galaxyParams.blackHoleLensStrength;
+    if (blackHolePass.uniforms.uHorizonRadius) blackHolePass.uniforms.uHorizonRadius.value = galaxyParams.blackHoleHorizonRadius;
+    if (blackHolePass.uniforms.uPhotonRingRadius) blackHolePass.uniforms.uPhotonRingRadius.value = galaxyParams.blackHolePhotonRingRadius;
+    if (blackHolePass.uniforms.uPhotonRingWidth) blackHolePass.uniforms.uPhotonRingWidth.value = galaxyParams.blackHolePhotonRingWidth;
+    if (blackHolePass.uniforms.uPhotonRingIntensity) blackHolePass.uniforms.uPhotonRingIntensity.value = galaxyParams.blackHolePhotonRingIntensity;
+    if (blackHolePass.uniforms.uAccretionIntensity) blackHolePass.uniforms.uAccretionIntensity.value = galaxyParams.blackHoleAccretionIntensity;
+    if (blackHolePass.uniforms.uAccretionRadius) blackHolePass.uniforms.uAccretionRadius.value = galaxyParams.blackHoleAccretionRadius;
+    if (blackHolePass.uniforms.uAccretionWidth) blackHolePass.uniforms.uAccretionWidth.value = galaxyParams.blackHoleAccretionWidth;
+    if (blackHolePass.uniforms.uDiskInclination) blackHolePass.uniforms.uDiskInclination.value = galaxyParams.blackHoleDiskInclination;
+    if (blackHolePass.uniforms.uDopplerStrength) blackHolePass.uniforms.uDopplerStrength.value = galaxyParams.blackHoleDopplerStrength;
   }
 
   const cameraInfo = document.getElementById("camera-info");
@@ -301,6 +330,7 @@ window.addEventListener(
       renderer,
       composer,
       smokePass,
+      blackHolePass,
       bloomPass,
       blueNoiseTexture,
     });

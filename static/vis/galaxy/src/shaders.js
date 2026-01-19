@@ -1,5 +1,115 @@
 import * as THREE from 'three';
 
+export function createBlackHoleLensingShader({ galaxyParams }) {
+  return {
+    uniforms: {
+      tDiffuse: { value: null },
+      uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      // Black hole center in UV space (0..1). Updated every frame from camera projection.
+      uCenterUv: { value: new THREE.Vector2(0.5, 0.5) },
+      uEnabled: { value: typeof galaxyParams?.blackHoleEnabled === 'number' ? galaxyParams.blackHoleEnabled : 1.0 },
+      uMass: { value: typeof galaxyParams?.blackHoleMass === 'number' ? galaxyParams.blackHoleMass : 1.0 },
+      uLensStrength: { value: typeof galaxyParams?.blackHoleLensStrength === 'number' ? galaxyParams.blackHoleLensStrength : 1.0 },
+      uHorizonRadius: { value: typeof galaxyParams?.blackHoleHorizonRadius === 'number' ? galaxyParams.blackHoleHorizonRadius : 0.055 },
+      uPhotonRingRadius: { value: typeof galaxyParams?.blackHolePhotonRingRadius === 'number' ? galaxyParams.blackHolePhotonRingRadius : 0.09 },
+      uPhotonRingWidth: { value: typeof galaxyParams?.blackHolePhotonRingWidth === 'number' ? galaxyParams.blackHolePhotonRingWidth : 0.012 },
+      uPhotonRingIntensity: { value: typeof galaxyParams?.blackHolePhotonRingIntensity === 'number' ? galaxyParams.blackHolePhotonRingIntensity : 1.8 },
+      uAccretionIntensity: { value: typeof galaxyParams?.blackHoleAccretionIntensity === 'number' ? galaxyParams.blackHoleAccretionIntensity : 0.7 },
+      uAccretionRadius: { value: typeof galaxyParams?.blackHoleAccretionRadius === 'number' ? galaxyParams.blackHoleAccretionRadius : 0.14 },
+      uAccretionWidth: { value: typeof galaxyParams?.blackHoleAccretionWidth === 'number' ? galaxyParams.blackHoleAccretionWidth : 0.03 },
+      uDiskInclination: { value: typeof galaxyParams?.blackHoleDiskInclination === 'number' ? galaxyParams.blackHoleDiskInclination : 0.45 },
+      uDopplerStrength: { value: typeof galaxyParams?.blackHoleDopplerStrength === 'number' ? galaxyParams.blackHoleDopplerStrength : 0.6 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D tDiffuse;
+      uniform vec2 uResolution;
+      uniform vec2 uCenterUv;
+      uniform float uEnabled;
+      uniform float uMass;
+      uniform float uLensStrength;
+      uniform float uHorizonRadius;
+      uniform float uPhotonRingRadius;
+      uniform float uPhotonRingWidth;
+      uniform float uPhotonRingIntensity;
+      uniform float uAccretionIntensity;
+      uniform float uAccretionRadius;
+      uniform float uAccretionWidth;
+      uniform float uDiskInclination;
+      uniform float uDopplerStrength;
+
+      varying vec2 vUv;
+
+      float gaussian(float x, float sigma) {
+        float s = max(sigma, 1e-6);
+        float a = x / s;
+        return exp(-a * a);
+      }
+
+      void main() {
+        if (uEnabled < 0.5) {
+          gl_FragColor = texture2D(tDiffuse, vUv);
+          return;
+        }
+
+        float aspect = uResolution.x / max(uResolution.y, 1.0);
+        vec2 p = vUv - uCenterUv;
+        vec2 pAspect = vec2(p.x * aspect, p.y);
+        float r = length(pAspect);
+
+        // Event horizon (shadow)
+        if (r < uHorizonRadius) {
+          gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+          return;
+        }
+
+        // Weak-field gravitational lensing approximation:
+        // deflection ~ 4GM / b. We treat b as r in screen space and roll constants into uLensStrength.
+        float b = max(r, uHorizonRadius * 0.35);
+        float alpha = uLensStrength * (4.0 * uMass) / b;
+        alpha = clamp(alpha, 0.0, 0.25);
+
+        vec2 dirAspect = pAspect / b;
+        vec2 dirUv = vec2(dirAspect.x / aspect, dirAspect.y);
+
+        // Sample from a shifted UV to emulate bending.
+        vec2 warpedUv = vUv + dirUv * alpha;
+        warpedUv = clamp(warpedUv, vec2(0.0), vec2(1.0));
+
+        vec3 col = texture2D(tDiffuse, warpedUv).rgb;
+
+        // Photon ring (emissive)
+        float ring = gaussian(r - uPhotonRingRadius, uPhotonRingWidth) * uPhotonRingIntensity;
+        vec3 ringCol = vec3(1.0, 0.88, 0.72) * ring;
+
+        // Accretion disk: tilted ring + simple doppler beaming
+        float tilt = mix(1.0, 0.25, clamp(uDiskInclination, 0.0, 1.0));
+        vec2 diskP = vec2(pAspect.x, pAspect.y / tilt);
+        float diskR = length(diskP);
+        float disk = gaussian(diskR - uAccretionRadius, uAccretionWidth) * uAccretionIntensity;
+        float beaming = 1.0 + uDopplerStrength * (diskP.x / max(uAccretionRadius, 1e-3));
+        beaming = clamp(beaming, 0.25, 1.75);
+        vec3 diskCol = vec3(1.0, 0.55, 0.2) * disk * beaming;
+
+        // Slight darkening near the shadow edge for contrast
+        float edge = smoothstep(uHorizonRadius, uHorizonRadius + 0.04, r);
+        col *= mix(0.75, 1.0, edge);
+
+        col += ringCol + diskCol;
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  };
+}
+
 export function createVolumetricSmokeShader({ galaxyParams, blueNoiseTexture }) {
   const lightColor = new THREE.Color(1.0, 0.9, 0.8);
   const initialLightIntensity = lightColor.clone().multiplyScalar(
