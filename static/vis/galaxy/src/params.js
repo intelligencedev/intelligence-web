@@ -22,6 +22,10 @@ export const controlParams = {
 export const galaxyParams = {
   numStars: 51700,
   starSize: 0.002,
+  backgroundStarCount: 150000,
+  backgroundStarInnerRadius: 5.0,
+  backgroundStarOuterRadius: 10.0,
+  backgroundStarSize: 0.012,
   galacticRadius: 2.07,
   spiralArms: 2,
   coreRadius: 2.0,

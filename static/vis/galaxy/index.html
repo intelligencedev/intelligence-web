@@ -300,6 +300,65 @@
         </div>
       </div>
       <div class="parameter-section">
+        <div class="section-title">Background Starfield</div>
+        <div class="parameter-row">
+          <label for="backgroundStarCount">Star Count</label>
+          <input
+            type="range"
+            id="backgroundStarCount"
+            min="1000"
+            max="150000"
+            value="150000"
+            step="1000"
+          />
+          <span class="parameter-value" id="backgroundStarCount-value"
+            >150000</span
+          >
+        </div>
+        <div class="parameter-row">
+          <label for="backgroundStarInnerRadius">Inner Radius</label>
+          <input
+            type="range"
+            id="backgroundStarInnerRadius"
+            min="5"
+            max="200"
+            value="5"
+            step="1"
+          />
+          <span class="parameter-value" id="backgroundStarInnerRadius-value"
+            >5</span
+          >
+        </div>
+        <div class="parameter-row">
+          <label for="backgroundStarOuterRadius">Outer Radius</label>
+          <input
+            type="range"
+            id="backgroundStarOuterRadius"
+            min="10"
+            max="400"
+            value="10"
+            step="2"
+          />
+          <span class="parameter-value" id="backgroundStarOuterRadius-value"
+            >10</span
+          >
+        </div>
+        <div class="parameter-row">
+          <label for="backgroundStarSize">Star Size</label>
+          <input
+            type="range"
+            id="backgroundStarSize"
+            min="0.001"
+            max="0.05"
+            value="0.012"
+            step="0.001"
+          />
+          <span class="parameter-value" id="backgroundStarSize-value"
+            >0.012</span
+          >
+        </div>
+      </div>
+      <div class="parameter-section">
         <div class="section-title">Nebula Parameters</div>
         <div class="parameter-row">
           <label for="baseRadius">Nebula Base Radius</label>
@@ -455,6 +514,19 @@
         },
         { id: "spiralPitchAngle", key: "spiralPitchAngle", type: "float" },
         { id: "clusterInfluence", key: "clusterInfluence", type: "float" },
+        // Background Starfield
+        { id: "backgroundStarCount", key: "backgroundStarCount", type: "int" },
+        {
+          id: "backgroundStarInnerRadius",
+          key: "backgroundStarInnerRadius",
+          type: "float",
+        },
+        {
+          id: "backgroundStarOuterRadius",
+          key: "backgroundStarOuterRadius",
+          type: "float",
+        },
+        { id: "backgroundStarSize", key: "backgroundStarSize", type: "float" },
         // New Nebula Params
         { id: "baseRadius", key: "baseRadius", type: "float" },
         { id: "armWidth", key: "armWidth", type: "float" },

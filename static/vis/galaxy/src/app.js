@@ -8,7 +8,7 @@ import {
   createPostProcessing,
   handleResize,
 } from "./rendering.js";
-import { createStarField } from "./particles.js";
+import { createBackgroundStarField, createStarField } from "./particles.js";
 import { generateClusterCenters } from "./structures.js";
 import { setupDensityTexture, DENSITY_TEXTURE_SIZE } from "./density.js";
 import { createVolumetricSmokeShader } from "./shaders.js";
@@ -61,6 +61,11 @@ let starField = createStarField({
   galaxyParams,
   galaxyGroup,
   sharedGalaxyClusters,
+});
+
+let backgroundStarField = createBackgroundStarField({
+  galaxyParams,
+  scene,
 });
 
 let composer = null;
@@ -116,6 +121,11 @@ function animate() {
 
   if (starField) {
     starField.material.uniforms.uTime.value = globalTime;
+  }
+
+  if (backgroundStarField) {
+    backgroundStarField.material.uniforms.uTime.value = globalTime;
+    backgroundStarField.position.copy(camera.position);
   }
 
   if (smokePass) {
@@ -175,8 +185,16 @@ window.handleParamChange = function handleParamChange(key, val) {
     "baseRadius",
   ];
 
+  const backgroundRegenKeys = [
+    "backgroundStarCount",
+    "backgroundStarInnerRadius",
+    "backgroundStarOuterRadius",
+    "backgroundStarSize",
+  ];
+
   const needsDensityRegen = densityRegenKeys.includes(key);
   const needsStarRegen = starRegenKeys.includes(key);
+  const needsBackgroundRegen = backgroundRegenKeys.includes(key);
 
   if (needsDensityRegen || needsStarRegen) {
     if (
@@ -218,6 +236,19 @@ window.handleParamChange = function handleParamChange(key, val) {
       galaxyParams,
       galaxyGroup,
       sharedGalaxyClusters,
+    });
+  }
+
+  if (needsBackgroundRegen) {
+    if (backgroundStarField) {
+      scene.remove(backgroundStarField);
+      backgroundStarField.geometry.dispose();
+      backgroundStarField.material.dispose();
+      backgroundStarField = null;
+    }
+    backgroundStarField = createBackgroundStarField({
+      galaxyParams,
+      scene,
     });
   }
 
