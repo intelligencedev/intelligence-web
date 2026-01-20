@@ -15,6 +15,30 @@ import { createBlackHoleLensingShader, createVolumetricSmokeShader } from "./sha
 
 window.__GALAXY_APP_LOADED__ = true;
 
+// Loading state - hide scene until fully rendered
+let isSceneReady = false;
+let warmupFrames = 0;
+const WARMUP_FRAMES_NEEDED = 10; // Render this many frames before revealing
+
+function revealScene() {
+  if (isSceneReady) return;
+  isSceneReady = true;
+  
+  const canvas = renderer.domElement;
+  const overlay = document.getElementById('loading-overlay');
+  
+  // Fade in the canvas
+  canvas.classList.add('ready');
+  
+  // Fade out and remove the overlay
+  if (overlay) {
+    overlay.classList.add('fade-out');
+    setTimeout(() => {
+      overlay.remove();
+    }, 1600);
+  }
+}
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 const camera = createCamera();
@@ -335,6 +359,14 @@ function animate() {
     composer.render();
   } else {
     renderer.render(scene, camera);
+  }
+  
+  // Count warmup frames and reveal scene when ready
+  if (!isSceneReady && starField && composer) {
+    warmupFrames++;
+    if (warmupFrames >= WARMUP_FRAMES_NEEDED) {
+      revealScene();
+    }
   }
 }
 
