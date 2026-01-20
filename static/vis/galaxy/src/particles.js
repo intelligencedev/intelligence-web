@@ -1,43 +1,6 @@
 import * as THREE from 'three';
 import { starTypes } from './params.js';
-import {
-  generateAccurateGalaxyStars,
-  generateClusterCenters,
-  selectStellarType
-} from './structures.js';
-
-export function createCircularGradientTexture() {
-  const canvas = document.createElement('canvas');
-  const size = 128;
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext('2d');
-  const centerX = size / 2;
-  const centerY = size / 2;
-  const radius = size / 2;
-
-  const gradient = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-  gradient.addColorStop(0, 'rgba(255,255,255,1)');
-  gradient.addColorStop(0.1, 'rgba(255,255,220,0.8)');
-  gradient.addColorStop(0.3, 'rgba(255,220,200,0.4)');
-  gradient.addColorStop(1, 'rgba(255,255,255,0)');
-
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, size, size);
-
-  context.strokeStyle = 'rgba(255,255,255,0.2)';
-  context.lineWidth = radius * 0.02;
-  context.beginPath();
-  context.moveTo(0, centerY);
-  context.lineTo(size, centerY);
-  context.moveTo(centerX, 0);
-  context.lineTo(centerX, size);
-  context.stroke();
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
+import { generateAccurateGalaxyStars } from './structures.js';
 
 export function generateStarColorWithLuminosity(colorRange) {
   const r = THREE.MathUtils.lerp(colorRange.min[0], colorRange.max[0], Math.random());
@@ -51,6 +14,9 @@ const starVertexShader = `
   attribute vec3 initPos;
   attribute vec3 instanceColor;
   attribute float instanceSize;
+  attribute float instanceRotation;
+  attribute float instanceTwinkle;
+  attribute float instanceBrightness;
 
   uniform float uTime;
   uniform float timeScale;
@@ -58,6 +24,9 @@ const starVertexShader = `
 
   varying vec3 vColor;
   varying vec2 vUv;
+  varying float vRotation;
+  varying float vTwinkle;
+  varying float vBrightness;
 
   #define PI 3.14159265359
 
@@ -69,6 +38,9 @@ const starVertexShader = `
   void main() {
     vColor = instanceColor;
     vUv = uv;
+    vRotation = instanceRotation;
+    vTwinkle = instanceTwinkle;
+    vBrightness = instanceBrightness;
 
     float r = initPos.x;
     float theta0 = initPos.y;
@@ -86,21 +58,174 @@ const starVertexShader = `
 `;
 
 const starFragmentShader = `
-  uniform sampler2D starTexture;
+  uniform float uTime;
   varying vec3 vColor;
   varying vec2 vUv;
+  varying float vRotation;
+  varying float vTwinkle;
+  varying float vBrightness;
+
+  #define PI 3.14159265359
+
+  vec2 rotate(vec2 p, float angle) {
+    float s = sin(angle);
+    float c = cos(angle);
+    return vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+  }
+
+  // Cheap(ish) Airy-ish point spread function.
+  // Stars are unresolved points; what we "see" is the lens/sensor response.
+  float airyPSF(float r) {
+    // Scale controls ring spacing.
+    float x = r * 12.0;
+    float sinc = 1.0;
+    if (x > 1e-3) {
+      sinc = sin(x) / x;
+    }
+    float airy = sinc * sinc;
+    // Dampen far rings so we don't get noisy aliasing.
+    airy *= exp(-r * 2.4);
+    return airy;
+  }
+
+  // Diffraction spikes for bright stars (aperture / optics artifacts).
+  float diffractionSpikes(vec2 uv, float brightness) {
+    float r = length(uv);
+    // 6-blade aperture look, rotated per-instance.
+    float ang = atan(uv.y, uv.x);
+    float blades = 6.0;
+    float blade = pow(max(0.0, cos(ang * blades * 0.5)), 24.0);
+    // Stretch outward.
+    float radial = 1.0 / (r * 10.0 + 0.25);
+    float gate = smoothstep(0.35, 0.95, brightness);
+    return blade * radial * gate;
+  }
 
   void main() {
-    vec4 texColor = texture2D(starTexture, vUv);
-    if (texColor.a < 0.05) discard;
+    vec2 uv = vUv * 2.0 - 1.0;
+    vec2 rotatedUv = rotate(uv, vRotation);
 
-    // Slightly boost highlights so stars punch through the volumetrics.
-    vec3 color = vColor;
-    color = pow(color, vec3(0.85));
+    float brightness = clamp(vBrightness, 0.0, 1.0);
 
-    gl_FragColor = texColor * vec4(color * 1.35, 1.0);
+    float r = length(uv);
+
+    // Tight gaussian core (keeps faint stars from looking like orbs).
+    float coreSharpness = mix(120.0, 45.0, brightness);
+    float core = exp(-r * r * coreSharpness);
+
+    // Airy rings are mostly visible on brighter stars.
+    float rings = airyPSF(r * mix(1.35, 1.0, brightness)) * (0.25 + 0.45 * brightness);
+
+    // Diffraction spikes: only show up strongly on bright stars.
+    float spikes = diffractionSpikes(rotatedUv, brightness) * (0.08 + 0.35 * brightness);
+
+    // Atmospheric scintillation / sensor flicker (subtle).
+    float twinkle = 0.9 + 0.1 * sin(uTime * (1.35 + brightness * 2.2) + vTwinkle);
+    twinkle *= 0.96 + 0.04 * sin(uTime * 2.7 + vTwinkle * 3.1);
+
+    // Per-star flux scaling (lets bloom pick up only the brightest ones).
+    float flux = mix(0.35, 2.6, pow(brightness, 1.2));
+
+    float intensity = (core + rings + spikes) * twinkle * flux;
+
+    if (intensity < 0.015) discard;
+
+    // Bright stars saturate toward white in the core (sensor clipping).
+    vec3 color = pow(vColor, vec3(0.9));
+    float coreMask = exp(-r * r * 35.0);
+    float whiteMix = smoothstep(0.55, 1.0, brightness) * coreMask;
+    color = mix(color, vec3(1.0), whiteMix);
+
+    // Additive blending in Three.js uses SRC_ALPHA, so keep alpha at 1.0 to avoid
+    // unintentionally squaring intensity (which makes stars look like big orbs).
+    gl_FragColor = vec4(color * intensity, 1.0);
   }
 `;
+
+const backgroundStarVertexShader = `
+  attribute vec3 instancePosition;
+  attribute vec3 instanceColor;
+  attribute float instanceSize;
+  attribute float instanceTwinkle;
+  attribute float instanceBrightness;
+
+  uniform float uTime;
+
+  varying vec3 vColor;
+  varying vec2 vUv;
+  varying float vTwinkle;
+  varying float vBrightness;
+  varying float vVisible;
+
+  void main() {
+    vColor = instanceColor;
+    vUv = uv;
+    vTwinkle = instanceTwinkle;
+    vBrightness = instanceBrightness;
+
+    vec4 mvPosition = modelViewMatrix * vec4(instancePosition, 1.0);
+
+    // Camera culling: only render stars that are in front of the camera.
+    if (mvPosition.z > 0.0) {
+      vVisible = 0.0;
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+    vVisible = 1.0;
+
+    mvPosition.xy += position.xy * instanceSize;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const backgroundStarFragmentShader = `
+  uniform float uTime;
+
+  varying vec3 vColor;
+  varying vec2 vUv;
+  varying float vTwinkle;
+  varying float vBrightness;
+  varying float vVisible;
+
+  void main() {
+    if (vVisible < 0.5) discard;
+
+    vec2 uv = vUv * 2.0 - 1.0;
+    float r = length(uv);
+
+    // Small, soft points for distant stars.
+    float core = exp(-r * r * 90.0);
+    float twinkle = 0.95 + 0.05 * sin(uTime * 0.6 + vTwinkle);
+    float intensity = core * mix(0.35, 1.1, vBrightness) * twinkle;
+
+    if (intensity < 0.02) discard;
+
+    gl_FragColor = vec4(vColor * intensity, 1.0);
+  }
+`;
+
+function generateBackgroundStarColor() {
+  const roll = Math.random();
+  if (roll < 0.7) {
+    return new THREE.Color(
+      THREE.MathUtils.lerp(0.86, 1.0, Math.random()),
+      THREE.MathUtils.lerp(0.88, 1.0, Math.random()),
+      THREE.MathUtils.lerp(0.9, 1.0, Math.random()),
+    );
+  }
+  if (roll < 0.88) {
+    return new THREE.Color(
+      THREE.MathUtils.lerp(0.65, 0.85, Math.random()),
+      THREE.MathUtils.lerp(0.75, 0.95, Math.random()),
+      THREE.MathUtils.lerp(0.9, 1.0, Math.random()),
+    );
+  }
+  return new THREE.Color(
+    THREE.MathUtils.lerp(0.95, 1.0, Math.random()),
+    THREE.MathUtils.lerp(0.82, 0.95, Math.random()),
+    THREE.MathUtils.lerp(0.65, 0.85, Math.random()),
+  );
+}
 
 export function createStarField({
   galaxyParams,
@@ -115,7 +240,6 @@ export function createStarField({
       GM: { value: 4.3e-6 },
       uTime: { value: 0.0 },
       timeScale: { value: galaxyParams.orbitalTimeScale },
-      starTexture: { value: createCircularGradientTexture() },
       coreRadiusUniform: { value: galaxyParams.coreRadius }
     },
     vertexShader: starVertexShader,
@@ -134,6 +258,9 @@ export function createStarField({
   const initPositions = new Float32Array(numStars * 3);
   const instanceColors = new Float32Array(numStars * 3);
   const instanceSizes = new Float32Array(numStars * 1);
+  const instanceRotations = new Float32Array(numStars * 1);
+  const instanceTwinkles = new Float32Array(numStars * 1);
+  const instanceBrightness = new Float32Array(numStars * 1);
   const tempColor = new THREE.Color();
 
   for (let i = 0; i < numStars; i++) {
@@ -157,177 +284,95 @@ export function createStarField({
     else if (starType.type === 'O-type' || starType.type === 'B-type') sizeFactor *= 1.3;
 
     sizeFactor = Math.max(0.15, Math.min(sizeFactor, 3.0));
-    instanceSizes[i] = galaxyParams.starSize * sizeFactor * 15;
+    instanceSizes[i] = galaxyParams.starSize * sizeFactor * 10.0;
+    instanceRotations[i] = Math.random() * Math.PI * 2.0;
+    instanceTwinkles[i] = Math.random() * Math.PI * 2.0;
+
+    // Map physical-ish luminosity into a 0..1 brightness control for the PSF.
+    // Keeps most stars small/point-like and reserves bloom/spikes for a minority.
+    const brightnessNorm = THREE.MathUtils.clamp((luminosity - 0.1) / (5.0 - 0.1), 0, 1);
+    instanceBrightness[i] = Math.pow(brightnessNorm, 0.55);
   }
 
   starField.geometry.setAttribute('initPos', new THREE.InstancedBufferAttribute(initPositions, 3));
   starField.geometry.setAttribute('instanceColor', new THREE.InstancedBufferAttribute(instanceColors, 3));
   starField.geometry.setAttribute('instanceSize', new THREE.InstancedBufferAttribute(instanceSizes, 1));
+  starField.geometry.setAttribute('instanceRotation', new THREE.InstancedBufferAttribute(instanceRotations, 1));
+  starField.geometry.setAttribute('instanceTwinkle', new THREE.InstancedBufferAttribute(instanceTwinkles, 1));
+  starField.geometry.setAttribute('instanceBrightness', new THREE.InstancedBufferAttribute(instanceBrightness, 1));
 
   galaxyGroup.add(starField);
   return starField;
 }
 
-const smokeVertexShader = `
-  attribute float aParticleSize;
-  attribute float angle;
-  attribute float radius;
-  attribute float aParticleOpacity;
-
-  varying float vParticleOpacity;
-  varying vec3 vWorldPosition;
-
-  uniform float uTime;
-  uniform float uSize;
-
-  void main() {
-    vParticleOpacity = aParticleOpacity;
-
-    vec4 modelPosition = modelMatrix * vec4(position, 1.0);
-    vWorldPosition = modelPosition.xyz;
-
-    vec4 viewPosition = viewMatrix * modelPosition;
-
-    gl_Position = projectionMatrix * viewPosition;
-    gl_PointSize = uSize * aParticleSize;
-  }
-`;
-
-const smokeFragmentShader = `
-  uniform vec3 uSmokeColor;
-  uniform float uTime;
-  uniform float uNoiseIntensity;
-  uniform vec3 uCentralLightPosition;
-  uniform float uCentralLightIntensity;
-  uniform vec3 uCameraPosition;
-  uniform sampler2D uParticleTexture;
-  uniform float uDensityFactor;
-  uniform int uMarchSteps;
-  uniform float uDiffuseStrength;
-  uniform sampler2D uBlueNoiseTexture;
-
-  varying vec3 vWorldPosition;
-  varying float vParticleOpacity;
-
-  void main() {
-    vec2 pointCoord = gl_PointCoord;
-    float dist = length(pointCoord - vec2(0.5));
-
-    if (dist > 0.5) {
-      discard;
-    }
-
-    vec3 particleColor = uSmokeColor * (1.5 - dist);
-    float alpha = (1.0 - dist * 2.0) * vParticleOpacity;
-
-    gl_FragColor = vec4(particleColor, alpha);
-  }
-`;
-
-export function createSmokeField({
+export function createBackgroundStarField({
   galaxyParams,
-  galaxyGroup,
-  camera,
-  blueNoiseTexture,
-  globalTime
+  scene
 }) {
-  // NOTE:
-  // These are legacy "smoke" sprites and tend to read as fake once the 3D density
-  // volumetrics are enabled. Default them off unless explicitly requested.
-  if (!galaxyParams.numSmokeParticles || galaxyParams.numSmokeParticles <= 0) {
-    return { smokePoints: null, smokeData: [] };
-  }
+  const count = galaxyParams.backgroundStarCount;
+  const innerRadius = galaxyParams.backgroundStarInnerRadius;
+  const outerRadius = galaxyParams.backgroundStarOuterRadius;
+  const baseSize = galaxyParams.backgroundStarSize;
 
-  const count = galaxyParams.numSmokeParticles;
-  const positions = [];
-  const colors = [];
-  const sizes = [];
-  const opacities = [];
-  const angles = [];
-  const radii = [];
-  const smokeData = [];
-
-  for (let i = 0; i < count; i++) {
-    const arm = Math.floor(Math.random() * galaxyParams.spiralArms);
-    let r = THREE.MathUtils.randFloat(galaxyParams.baseRadius, galaxyParams.galacticRadius);
-    const pitch = THREE.MathUtils.degToRad(galaxyParams.spiralPitchAngle);
-    let theta0 = Math.log(r / galaxyParams.baseRadius) / Math.tan(pitch) + (arm * (2 * Math.PI / galaxyParams.spiralArms));
-    r += (Math.random() - 0.5) * galaxyParams.smokeNoiseIntensity;
-    const z = (Math.random() - 0.5) * galaxyParams.verticalScaleHeight;
-
-    positions.push(r * Math.cos(theta0), r * Math.sin(theta0), z);
-    angles.push(theta0);
-    radii.push(r);
-    smokeData.push({ r, theta0, z });
-
-    const t = Math.random();
-    const smokeColor1 = new THREE.Color(0x101025).multiplyScalar(1.5);
-    const smokeColor2 = new THREE.Color(0x251510).multiplyScalar(1.5);
-    const color = new THREE.Color().lerpColors(smokeColor1, smokeColor2, t);
-    colors.push(color.r, color.g, color.b);
-
-    sizes.push(galaxyParams.smokeParticleSize * (0.5 + Math.random() * 1.0));
-    opacities.push(0.15 + Math.random() * 0.25);
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
-  geometry.setAttribute('aParticleSize', new THREE.BufferAttribute(new Float32Array(sizes), 1));
-  geometry.setAttribute('aParticleOpacity', new THREE.BufferAttribute(new Float32Array(opacities), 1));
-  geometry.setAttribute('angle', new THREE.BufferAttribute(new Float32Array(angles), 1));
-  geometry.setAttribute('radius', new THREE.BufferAttribute(new Float32Array(radii), 1));
-
-  const material = new THREE.ShaderMaterial({
+  const starGeo = new THREE.PlaneGeometry(1, 1);
+  const starMaterial = new THREE.ShaderMaterial({
     uniforms: {
-      uTime: { value: globalTime },
-      uSmokeColor: { value: new THREE.Color(galaxyParams.smokeParticleColor) },
-      uSize: { value: galaxyParams.smokeParticleSize },
-      uNoiseIntensity: { value: galaxyParams.smokeNoiseIntensity },
-      uCentralLightPosition: { value: new THREE.Vector3(0, 0, 0) },
-      uCentralLightIntensity: { value: 1.0 },
-      uCameraPosition: { value: camera.position },
-      uParticleTexture: { value: createCircularGradientTexture() },
-      uBlueNoiseTexture: { value: blueNoiseTexture },
-      uDensityFactor: { value: 5.0 },
-      uMarchSteps: { value: 6 },
-      uDiffuseStrength: { value: 9.0 },
-      time: { value: globalTime },
-      rotationSpeed: { value: 5e-4 }
+      uTime: { value: 0.0 }
     },
-    vertexShader: smokeVertexShader,
-    fragmentShader: smokeFragmentShader,
+    vertexShader: backgroundStarVertexShader,
+    fragmentShader: backgroundStarFragmentShader,
     transparent: true,
     blending: THREE.AdditiveBlending,
-    depthWrite: false
+    depthWrite: false,
+    depthTest: true
   });
 
-  const smokePoints = new THREE.Points(geometry, material);
-  galaxyGroup.add(smokePoints);
+  const starField = new THREE.InstancedMesh(starGeo, starMaterial, count);
+  starField.frustumCulled = false;
 
-  return { smokePoints, smokeData };
-}
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const twinkles = new Float32Array(count);
+  const brightness = new Float32Array(count);
 
-export function regenerateSmoke({
-  galaxyGroup,
-  smokePoints,
-  smokeData,
-  galaxyParams,
-  camera,
-  blueNoiseTexture,
-  globalTime
-}) {
-  if (smokePoints) {
-    galaxyGroup.remove(smokePoints);
-    smokePoints.geometry.dispose();
-    smokePoints.material.dispose();
+  const innerRadiusCubed = innerRadius * innerRadius * innerRadius;
+  const outerRadiusCubed = outerRadius * outerRadius * outerRadius;
+
+  for (let i = 0; i < count; i++) {
+    const u = Math.random() * 2.0 - 1.0;
+    const phi = Math.random() * Math.PI * 2.0;
+    const sqrtOneMinusU2 = Math.sqrt(1.0 - u * u);
+    const dirX = sqrtOneMinusU2 * Math.cos(phi);
+    const dirY = sqrtOneMinusU2 * Math.sin(phi);
+    const dirZ = u;
+
+    const radius = Math.cbrt(
+      THREE.MathUtils.lerp(innerRadiusCubed, outerRadiusCubed, Math.random()),
+    );
+
+    positions[i * 3 + 0] = dirX * radius;
+    positions[i * 3 + 1] = dirY * radius;
+    positions[i * 3 + 2] = dirZ * radius;
+
+    const color = generateBackgroundStarColor();
+    colors[i * 3 + 0] = color.r;
+    colors[i * 3 + 1] = color.g;
+    colors[i * 3 + 2] = color.b;
+
+    const brightnessValue = Math.pow(Math.random(), 2.6);
+    brightness[i] = brightnessValue;
+
+    sizes[i] = baseSize * (0.5 + brightnessValue * 1.6);
+    twinkles[i] = Math.random() * Math.PI * 2.0;
   }
 
-  return createSmokeField({
-    galaxyParams,
-    galaxyGroup,
-    camera,
-    blueNoiseTexture,
-    globalTime
-  });
+  starField.geometry.setAttribute('instancePosition', new THREE.InstancedBufferAttribute(positions, 3));
+  starField.geometry.setAttribute('instanceColor', new THREE.InstancedBufferAttribute(colors, 3));
+  starField.geometry.setAttribute('instanceSize', new THREE.InstancedBufferAttribute(sizes, 1));
+  starField.geometry.setAttribute('instanceTwinkle', new THREE.InstancedBufferAttribute(twinkles, 1));
+  starField.geometry.setAttribute('instanceBrightness', new THREE.InstancedBufferAttribute(brightness, 1));
+
+  scene.add(starField);
+  return starField;
 }

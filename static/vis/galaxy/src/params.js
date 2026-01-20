@@ -20,36 +20,51 @@ export const controlParams = {
 };
 
 export const galaxyParams = {
-  numStars: 10000,
-  starSize: 0.005,
-  galacticRadius: 4,
-  spiralArms: 2,
-  coreRadius: 0.05,
-  orbitalTimeScale: 20.9, // Time scaling factor for orbital motion
+  numStars: 55000,
+  starSize: 0.002,
+  backgroundStarCount: 150000,
+  backgroundStarInnerRadius: 5.0,
+  backgroundStarOuterRadius: 10.0,
+  backgroundStarSize: 0.023,
+  galacticRadius: 2.07,
+  spiralArms: 5,
+  coreRadius: 2.0,
+  orbitalTimeScale: 1.7, // Time scaling factor for orbital motion
   // Galaxy structure parameters
-  discScaleLength: 0.29, // h_r ≈ 0.29 R_gal
+  discScaleLength: 0.31, // h_r ≈ 0.43 R_gal
   bulgeRadius: 0.05, // R < 0.05 R_gal
-  verticalScaleHeight: 0.05, // h_z ≈ 0.05 R_gal
-  spiralPitchAngle: 12.5, // degrees (12.5°)
-  clusterInfluence: 0.09, // 9% of stars snap to clusters
+  verticalScaleHeight: 0.02, // h_z ≈ 0.04 R_gal
+  spiralPitchAngle: 20, // degrees
+  clusterInfluence: 0.08, // 11% of stars snap to clusters
   // New spiral arm parameters
   baseRadius: 0.1, // For spiral calculations (stars and nebula)
-  armWidth: 0.17, // Width of nebula arms
-  armDensityMultiplier: 5.0, // Max density boost on nebula arms
+  armWidth: 0.73, // Width of nebula arms
+  armDensityMultiplier: 1.0, // Max density boost on nebula arms
   // Volumetric nebula parameters (replacing old smoke particles)
   // Tuned for physically-based extinction (sigmaT = sigmaA + sigmaS) so stars still shine through.
-  densityFactor: 12.0,
-  absorptionCoefficient: 0.2,
-  scatteringCoefficient: 3.0,
-  rayMarchSteps: 96,
-  godRaysIntensity: 0.55,
+  densityFactor: 1.1,
+  absorptionCoefficient: 5.0,
+  scatteringCoefficient: 20.0,
+  // Nebula palette (editable via UI)
+  nebulaCoolColor: '#1f47f2',
+  nebulaDustColor: '#8c401f',
+  nebulaWarmColor: '#ffdbb3',
+  rayMarchSteps: 32,
   sunPosition: new THREE.Vector3(0.0, 0.0, 0.0),
-  anisotropyG: 0.55,
-  centralLightIntensity: 0.6,
-  // Dust/Smoke Params
-  // Legacy sprite-based dust (kept for experimentation; set to 0 to rely on volumetrics).
-  numSmokeParticles: 0,
-  smokeParticleSize: 12.0, // Increased for better visibility
-  smokeNoiseIntensity: 1.1,
-  smokeParticleColor: '#323252' // Dark blue-gray color
+  centralLightIntensity: 1.2,
+
+  // Black hole lensing (post-process)
+  // Units are screen-relative (radii in normalized screen space where 1.0 ~= screen height).
+  blackHoleEnabled: 1,
+  blackHoleMass: 0.0,
+  blackHoleLensStrength: 0.0,
+  blackHoleHorizonRadius: 0.005,
+  blackHolePhotonRingRadius: 0.01,
+  blackHolePhotonRingWidth: 0.008,
+  blackHolePhotonRingIntensity: 0.15,
+  blackHoleAccretionIntensity: 0.05,
+  blackHoleAccretionRadius: 0.03,
+  blackHoleAccretionWidth: 0.031,
+  blackHoleDiskInclination: 0.24,
+  blackHoleDopplerStrength: 0.72
 };
