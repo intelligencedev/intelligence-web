@@ -125,6 +125,16 @@
         font-family: monospace;
         pointer-events: none;
       }
+
+      /* Release mode: hide all interactive/debug UI elements. */
+      body[data-ui="off"] #email-icon,
+      body[data-ui="off"] #parameters-button,
+      body[data-ui="off"] #parameters-menu,
+      body[data-ui="off"] #camera-info {
+        display: none !important;
+        pointer-events: none !important;
+        user-select: none !important;
+      }
     </style>
     <script type="importmap">
       {
@@ -136,7 +146,7 @@
     </script>
   </head>
 
-  <body>
+  <body data-ui="off">
     <!-- Email Contact Icon -->
     <div
       id="email-icon"
@@ -155,13 +165,13 @@
     </div>
 
     <!-- Camera Info Display (bottom left) -->
-    <div id="camera-info">
+    <div id="camera-info" hidden>
       Camera: x: 0.00, y: 0.00, z: 0.00<br />Rotation: x: 0.00, y: 0.00, z: 0.00
     </div>
 
     <!-- Parameters Button -->
-    <button id="parameters-button">Parameters</button>
-    <div id="parameters-menu">
+    <button id="parameters-button" hidden>Parameters</button>
+    <div id="parameters-menu" hidden>
       <div class="parameter-section">
         <div class="section-title">Galaxy Parameters</div>
         <div class="parameter-row">
@@ -550,9 +560,17 @@
       </div>
     </div>
 
+    <script>
+      // Release build: disable all UI controls/overlays.
+      window.__ENABLE_GALAXY_UI__ = false;
+    </script>
+
     <!-- Load Three.js and additional scripts for post-processing -->
     <script type="module" src="src/app.js"></script>
     <script>
+      if (!window.__ENABLE_GALAXY_UI__) {
+        // UI disabled; skip all bindings.
+      } else {
       // Parameter menu toggle
       const paramBtn = document.getElementById("parameters-button");
       const paramMenu = document.getElementById("parameters-menu");
@@ -681,6 +699,7 @@
       window.addEventListener("DOMContentLoaded", () => {
         updateSliderBindings();
       });
+      }
     </script>
   </body>
 </html>

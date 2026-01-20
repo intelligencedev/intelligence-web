@@ -21,6 +21,9 @@ const camera = createCamera();
 const renderer = createRenderer(document.body);
 
 const controls = createControls(camera, renderer);
+const enableUI = window.__ENABLE_GALAXY_UI__ !== false;
+const enableWobble = true;
+
 // Default camera pose (from the UI screenshot).
 camera.position.set(-0.31, -1.45, -0.61);
 camera.rotation.set(
@@ -35,6 +38,91 @@ camera.rotation.set(
   controls.target.copy(camera.position).addScaledVector(forward, 1.0);
 }
 controls.update();
+
+// Store home pose for wobble spring-back
+const homePosition = camera.position.clone();
+const homeQuaternion = camera.quaternion.clone();
+const homeTarget = controls.target.clone();
+
+// Wobble configuration
+const wobbleLimit = THREE.MathUtils.degToRad(10.0);
+const springStiffness = 8.0;
+const springDamping = 4.0;
+const boundaryStiffness = 30.0;
+const boundaryDamping = 10.0;
+
+let isDragging = false;
+let wobbleVelocity = new THREE.Vector2(0, 0); // x = horizontal, y = vertical
+let wobbleOffset = new THREE.Vector2(0, 0);
+
+if (!enableUI) {
+  controls.enableZoom = false;
+  controls.enablePan = false;
+  controls.enabled = enableWobble;
+}
+
+// Track drag state
+let lastPointer = null;
+let pointerDown = false;
+
+renderer.domElement.addEventListener("pointerdown", (e) => {
+  if (!enableWobble) return;
+  pointerDown = true;
+  isDragging = true;
+  lastPointer = { x: e.clientX, y: e.clientY };
+  wobbleVelocity.set(0, 0);
+});
+
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (!enableWobble || !pointerDown || !lastPointer) return;
+  
+  const sensitivity = 0.0008; // Slow, cinematic rotation
+  let dx = (e.clientX - lastPointer.x) * sensitivity;
+  let dy = (e.clientY - lastPointer.y) * sensitivity;
+  
+  // Apply elastic resistance near boundaries - movement gets harder as you approach the limit
+  const resistanceStart = wobbleLimit * 0.5; // Start resisting at 50% of limit
+  const maxResistance = 0.05; // At limit, only 5% of movement gets through
+  
+  const absX = Math.abs(wobbleOffset.x);
+  const absY = Math.abs(wobbleOffset.y);
+  
+  if (absX > resistanceStart) {
+    const t = Math.min(1, (absX - resistanceStart) / (wobbleLimit - resistanceStart));
+    const resistance = 1 - t * (1 - maxResistance);
+    dx *= resistance;
+  }
+  if (absY > resistanceStart) {
+    const t = Math.min(1, (absY - resistanceStart) / (wobbleLimit - resistanceStart));
+    const resistance = 1 - t * (1 - maxResistance);
+    dy *= resistance;
+  }
+  
+  wobbleOffset.x += dx;
+  wobbleOffset.y += dy;
+  
+  // Soft clamp - allow slight overshoot but limit it
+  const maxOffset = wobbleLimit * 1.3;
+  wobbleOffset.x = THREE.MathUtils.clamp(wobbleOffset.x, -maxOffset, maxOffset);
+  wobbleOffset.y = THREE.MathUtils.clamp(wobbleOffset.y, -maxOffset, maxOffset);
+  
+  lastPointer = { x: e.clientX, y: e.clientY };
+});
+
+renderer.domElement.addEventListener("pointerup", () => {
+  pointerDown = false;
+  isDragging = false;
+  lastPointer = null;
+});
+
+renderer.domElement.addEventListener("pointerleave", () => {
+  pointerDown = false;
+  isDragging = false;
+  lastPointer = null;
+});
+
+// Disable OrbitControls - we handle rotation manually
+controls.enabled = false;
 
 const galaxyGroup = new THREE.Group();
 scene.add(galaxyGroup);
@@ -122,7 +210,66 @@ function animate() {
   lastFrameTime = currentTime;
   globalTime += deltaTime;
 
-  controls.update();
+  if (enableWobble) {
+    // Soft boundary spring - always active, pulls back from overshoot
+    const overX = Math.max(0, Math.abs(wobbleOffset.x) - wobbleLimit) * Math.sign(wobbleOffset.x);
+    const overY = Math.max(0, Math.abs(wobbleOffset.y) - wobbleLimit) * Math.sign(wobbleOffset.y);
+    
+    // Apply boundary spring force (even while dragging for rubber band feel)
+    if (Math.abs(overX) > 0) {
+      const boundaryForce = overX * boundaryStiffness * 2.0;
+      if (isDragging) {
+        // While dragging: gently pull the offset back
+        wobbleOffset.x -= boundaryForce * deltaTime * 0.5;
+      } else {
+        wobbleVelocity.x -= boundaryForce * deltaTime;
+      }
+    }
+    if (Math.abs(overY) > 0) {
+      const boundaryForce = overY * boundaryStiffness * 2.0;
+      if (isDragging) {
+        wobbleOffset.y -= boundaryForce * deltaTime * 0.5;
+      } else {
+        wobbleVelocity.y -= boundaryForce * deltaTime;
+      }
+    }
+    
+    // Spring back to home when not dragging
+    if (!isDragging) {
+      wobbleVelocity.x -= wobbleOffset.x * springStiffness * deltaTime;
+      wobbleVelocity.y -= wobbleOffset.y * springStiffness * deltaTime;
+      wobbleVelocity.x *= Math.exp(-springDamping * deltaTime);
+      wobbleVelocity.y *= Math.exp(-springDamping * deltaTime);
+      
+      wobbleOffset.x += wobbleVelocity.x * deltaTime;
+      wobbleOffset.y += wobbleVelocity.y * deltaTime;
+      
+      // Snap to home when close enough
+      if (
+        Math.abs(wobbleOffset.x) < 1e-4 &&
+        Math.abs(wobbleOffset.y) < 1e-4 &&
+        Math.abs(wobbleVelocity.x) < 1e-4 &&
+        Math.abs(wobbleVelocity.y) < 1e-4
+      ) {
+        wobbleOffset.set(0, 0);
+        wobbleVelocity.set(0, 0);
+      }
+    }
+    
+    // Apply wobble to camera rotation
+    const wobbleQuat = new THREE.Quaternion();
+    const euler = new THREE.Euler(
+      -wobbleOffset.y,  // pitch (up/down)
+      -wobbleOffset.x,  // yaw (left/right)
+      0,
+      'YXZ'
+    );
+    wobbleQuat.setFromEuler(euler);
+    
+    camera.quaternion.copy(homeQuaternion).multiply(wobbleQuat);
+    camera.position.copy(homePosition);
+    controls.target.copy(homeTarget);
+  }
 
   camera.updateMatrixWorld();
   camera.updateProjectionMatrix();
@@ -175,11 +322,13 @@ function animate() {
     if (blackHolePass.uniforms.uDopplerStrength) blackHolePass.uniforms.uDopplerStrength.value = galaxyParams.blackHoleDopplerStrength;
   }
 
-  const cameraInfo = document.getElementById("camera-info");
-  if (cameraInfo) {
-    cameraInfo.innerHTML =
-      `Camera: x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}<br>` +
-      `Rotation: x: ${THREE.MathUtils.radToDeg(camera.rotation.x).toFixed(1)}, y: ${THREE.MathUtils.radToDeg(camera.rotation.y).toFixed(1)}, z: ${THREE.MathUtils.radToDeg(camera.rotation.z).toFixed(1)}`;
+  if (enableUI) {
+    const cameraInfo = document.getElementById("camera-info");
+    if (cameraInfo) {
+      cameraInfo.innerHTML =
+        `Camera: x: ${camera.position.x.toFixed(2)}, y: ${camera.position.y.toFixed(2)}, z: ${camera.position.z.toFixed(2)}<br>` +
+        `Rotation: x: ${THREE.MathUtils.radToDeg(camera.rotation.x).toFixed(1)}, y: ${THREE.MathUtils.radToDeg(camera.rotation.y).toFixed(1)}, z: ${THREE.MathUtils.radToDeg(camera.rotation.z).toFixed(1)}`;
+    }
   }
 
   if (composer) {
@@ -191,7 +340,7 @@ function animate() {
 
 animate();
 
-window.handleParamChange = function handleParamChange(key, val) {
+if (enableUI) window.handleParamChange = function handleParamChange(key, val) {
   const densityRegenKeys = [
     "galacticRadius",
     "verticalScaleHeight",
