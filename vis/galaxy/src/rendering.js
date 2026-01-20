@@ -65,6 +65,7 @@ export function createPostProcessing({
   densityTexture,
   DENSITY_TEXTURE_SIZE,
   volumetricSmokeShader,
+  blackHoleShader,
   blueNoiseTexture,
   galaxyParams
 }) {
@@ -95,6 +96,7 @@ export function createPostProcessing({
   composer.addPass(renderPass);
 
   let smokePass = null;
+  let blackHolePass = null;
   let bloomPass = null;
   if (densityTexture) {
     volumetricSmokeShader.uniforms.tDensity.value = densityTexture;
@@ -129,11 +131,18 @@ export function createPostProcessing({
     smokePass.material.depthTest = false;
     composer.addPass(smokePass);
 
+    if (blackHoleShader) {
+      blackHolePass = new ShaderPass(blackHoleShader);
+      blackHolePass.material.depthWrite = false;
+      blackHolePass.material.depthTest = false;
+      composer.addPass(blackHolePass);
+    }
+
     bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      // Strength / radius tuned for a subtle cinematic bloom.
-      0.85,
-      0.35,
+      // Strength / radius tuned for a tighter, cinematic bloom around stars.
+      0.55,
+      0.25,
       0.0
     );
     composer.addPass(bloomPass);
@@ -147,7 +156,7 @@ export function createPostProcessing({
     composer.addPass(copyPass);
   }
 
-  return { composer, smokePass, bloomPass };
+  return { composer, smokePass, blackHolePass, bloomPass };
 }
 
 export function handleResize({
@@ -155,6 +164,7 @@ export function handleResize({
   renderer,
   composer,
   smokePass,
+  blackHolePass,
   bloomPass,
   blueNoiseTexture
 }) {
@@ -183,6 +193,10 @@ export function handleResize({
 
   if (bloomPass) {
     bloomPass.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  if (blackHolePass && blackHolePass.uniforms && blackHolePass.uniforms.uResolution) {
+    blackHolePass.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
   }
 
   if (smokePass) {
