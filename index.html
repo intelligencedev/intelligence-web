@@ -1,451 +1,331 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>intelligence.dev — Home of Manifold</title>
-    <meta name="description" content="Articles and experiments on artificial intelligence, software engineering, and computational simulation." />
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <script defer src="https://cdn.jsdelivr.net/npm/animejs@2.2.0/anime.min.js"></script>
-    <style>
-        :root{
-            --bg:#0b0c10;
-            --panel:#0f1117;
-            --text:#e6edf3;
-            --muted:#8b98a5;
-            --brand:#61f4d0;
-            --brand-2:#6aaefc;
-            --border:rgba(230,237,243,0.08);
-            --shadow:0 10px 30px rgba(0,0,0,0.35);
-        }
-        *{box-sizing:border-box}
-    html,body{height:100%; overflow-x:hidden}
-        body{
-            margin:0;
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-            color:var(--text);
-            background:radial-gradient(1200px 800px at 80% -10%, rgba(106,174,252,0.10), transparent 60%),
-                                 radial-gradient(900px 700px at 10% 20%, rgba(97,244,208,0.10), transparent 60%),
-                                 var(--bg);
-            line-height:1.6;
-        }
-        a{color:inherit;text-decoration:none}
-        .wrap{max-width:1100px;margin:0 auto;padding:24px}
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>intelligence.dev</title>
+        <meta
+            name="description"
+            content="intelligence.dev builds practical tools for applied intelligence—developer-first, privacy-aware, and designed to ship."
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg: #05070c;
+                --text: rgba(245, 248, 255, 0.92);
+                --muted: rgba(245, 248, 255, 0.76);
+                --accent: #9ab4ff;
+                --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+                --veil-strong: rgba(0, 0, 0, 0.55);
+                --veil-soft: rgba(0, 0, 0, 0.35);
+            }
 
-        /* Header */
-        header{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
-        .brand{display:flex;align-items:center;gap:12px}
-        .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--brand-2));box-shadow:var(--shadow)}
-        .brand h1{font-size:18px;margin:0;font-weight:650;letter-spacing:.2px}
-        nav ul{display:flex;gap:18px;list-style:none;margin:0;padding:0}
-        nav a{color:var(--muted)}
-        nav a:hover{color:var(--text)}
+            * {
+                box-sizing: border-box;
+            }
 
-        /* Hero */
-        .hero{display:grid;grid-template-columns:1.15fr 1fr;gap:48px;align-items:center;padding:72px 0}
-        .title{font-size:clamp(32px,6vw,64px);font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:0}
-        .title .accent{background:linear-gradient(90deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-        .subtitle{color:var(--muted);margin-top:16px;font-size:clamp(16px,2.5vw,18px)}
-        .cta-row{display:flex;gap:14px;margin-top:28px}
-        .btn{padding:12px 18px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.02);backdrop-filter:saturate(140%) blur(4px);color:var(--text)}
-        .btn.primary{border-color:transparent;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#061014;font-weight:700}
-        .meta{display:flex;gap:18px;margin-top:22px;color:var(--muted);font-size:14px}
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+                overflow-x: hidden;
+            }
 
-        /* Feature list */
-        .features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px}
-        .card{border:1px solid var(--border);border-radius:14px;padding:18px;background:var(--panel);box-shadow:var(--shadow)}
-        .card h3{margin:0 0 6px 0;font-size:16px}
-        .card p{margin:0;color:var(--muted);font-size:14px}
+            body {
+                font-family: "Inter Tight", "Inter", system-ui, -apple-system, Segoe UI,
+                    Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji",
+                    "Segoe UI Emoji";
+                color: var(--text);
+                background: var(--bg);
+                line-height: 1.6;
+            }
 
-    /* Screenshots */
-    .screenshot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
-    .screenshot{padding:0;overflow:hidden}
-    .screenshot img{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;cursor:zoom-in}
+            a {
+                color: inherit;
+                text-decoration: none;
+            }
 
-    /* Lightbox modal */
-    .lightbox{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(2px);z-index:1000}
-    .lightbox.open{display:grid}
-    .lightbox-content{position:relative;max-width:min(95vw,1200px);max-height:90vh}
-    .lightbox-content img{display:block;max-width:100%;max-height:90vh;width:auto;height:auto;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);background:var(--panel)}
-    .lightbox-close{position:absolute;top:8px;right:8px;border:1px solid var(--border);background:rgba(0,0,0,0.5);color:var(--text);padding:6px 10px;border-radius:8px;cursor:pointer}
+            .galaxy {
+                position: fixed;
+                inset: -10%;
+                z-index: -3;
+                pointer-events: none;
+                overflow: hidden;
+            }
 
-    /* Visual teaser */
-    .scene{position:relative;height:360px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#0f1219,#0b0c10)}
-    .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(230,237,243,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(230,237,243,0.06) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(70% 70% at 50% 50%, #000, transparent);z-index:0}
-    .scene svg{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
-    .link{stroke:rgba(230,237,243,0.35);stroke-width:1.35}
-    .node{fill:var(--brand);}
-    .node.b{fill:var(--brand-2)}
-    .node-glow{filter:blur(6px);opacity:.35}
-        .underline{display:inline-block;height:3px;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:2px;margin-top:8px}
+            .galaxy iframe {
+                width: 120%;
+                height: 120%;
+                border: 0;
+                transform: translate(12%, 0) scale(1.02);
+                transform-origin: center;
+                filter: saturate(1.05) brightness(0.9);
+            }
 
-        footer{padding:64px 0 24px 0;color:var(--muted);font-size:14px}
-        footer .grid{background-size:32px 32px;opacity:.4}
+            .veil {
+                position: fixed;
+                inset: 0;
+                z-index: -2;
+                pointer-events: none;
+                background: linear-gradient(
+                    110deg,
+                    var(--veil-strong) 0%,
+                    var(--veil-soft) 28%,
+                    rgba(0, 0, 0, 0) 58%
+                );
+            }
 
-        /* Responsive */
-        @media (max-width: 980px){
-            .hero{grid-template-columns:1fr;gap:28px;padding:48px 0}
-            .scene{height:280px}
-            .features{grid-template-columns:1fr 1fr}
-            .screenshot-grid{grid-template-columns:1fr 1fr}
-        }
-        @media (max-width: 640px){
-            .features{grid-template-columns:1fr}
-            nav{display:none}
-            .screenshot-grid{grid-template-columns:1fr}
-        }
+            .container {
+                position: relative;
+                z-index: 1;
+                min-height: 100vh;
+                padding: clamp(20px, 4vw, 64px);
+            }
 
-        /* Reduce motion */
-        @media (prefers-reduced-motion: reduce){
-            *{animation: none !important; transition: none !important}
-        }
-    </style>
-</head>
-<body>
-    <div class="wrap">
-        <header aria-label="Site header">
-            <div class="brand">
-                <h1>intelligence.dev</h1>
-            </div>
-            <nav aria-label="Primary">
-                <ul>
-                    <li><a href="/codewiki/">Manifold Code Wiki</a></li>
-                </ul>
-            </nav>
-        </header>
+            .safe {
+                max-width: 620px;
+            }
 
-        <main>
-            <section class="hero" id="hero">
-                <div>
-                    <h2 class="title">
-                        Think. Type. <span class="accent">Done.</span>
-                        <span class="underline" id="title-underline" aria-hidden="true"></span>
-                    </h2>
-                    <p class="subtitle">Manifold is a platform for researching, developing, and deploying systems using AI specialists.</p>
-                    <div class="meta" role="contentinfo">
-                        <span>Connect ideas</span>
-                        <span>Collaborate with Specialists</span>
-                        <span>Create your vision</span>
-                    </div>
-                    <div class="cta-row">
-                        <a class="btn primary" href="https://github.com/intelligencedev/manifold/tree/develop">Deploy Manifold</a>
-                    </div>
-                </div>
-                <div class="scene" aria-hidden="true">
-                    <div class="grid"></div>
-                    <svg id="graph" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
-                </div>
+            .site-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 16px;
+            }
 
-            </section>
+            .site-nav {
+                display: flex;
+                gap: 24px;
+                font-size: 14px;
+                letter-spacing: 0.02em;
+                color: var(--muted);
+                text-transform: none;
+            }
 
-            <section id="topics" aria-labelledby="topics-title">
-                <h3 id="topics-title" style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Features</h3>
-                <div class="features">
-                    <article class="card">
-                        <h3>AI Specialists</h3>
-                        <p>Design AI specialists with access to tools and MCP servers.</p>
-                    </article>
-                    <article class="card">
-                        <h3>Workflow Canvas</h3>
-                        <p>Design workflows using a visual node based interface.</p>
-                    </article>
-                    <article class="card">
-                        <h3>Projects, Experiments, Visualization</h3>
-                        <p>Manifold provides tools for designing and visualizing simple or complex software systems.</p>
-                    </article>
-                </div>
-            </section>
+            .site-nav a {
+                position: relative;
+                opacity: 0.84;
+                transition: opacity 200ms ease, color 200ms ease;
+            }
 
-            <!-- Screenshots section -->
-            <section id="screenshots" style="margin-top:48px" aria-labelledby="screenshots-title">
-                <h3 id="screenshots-title" style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Screenshots</h3>
-                <div class="screenshot-grid">
-                    <figure class="card screenshot">
-                        <img src="/assets/img/chat.png" alt="Chat interface screenshot" loading="lazy" decoding="async">
-                    </figure>
-                    <figure class="card screenshot">
-                        <img src="/assets/img/flow.png" alt="Workflow canvas screenshot" loading="lazy" decoding="async">
-                    </figure>
-                    <figure class="card screenshot">
-                        <img src="/assets/img/specialists.png" alt="Specialists view screenshot" loading="lazy" decoding="async">
-                    </figure>
-                </div>
-            </section>
+            .site-nav a::after {
+                content: "";
+                position: absolute;
+                left: 0;
+                bottom: -6px;
+                width: 100%;
+                height: 1px;
+                background: rgba(255, 255, 255, 0.4);
+                opacity: 0;
+                transform: translateY(4px);
+                transition: opacity 200ms ease, transform 200ms ease;
+            }
 
-            <section id="visuals" style="margin-top:48px">
-                <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Made with Manifold</h3>
-                <div class="features">
-                    <a class="card" href="/vis/galaxy/"><h3>Galaxy</h3><p>N‑body inspired particle fields.</p></a>
-                    <a class="card" href="/vis/vortex/"><h3>Vortex</h3><p>Fluid-like shader exploration.</p></a>
-                    <a class="card" href="/vis/vterrain/"><h3>Terrain</h3><p>Procedural landscapes.</p></a>
-                </div>
-            </section>
-        </main>
+            .site-nav a:hover {
+                opacity: 1;
+                color: var(--text);
+            }
 
-        <footer>
-            <div class="grid" aria-hidden="true" style="height:1px"></div>
-            <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:18px">
-                <span>© <span id="year"></span> intelligence.dev</span>
-                <span><a href="https://github.com/intelligencedev" target="_blank" rel="noopener">GitHub</a></span>
-            </div>
-        </footer>
-    </div>
+            .site-nav a:hover::after {
+                opacity: 1;
+                transform: translateY(0);
+            }
 
-    <!-- Lightbox Modal -->
-    <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Image preview">
-        <div class="lightbox-content" role="document">
-            <button type="button" class="lightbox-close" aria-label="Close preview">✕</button>
-            <img id="lightbox-img" alt="">
+            .menu-toggle {
+                display: none;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                background: rgba(15, 17, 23, 0.35);
+                color: var(--text);
+                padding: 8px 12px;
+                border-radius: 999px;
+                font-size: 12px;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            .hero {
+                margin-top: 22px;
+                display: flex;
+                flex-direction: column;
+                gap: clamp(14px, 2vw, 20px);
+            }
+
+            .hero-title {
+                margin: 0;
+                font-size: clamp(36px, 6vw, 68px);
+                font-weight: 700;
+                letter-spacing: -0.03em;
+                line-height: 1.04;
+                color: var(--text);
+                text-shadow: var(--shadow);
+            }
+
+            .hero-title .dot {
+                color: var(--accent);
+            }
+
+            .lead {
+                margin: 0;
+                max-width: 560px;
+                color: var(--muted);
+                font-size: clamp(15px, 2.2vw, 18px);
+                line-height: 1.55;
+            }
+
+            .cta-row {
+                display: flex;
+                gap: 12px;
+                margin-top: 4px;
+            }
+
+            .btn {
+                padding: 10px 16px;
+                border-radius: 999px;
+                border: 1px solid rgba(255, 255, 255, 0.25);
+                color: var(--text);
+                background: rgba(15, 17, 23, 0.35);
+                font-size: 13px;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                transition: border-color 200ms ease, color 200ms ease,
+                    background 200ms ease;
+            }
+
+            .btn:hover {
+                border-color: rgba(154, 180, 255, 0.6);
+                color: #f5f8ff;
+                background: rgba(20, 24, 36, 0.5);
+            }
+
+            @media (max-width: 1023px) {
+                .hero-title {
+                    font-size: clamp(44px, 6vw, 56px);
+                }
+
+                .veil {
+                    background: linear-gradient(
+                        110deg,
+                        rgba(0, 0, 0, 0.6) 0%,
+                        rgba(0, 0, 0, 0.38) 32%,
+                        rgba(0, 0, 0, 0) 62%
+                    );
+                }
+            }
+
+            @media (max-width: 767px) {
+                .site-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+
+                .site-nav {
+                    display: none;
+                    flex-direction: column;
+                    gap: 12px;
+                    width: 100%;
+                    margin-top: 12px;
+                }
+
+                .site-nav.open {
+                    display: flex;
+                }
+
+                .menu-toggle {
+                    display: inline-flex;
+                }
+
+                .hero-title {
+                    font-size: clamp(36px, 9vw, 44px);
+                }
+
+                .veil {
+                    background: linear-gradient(
+                        160deg,
+                        rgba(0, 0, 0, 0.72) 0%,
+                        rgba(0, 0, 0, 0.4) 38%,
+                        rgba(0, 0, 0, 0) 70%
+                    );
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                * {
+                    animation: none !important;
+                    transition: none !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="galaxy" aria-hidden="true">
+            <iframe src="/vis/galaxy/" title="Galaxy background"></iframe>
         </div>
-    </div>
+        <div class="veil" aria-hidden="true"></div>
 
-    <script>
-        // Wait for window load to ensure DOM is ready and all animations can start
-        window.addEventListener('load', function(){
-            const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            document.getElementById('year').textContent = new Date().getFullYear();
+        <div class="container">
 
-            // If anime isn't available or user prefers reduced motion, skip animations.
-            if (typeof anime === 'undefined' || prefersReduced) {
-                if (typeof anime === 'undefined') console.warn('anime.js not available; animations skipped.');
-                return;
-            }
+            <main class="hero safe" id="hero">
+                <h1 class="hero-title">intelligence<span class="dot">.</span>dev</h1>
+                <p class="lead">
+                    Experiments with code, computer graphics, and machine learning.
+                </p>
+                <div class="cta-row" role="group" aria-label="Primary actions">
+                    <a class="btn" href="https://github.com/intelligencedev/manifold">Explore Manifold</a>
+                </div>
+            </main>
+        </div>
 
-            // anime.js v2 compatible usage (no destructuring helpers)
-            // Headline underline
-            // var underline = document.getElementById('title-underline');
-            // anime({
-            //     targets: underline,
-            //     width: ['0%', '100%'],
-            //     duration: 900,
-            //     delay: 200,
-            //     easing: 'easeOutCubic'
-            // });
+        <script>
+            (function () {
+                var prefersReduced = window.matchMedia(
+                    "(prefers-reduced-motion: reduce)"
+                ).matches;
+                var nav = document.getElementById("site-nav");
+                var toggle = document.querySelector(".menu-toggle");
 
-            // Cards rise-in
-            anime({
-                targets: '.card',
-                translateY: [8, 0],
-                opacity: [0, 1],
-                duration: 500,
-                delay: function(el, i){ return 350 + i * 80; },
-                easing: 'easeOutCubic'
-            });
+                if (toggle && nav) {
+                    toggle.addEventListener("click", function () {
+                        var isOpen = nav.classList.toggle("open");
+                        toggle.setAttribute("aria-expanded", String(isOpen));
+                    });
+                }
 
-            // Graph visualization (nodes + links) inside #graph SVG
-            var svg = document.getElementById('graph');
-            var width = 1000, height = 600;
-            var nodeCount = 9;
-            var maxNodes = 21;
-            var nextId = nodeCount;
+                if (prefersReduced) return;
 
-            // Create SVG groups
-            var linkGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
-            var glowGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
-            var nodeGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
-            svg.appendChild(linkGroup);
-            svg.appendChild(glowGroup);
-            svg.appendChild(nodeGroup);
+                var frame = document.querySelector(".galaxy iframe");
+                if (!frame) return;
 
-            // Generate nodes
-            var nodes = Array.from({length: nodeCount}, function(_, i){
-                return {
-                    id: i,
-                    x: Math.random()*width,
-                    y: Math.random()*height,
-                    vx: 0,
-                    vy: 0,
-                    r: 3 + Math.random()*3,
-                    group: i % 3
-                };
-            });
+                var targetX = 0;
+                var targetY = 0;
+                var currentX = 0;
+                var currentY = 0;
+                var raf = null;
 
-            // Generate links (connect near neighbors + some random long edges)
-            var links = [];
-            for (var i=0;i<nodeCount;i++){
-                for (var j=i+1;j<nodeCount;j++){
-                    if (Math.abs(i-j) <= 2 && Math.random() < 0.9) {
-                        links.push({ source: i, target: j, w: 1 });
-                    } else if (Math.random() < 0.06) {
-                        links.push({ source: i, target: j, w: 0.6 });
+                function animate() {
+                    currentX += (targetX - currentX) * 0.08;
+                    currentY += (targetY - currentY) * 0.08;
+                    frame.style.transform =
+                        "translate(" + (12 + currentX) + "%, " + currentY + "%) scale(1.02)";
+                    raf = requestAnimationFrame(animate);
+                }
+
+                window.addEventListener("mousemove", function (event) {
+                    var x = (event.clientX / window.innerWidth - 0.5) * 2;
+                    var y = (event.clientY / window.innerHeight - 0.5) * 2;
+                    targetX = x * 1.2;
+                    targetY = y * 1.2;
+                    if (!raf) {
+                        raf = requestAnimationFrame(animate);
                     }
-                }
-            }
-
-            // Build SVG elements
-            var linkEls = links.map(function(l){
-                var e = document.createElementNS('http://www.w3.org/2000/svg','line');
-                e.setAttribute('class','link');
-                e.setAttribute('stroke-opacity', l.w);
-                linkGroup.appendChild(e);
-                return e;
-            });
-
-            var glowEls = nodes.map(function(n){
-                var e = document.createElementNS('http://www.w3.org/2000/svg','circle');
-                e.setAttribute('class','node node-glow');
-                glowGroup.appendChild(e);
-                return e;
-            });
-            var nodeEls = nodes.map(function(n, i){
-                var e = document.createElementNS('http://www.w3.org/2000/svg','circle');
-                e.setAttribute('class', 'node' + (i % 2 ? ' b' : ''));
-                nodeGroup.appendChild(e);
-                return e;
-            });
-
-            function updateSVG(){
-                // update links
-                for (var i=0;i<links.length;i++){
-                    var l = links[i];
-                    var a = nodes[l.source], b = nodes[l.target];
-                    linkEls[i].setAttribute('x1', a.x);
-                    linkEls[i].setAttribute('y1', a.y);
-                    linkEls[i].setAttribute('x2', b.x);
-                    linkEls[i].setAttribute('y2', b.y);
-                }
-                // update nodes
-                for (var k=0;k<nodes.length;k++){
-                    var n = nodes[k];
-                    nodeEls[k].setAttribute('cx', n.x);
-                    nodeEls[k].setAttribute('cy', n.y);
-                    nodeEls[k].setAttribute('r', n.r);
-                    glowEls[k].setAttribute('cx', n.x);
-                    glowEls[k].setAttribute('cy', n.y);
-                    glowEls[k].setAttribute('r', n.r*3.5);
-                }
-            }
-
-            // Simple force simulation (repulsion + spring + centering)
-            function tick(){
-                for (var i=0;i<nodes.length;i++){
-                    var n = nodes[i];
-                    // repulsion
-                    for (var j=i+1;j<nodes.length;j++){
-                        var m = nodes[j];
-                        var dx = n.x - m.x;
-                        var dy = n.y - m.y;
-                        var d2 = dx*dx + dy*dy + 0.01;
-                        var inv = 10 / d2; // repulsive strength
-                        var fx = dx * inv;
-                        var fy = dy * inv;
-                        n.vx += fx; n.vy += fy;
-                        m.vx -= fx; m.vy -= fy;
-                    }
-                }
-                // springs
-                for (var l=0;l<links.length;l++){
-                    var link = links[l];
-                    var a = nodes[link.source];
-                    var b = nodes[link.target];
-                    var dx = b.x - a.x;
-                    var dy = b.y - a.y;
-                    var dist = Math.sqrt(dx*dx + dy*dy) || 1;
-                    var target = 70; // ideal link length
-                    var k = 0.02; // spring constant
-                    var F = (dist - target) * k;
-                    var ux = dx / dist, uy = dy / dist;
-                    var fx = F * ux, fy = F * uy;
-                    a.vx += fx; a.vy += fy;
-                    b.vx -= fx; b.vy -= fy;
-                }
-                // centering + damping and bounds
-                for (var i2=0;i2<nodes.length;i2++){
-                    var p = nodes[i2];
-                    p.vx += (width/2 - p.x) * 0.0008;
-                    p.vy += (height/2 - p.y) * 0.0008;
-                    p.vx *= 0.92; p.vy *= 0.92;
-                    p.x += p.vx; p.y += p.vy;
-                    // keep within viewport softly
-                    if (p.x < 20) { p.x = 20; p.vx *= -0.6; }
-                    if (p.x > width-20) { p.x = width-20; p.vx *= -0.6; }
-                    if (p.y < 20) { p.y = 20; p.vy *= -0.6; }
-                    if (p.y > height-20) { p.y = height-20; p.vy *= -0.6; }
-                }
-                updateSVG();
-            }
-
-            // Add a new node every 2 seconds with nearest neighbor links and a pop-in
-            function addNode(){
-                if (nodes.length >= maxNodes) return;
-                var targetR = 3 + Math.random()*3;
-                var n = { id: nextId++, x: width/2 + (Math.random()-0.5)*60, y: height/2 + (Math.random()-0.5)*60, vx:0, vy:0, r: 0 };
-                var nearest = nodes.map(function(m, idx){
-                    var dx = m.x - n.x, dy = m.y - n.y; return { d: dx*dx + dy*dy, idx: idx };
-                }).sort(function(a,b){ return a.d - b.d; }).slice(0, Math.min(3, nodes.length));
-
-                nodes.push(n);
-
-                var g = document.createElementNS('http://www.w3.org/2000/svg','circle');
-                g.setAttribute('class','node node-glow');
-                glowGroup.appendChild(g);
-                glowEls.push(g);
-
-                var c = document.createElementNS('http://www.w3.org/2000/svg','circle');
-                c.setAttribute('class', 'node' + ((n.id % 2) ? ' b' : ''));
-                nodeGroup.appendChild(c);
-                nodeEls.push(c);
-
-                nearest.forEach(function(entry){
-                    var e = document.createElementNS('http://www.w3.org/2000/svg','line');
-                    e.setAttribute('class','link');
-                    e.setAttribute('stroke-opacity', 1);
-                    linkGroup.appendChild(e);
-                    linkEls.push(e);
-                    links.push({ source: entry.idx, target: nodes.length-1, w: 1 });
                 });
-
-                anime({ targets: n, r: targetR, duration: 600, easing: 'easeOutBack' });
-            }
-
-            // Initial render once
-            updateSVG();
-
-            // Drive the simulation with a numeric driver for reliability in v2
-            var driver = { t: 0 };
-            anime({
-                targets: driver,
-                t: 1000000,
-                duration: 600,
-                easing: 'linear',
-                update: tick,
-                loop: true
-            });
-
-            // Start periodic additions
-            setInterval(addNode, 2000);
-
-            // Lightbox for screenshots
-            var lb = document.getElementById('lightbox');
-            var lbImg = document.getElementById('lightbox-img');
-            var closeBtn = lb.querySelector('.lightbox-close');
-
-            function openLightbox(src, alt){
-                lbImg.src = src;
-                lbImg.alt = alt || '';
-                lb.classList.add('open');
-                lb.setAttribute('aria-hidden','false');
-                document.body.style.overflow = 'hidden';
-                try { closeBtn.focus(); } catch (e) {}
-            }
-            function closeLightbox(){
-                lb.classList.remove('open');
-                lb.setAttribute('aria-hidden','true');
-                document.body.style.overflow = '';
-            }
-            document.querySelectorAll('.screenshot img').forEach(function(img){
-                img.addEventListener('click', function(){
-                    openLightbox(img.getAttribute('src'), img.getAttribute('alt'));
-                });
-            });
-            lb.addEventListener('click', function(e){
-                if (e.target === lb) closeLightbox();
-            });
-            closeBtn.addEventListener('click', closeLightbox);
-            document.addEventListener('keydown', function(e){
-                if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
-            });
-            });
+            })();
         </script>
-</body>
+    </body>
 </html>
