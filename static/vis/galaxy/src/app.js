@@ -7,6 +7,7 @@ import {
   createBlueNoiseUpdater,
   createPostProcessing,
   handleResize,
+  isMobile,
 } from "./rendering.js";
 import { createBackgroundStarField, createStarField } from "./particles.js";
 import { generateClusterCenters } from "./structures.js";
@@ -14,6 +15,16 @@ import { setupDensityTexture, DENSITY_TEXTURE_SIZE } from "./density.js";
 import { createBlackHoleLensingShader, createVolumetricSmokeShader } from "./shaders.js";
 
 window.__GALAXY_APP_LOADED__ = true;
+
+// Mobile optimizations
+const IS_MOBILE = isMobile();
+if (IS_MOBILE) {
+  console.log('[Galaxy] Mobile device detected - applying optimizations');
+  // Reduce ray march steps for mobile performance
+  if (galaxyParams.rayMarchSteps > 48) {
+    galaxyParams.rayMarchSteps = 48;
+  }
+}
 
 // Loading state - hide scene until fully rendered
 let isSceneReady = false;
@@ -23,6 +34,8 @@ const WARMUP_FRAMES_NEEDED = 10; // Render this many frames before revealing
 function revealScene() {
   if (isSceneReady) return;
   isSceneReady = true;
+  
+  console.log('[Galaxy] Revealing scene');
   
   const canvas = renderer.domElement;
   const overlay = document.getElementById('loading-overlay');
@@ -39,10 +52,31 @@ function revealScene() {
   }
 }
 
+// Fallback: reveal scene after timeout even if something fails
+setTimeout(() => {
+  if (!isSceneReady) {
+    console.warn('[Galaxy] Timeout - forcing scene reveal');
+    revealScene();
+  }
+}, 5000);
+
+// Global error handler - ensure scene reveals on any error
+window.addEventListener('error', (e) => {
+  console.error('[Galaxy] Global error:', e.message);
+  if (!isSceneReady) revealScene();
+});
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 const camera = createCamera();
 const renderer = createRenderer(document.body);
+
+// Handle WebGL context loss gracefully
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+  console.error('[Galaxy] WebGL context lost');
+  e.preventDefault();
+  if (!isSceneReady) revealScene();
+});
 
 const controls = createControls(camera, renderer);
 const enableUI = window.__ENABLE_GALAXY_UI__ !== false;
@@ -196,24 +230,31 @@ function initDensityTexture() {
     onTextureReady: (texture) => {
       densityTexture = texture;
       if (!composer) {
-        const post = createPostProcessing({
-          renderer,
-          scene,
-          camera,
-          densityTexture,
-          DENSITY_TEXTURE_SIZE,
-          volumetricSmokeShader,
-          blackHoleShader,
-          blueNoiseTexture,
-          galaxyParams,
-        });
-        composer = post.composer;
-        smokePass = post.smokePass;
-        blackHolePass = post.blackHolePass;
-        bloomPass = post.bloomPass;
-        updateSmokePass(smokePass);
-        if (smokePass?.uniforms?.timeScale) {
-          smokePass.uniforms.timeScale.value = galaxyParams.orbitalTimeScale;
+        try {
+          const post = createPostProcessing({
+            renderer,
+            scene,
+            camera,
+            densityTexture,
+            DENSITY_TEXTURE_SIZE,
+            volumetricSmokeShader,
+            blackHoleShader,
+            blueNoiseTexture,
+            galaxyParams,
+          });
+          composer = post.composer;
+          smokePass = post.smokePass;
+          blackHolePass = post.blackHolePass;
+          bloomPass = post.bloomPass;
+          updateSmokePass(smokePass);
+          if (smokePass?.uniforms?.timeScale) {
+            smokePass.uniforms.timeScale.value = galaxyParams.orbitalTimeScale;
+          }
+          console.log('[Galaxy] Post-processing initialized successfully');
+        } catch (err) {
+          console.error('[Galaxy] Post-processing failed:', err);
+          // Fallback: reveal scene without post-processing
+          revealScene();
         }
       } else if (smokePass && smokePass.uniforms) {
         smokePass.uniforms.tDensity.value = densityTexture;
@@ -362,9 +403,13 @@ function animate() {
   }
   
   // Count warmup frames and reveal scene when ready
-  if (!isSceneReady && starField && composer) {
+  // On mobile, reveal after starField is ready even without composer (graceful degradation)
+  if (!isSceneReady && starField) {
     warmupFrames++;
-    if (warmupFrames >= WARMUP_FRAMES_NEEDED) {
+    // Need composer on desktop, but allow fallback on mobile after more frames
+    const needsComposer = !IS_MOBILE;
+    const framesNeeded = composer ? WARMUP_FRAMES_NEEDED : WARMUP_FRAMES_NEEDED * 3;
+    if ((composer || !needsComposer) && warmupFrames >= framesNeeded) {
       revealScene();
     }
   }
