@@ -8,6 +8,37 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { loadBlueNoiseTexture } from './blueNoise.js';
 
+// Detect mobile/iOS for fallbacks
+export function isMobile() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+export function isIOS() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// Check WebGL capabilities
+export function getWebGLCapabilities(renderer) {
+  const gl = renderer.getContext();
+  const caps = {
+    floatTextures: false,
+    halfFloatTextures: false,
+    webgl2: gl instanceof WebGL2RenderingContext,
+  };
+  
+  // Check float texture support
+  if (caps.webgl2) {
+    caps.floatTextures = !!gl.getExtension('EXT_color_buffer_float');
+    caps.halfFloatTextures = true; // WebGL2 always supports half float
+  } else {
+    caps.floatTextures = !!gl.getExtension('OES_texture_float') && !!gl.getExtension('WEBGL_color_buffer_float');
+    caps.halfFloatTextures = !!gl.getExtension('OES_texture_half_float');
+  }
+  
+  return caps;
+}
+
 function createDepthTexture(width, height) {
   const depthTexture = new THREE.DepthTexture(width, height);
   depthTexture.type = THREE.UnsignedShortType;
@@ -70,10 +101,22 @@ export function createPostProcessing({
   galaxyParams
 }) {
   const depthTexture = createDepthTexture(window.innerWidth, window.innerHeight);
+  
+  // Determine best texture type for this device
+  const caps = getWebGLCapabilities(renderer);
+  let textureType = THREE.UnsignedByteType; // Safest fallback
+  
+  if (caps.floatTextures && !isMobile()) {
+    textureType = THREE.FloatType;
+  } else if (caps.halfFloatTextures) {
+    textureType = THREE.HalfFloatType;
+  }
+  
+  console.log('[Galaxy] WebGL caps:', caps, 'Using texture type:', textureType);
 
   const renderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
     format: THREE.RGBAFormat,
-    type: THREE.FloatType,
+    type: textureType,
     magFilter: THREE.LinearFilter,
     minFilter: THREE.LinearFilter,
     wrapS: THREE.ClampToEdgeWrapping,
