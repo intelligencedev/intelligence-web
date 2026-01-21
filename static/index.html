@@ -53,16 +53,15 @@
             .galaxy {
                 position: fixed;
                 inset: -10%;
-                z-index: -3;
-                pointer-events: none;
+                z-index: 0;
                 overflow: hidden;
             }
 
             .galaxy iframe {
-                width: 120%;
-                height: 120%;
+                width: 140%;
+                height: 140%;
                 border: 0;
-                transform: translate(12%, 0) scale(1.02);
+                transform: translate(4%, -2%) scale(1.04);
                 transform-origin: center;
                 filter: saturate(1.05) brightness(0.9);
             }
@@ -70,7 +69,7 @@
             .veil {
                 position: fixed;
                 inset: 0;
-                z-index: -2;
+                z-index: 1;
                 pointer-events: none;
                 background: linear-gradient(
                     110deg,
@@ -82,13 +81,15 @@
 
             .container {
                 position: relative;
-                z-index: 1;
+                z-index: 2;
                 min-height: 100vh;
                 padding: clamp(20px, 4vw, 64px);
+                pointer-events: none;
             }
 
             .safe {
                 max-width: 620px;
+                pointer-events: auto;
             }
 
             .site-header {
@@ -284,9 +285,6 @@
 
         <script>
             (function () {
-                var prefersReduced = window.matchMedia(
-                    "(prefers-reduced-motion: reduce)"
-                ).matches;
                 var nav = document.getElementById("site-nav");
                 var toggle = document.querySelector(".menu-toggle");
 
@@ -296,35 +294,6 @@
                         toggle.setAttribute("aria-expanded", String(isOpen));
                     });
                 }
-
-                if (prefersReduced) return;
-
-                var frame = document.querySelector(".galaxy iframe");
-                if (!frame) return;
-
-                var targetX = 0;
-                var targetY = 0;
-                var currentX = 0;
-                var currentY = 0;
-                var raf = null;
-
-                function animate() {
-                    currentX += (targetX - currentX) * 0.08;
-                    currentY += (targetY - currentY) * 0.08;
-                    frame.style.transform =
-                        "translate(" + (12 + currentX) + "%, " + currentY + "%) scale(1.02)";
-                    raf = requestAnimationFrame(animate);
-                }
-
-                window.addEventListener("mousemove", function (event) {
-                    var x = (event.clientX / window.innerWidth - 0.5) * 2;
-                    var y = (event.clientY / window.innerHeight - 0.5) * 2;
-                    targetX = x * 1.2;
-                    targetY = y * 1.2;
-                    if (!raf) {
-                        raf = requestAnimationFrame(animate);
-                    }
-                });
             })();
         </script>
     </body>
