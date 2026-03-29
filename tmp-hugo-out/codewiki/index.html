@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manifold - Technical Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        (function(){
+            // Force light mode for this page.
+            try {
+                // Mark theme as light on the root element
+                document.documentElement.setAttribute('data-theme', 'light');
+                // Remove common dark-mode classes if present
+                document.documentElement.classList.remove('dark', 'theme-dark');
+                document.body && document.body.classList && document.body.classList.remove('dark', 'theme-dark');
+                // Prefer the light color scheme at the UA/CSSOM level
+                document.documentElement.style.colorScheme = 'light';
+
+                // Add a small CSS override to defeat prefers-color-scheme or dark-theme rules
+                var s = document.createElement('style');
+                s.setAttribute('data-generated', 'force-light-mode');
+                s.appendChild(document.createTextNode('\n/* Force light color-scheme and key variables for this page */\n:root { color-scheme: light !important; --bg-color: #ffffff !important; --text-color: #24292e !important; --sidebar-bg: #f6f8fa !important; --border-color: #e1e4e8 !important; --code-bg: #f6f8fa !important; }\nhtml.dark, html.theme-dark, body.dark { background: #ffffff !important; color: #24292e !important; }\n'));
+                document.head.appendChild(s);
+            } catch (e) {
+                console && console.warn && console.warn('force-light-mode error', e);
+            }
+        })();
+    </script>
+    <style>
+        :root {
+            --sidebar-width: 280px;
+            --primary-color: #0366d6;
+            --text-color: #24292e;
+            --bg-color: #ffffff;
+            --sidebar-bg: #f6f8fa;
+            --border-color: #e1e4e8;
+            --code-bg: #f6f8fa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            width: var(--sidebar-width);
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            height: 100vh;
+            position: fixed;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        nav h3 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        nav li {
+            margin-bottom: 8px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-size: 0.95rem;
+            display: block;
+            padding: 4px 0;
+        }
+
+        nav a:hover {
+            color: var(--primary-color);
+            text-decoration: underline;
+        }
+
+        nav a.sub-link {
+            padding-left: 15px;
+            font-size: 0.9rem;
+            color: #586069;
+        }
+
+        /* Main Content */
+        main {
+            margin-left: var(--sidebar-width);
+            padding: 40px 60px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            margin-top: 1.5em;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        h1 { font-size: 2em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+        h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+        h3 { font-size: 1.25em; }
+
+        p { margin-bottom: 16px; }
+
+        /* Lists */
+        ul, ol { padding-left: 2em; margin-bottom: 16px; }
+        li { margin-bottom: 4px; }
+
+        /* Code & Pre */
+        code {
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            background-color: var(--code-bg);
+            border-radius: 6px;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            padding: 16px;
+            overflow: auto;
+            font-size: 85%;
+            line-height: 1.45;
+            background-color: var(--code-bg);
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        
+        pre code {
+            padding: 0;
+            background-color: transparent;
+        }
+
+        /* Tables */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        th, td {
+            padding: 6px 13px;
+            border: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--code-bg);
+            font-weight: 600;
+            text-align: left;
+        }
+
+        tr:nth-child(2n) {
+            background-color: #fafbfc;
+        }
+
+        /* Mermaid Diagrams */
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            background-color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <h3>Manifold Docs</h3>
+    <ul>
+        <li><a href="#architecture">1. Architecture & Module Map</a>
+            <ul>
+                <li><a href="#arch-capabilities" class="sub-link">System Capabilities</a></li>
+                <li><a href="#arch-highlevel" class="sub-link">High-level Architecture</a></li>
+                <li><a href="#arch-modules" class="sub-link">Modules & Packages</a></li>
+                <li><a href="#arch-entrypoints" class="sub-link">Entrypoints</a></li>
+            </ul>
+        </li>
+        <li><a href="#runtime">2. Runtime & Environments</a>
+            <ul>
+                <li><a href="#runtime-overview" class="sub-link">Runtime Overview</a></li>
+                <li><a href="#runtime-envs" class="sub-link">Environments</a></li>
+                <li><a href="#runtime-config" class="sub-link">Configuration</a></li>
+                <li><a href="#runtime-local" class="sub-link">Local Setup</a></li>
+            </ul>
+        </li>
+        <li><a href="#data">3. Data & Storage</a>
+            <ul>
+                <li><a href="#data-stores" class="sub-link">Data Stores</a></li>
+                <li><a href="#data-models" class="sub-link">Core Models</a></li>
+                <li><a href="#data-schema" class="sub-link">Schema Management</a></li>
+            </ul>
+        </li>
+        <li><a href="#interfaces">4. Interfaces & Workflows</a>
+            <ul>
+                <li><a href="#iface-overview" class="sub-link">Inbound Interfaces</a></li>
+                <li><a href="#iface-api" class="sub-link">HTTP / RPC APIs</a></li>
+                <li><a href="#iface-workflows" class="sub-link">Key Workflows</a></li>
+            </ul>
+        </li>
+    </ul>
+</nav>
+
+<main>
+<div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 16px; margin-bottom: 24px; color: #856404; font-weight: 500;">
+    ⚠️ This wiki was generated by Manifold on 11/22/2025 and may be obsolete.
+</div>
+    <!-- SECTION 1: ARCHITECTURE -->
+    <section id="architecture">
+        <h1>Manifold – Architecture & Module Map</h1>
+
+        <h2 id="arch-capabilities">1. What this system does</h2>
+        <ul>
+            <li><strong>Purpose:</strong> Manifold is an AI workflow automation platform that lets operators define specialist agents, orchestrate tool-backed agents/workflows, observe every run, manage shared assets (projects/playground), and offer the surface via CLIs, HTTP/SSE APIs, Kafka orchestrations, and a web UI.</li>
+            <li><strong>Key capabilities / responsibilities:</strong>
+                <ul>
+                    <li>Autonomous chat-style agents that can route to specialists, orchestrate tool calls (local CLI, web search/fetch, patch updates, RAG helpers, TTS, Kafka, MCP), and optionally execute deterministic WARPP workflows.</li>
+                    <li>Long-lived persistent services (notably <code>agentd</code>) exposing REST/SSE surfaces, authentication, project/playground management, RAG ingestion, MCP/OAuth hooks, Whisper STT, and observability/metrics.</li>
+                    <li>Kafka-based orchestrator and helper CLI tooling (<code>agent</code>, <code>orchestrator</code>, <code>whisper-go</code>, <code>adk</code>) covering single runs, workflow consumption, STT support, and future developer helpers.</li>
+                    <li>SPA frontend (<code>web/agentd-ui</code>) that drives the in-browser control plane, communicating with agentd’s HTTP endpoints.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h2 id="arch-highlevel">2. High-level architecture</h2>
+        <p>Manifold centers on a shared <code>internal/agent.Engine</code> that orchestrates LLM + tool loops. Each runtime (CLI, HTTP, Kafka) loads the same config/observability/LLM/providers/tool registry but swaps how intent is injected and how output is surfaced. The big picture combines:</p>
+        <ul>
+            <li><strong>Configuration & observability (<code>internal/config</code>, <code>internal/observability</code>, <code>config.yaml</code>, <code>example.env</code>)</strong> – every binary loads these to understand LLM providers, tool toggles, databases, OAuth hooks, Kafka/Redis endpoints, and telemetry settings.</li>
+            <li><strong>Agent + tool layer (<code>internal/agent</code>, <code>internal/tools</code>, <code>internal/llm</code>, <code>internal/specialists</code>, <code>internal/mcpclient</code>)</strong> – orchestrates message construction, LLM requests, tool dispatch/schema exposure, specialist routing (DB+YAML), and MCP tool registration.</li>
+            <li><strong>Persistence & workflow helpers (<code>internal/persistence</code>, <code>internal/rag</code>, <code>internal/playground</code>, <code>internal/projects</code>, <code>internal/warpp</code>)</strong> – provide storage for specialists, playground experiments, projects, WARPP workflows, RAG ingestion, and data retrieval.</li>
+            <li><strong>Transports:</strong> CLI (<code>cmd/agent</code>), HTTP daemon (<code>cmd/agentd</code> → <code>internal/agentd</code>), Kafka worker (<code>cmd/orchestrator</code> → <code>internal/orchestrator</code>), Whisper STT CLI (<code>cmd/whisper-go</code>), and placeholder <code>cmd/adk</code>.</li>
+            <li><strong>Frontend & docs:</strong> <code>web/agentd-ui</code> SPA served via agentd’s static handler or deployed separately; documentation/examples/deployments live under <code>docs/</code>, <code>examples/</code>, <code>deploy/</code>.</li>
+        </ul>
+
+        <div class="mermaid">
+        graph TD
+            Config[config.Load + env files]
+            Observ[observability.Init]
+            LLM[internal/llm Provider]
+            Tools[internal/tools Registry]
+            Agent[internal/agent.Engine]
+            Persistence[databases.Manager]
+            Specialists[internal/specialists Registry]
+            MCP[internal/mcpclient Manager]
+            WARPP[internal/warpp Runner]
+            RAG[internal/rag]
+            Playground[internal/playground]
+            Projects[internal/projects]
+            CLI[cmd/agent]
+            Agentd[cmd/agentd → internal/agentd]
+            Orchestrator[cmd/orchestrator]
+            Whisper[cmd/whisper-go]
+            UI[web/agentd-ui]
+            Kafka[(Kafka topics/commands)]
+            Clients[(External LLM / MCP Servers)]
+            DB[(Postgres, Redis, Vector stores)]
+
+            Config --> Persistence
+            Config --> Observ
+            Config --> LLM
+            Config --> Tools
+            Persistence --> Tools
+            Specials[Specialists DB/YAML] --> Specialists --> Tools
+            MCP --> Tools
+            Tools --> Agent
+            LLM --> Agent
+            WARPP --> Agent
+            RAG --> Tools
+            Playground --> Agentd
+            Projects --> Agentd
+            Agentd --> Agent
+            CLI --> Agent
+            Orchestrator --> WARPP
+            Orchestrator --> Agent
+            Orchestrator --> Kafka
+            Kafka --> Orchestrator
+            Whisper --> Whisper_CLI
+            UI --> Agentd
+            Agentd --> UI
+            Clients --> LLM
+            Clients --> MCP
+            DB --> Persistence
+        </div>
+
+        <p>Every major service eventually delegates to the same <code>internal/agent.Engine</code> and shared tool stack, but they differ on intent sources (CLI args vs HTTP requests vs Kafka messages) and sinks (stdout, HTTP response, Kafka response).</p>
+
+        <h2 id="arch-modules">3. Modules and packages</h2>
+        <ul>
+            <li><strong>./cmd/</strong>
+                <ul>
+                    <li>Purpose: Hosts Go binaries that bootstrap each runtime (agent CLI, agent daemon, Kafka orchestrator, Whisper STT CLI, and placeholder <code>adk</code>).</li>
+                    <li>Key entries:
+                        <ul>
+                            <li><code>cmd/agent/main.go</code> – single LLM/agent run with tool registry, specialist seeding, optional WARPP mode, and CLI output.</li>
+                            <li><code>cmd/agentd/main.go</code> → <code>internal/agentd.Run()</code> – HTTP/SSE server that composes tools, WARPP, specialists, playground, projects, auth, and MCP.</li>
+                            <li><code>cmd/orchestrator/main.go</code> – Kafka WARPP worker with deduping via Redis and response publishing.</li>
+                            <li><code>cmd/whisper-go/main.go</code> – speech-to-text CLI around vendored <code>whisper.cpp</code>.</li>
+                            <li><code>cmd/adk/</code> – currently empty placeholder (TODO: define tooling).</li>
+                        </ul>
+                    </li>
+                    <li>Interactions: Each binary calls into <code>internal/config</code>, <code>internal/observability</code>, <code>internal/llm</code>, <code>internal/tools</code>, <code>internal/specialists</code>, <code>internal/persistence</code>, and <code>internal/warpp</code>.</li>
+                </ul>
+            </li>
+
+            <li><strong>./internal/</strong>
+                <ul>
+                    <li><strong>./internal/agent/</strong> – Core reasoning loop (<code>engine.go</code>, <code>steps.go</code>), message formatting, memory summarization, WARPP helpers, and shared prompts. Depends on <code>internal/llm</code>/<code>internal/tools</code>.</li>
+                    <li><strong>./internal/agentd/</strong> – HTTP server bootstrap, router, and handlers (chat, tools, playground, projects, auth, STT, specialists, WARPP, metrics). Ties to all other packages plus <code>internal/webui</code>.</li>
+                    <li><strong>./internal/orchestrator/</strong> – Kafka consumer/dedupe logic, WARPP adapter, response publishing, and helper tools under <code>cmd/orchestrator/tools</code>.</li>
+                    <li><strong>./internal/warpp/</strong> – Workflow loader/runner (guards, personalization, step publisher). Used by agent CLI WARPP mode, agentd workflows, and Kafka orchestrator.</li>
+                    <li><strong>./internal/tools/</strong> – Registry plus concrete tools (<code>cli</code>, <code>web</code>, <code>patchtool</code>, <code>kafka</code>, <code>tts</code>, <code>specialists</code>, <code>llmtool</code>, <code>textsplitter</code>, <code>rag</code>, <code>warpptool</code>, <code>utility</code>, <code>multi_tool_use</code>, etc.). Tools register per-process and expose tool schemas consumed by the engine.</li>
+                    <li><strong>./internal/llm/</strong> – Provider abstraction (OpenAI/Anthropic/Google/local), streaming/tracing support, logging hooks, and factories referenced by every runtime.</li>
+                    <li><strong>./internal/specialists/</strong> – Registry/router for specialist agents (DB-backed or YAML). Populates tool registries and supports route overrides via config.</li>
+                    <li><strong>./internal/mcpclient/</strong> – MCP server registration and tool bridging (Model Context Protocol servers register tools into the same registry).</li>
+                    <li><strong>./internal/persistence/</strong> – Interfaces plus platform implementations (memory/Postgres) for chat history, playground, projects, WARPP, MCP, specialists, etc. <code>databases.Manager</code> constructs stores used by agentd & orchestrator.</li>
+                    <li><strong>./internal/rag/</strong> – Chunking, embeddings, ingestion, retrieval, and ingestion service used by RAG tools and persistence.</li>
+                    <li><strong>./internal/playground/</strong> – Prompt/dataset/experiment storage and evaluation orchestration; agentd exposes APIs for editing/running experiments.</li>
+                    <li><strong>./internal/projects/</strong> – Filesystem-backed project artifacts service; integrated with agentd APIs.</li>
+                    <li><strong>./internal/auth/</strong> – OIDC/OAuth providers, session middleware, RBAC helpers for agentd routes.</li>
+                    <li><strong>./internal/config/</strong> – Config loader structs referencing <code>config.yaml</code>, <code>config.yaml.example</code>, <code>example.env</code> to unify every runtime.</li>
+                    <li><strong>./internal/observability/</strong> – Logger bootstrap, OTel tracer, HTTP client wrappers, payload filtering. Initialized by every binary.</li>
+                    <li><strong>./internal/webui/</strong> – Static asset handler, dev proxy, and optional auth guard used by agentd for <code>/</code> routes.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <div class="mermaid">
+        graph TD
+            AgentEngine[internal/agent Engine]
+            ToolsRegistry[internal/tools Registry]
+            LLM[internal/llm Providers]
+            Specialists[internal/specialists Registry]
+            MCP[internal/mcpclient]
+            Persistence[internal/persistence]
+            WARPP[internal/warpp Runner]
+            RAG[internal/rag Services]
+            Playground[internal/playground]
+            Projects[internal/projects]
+            Auth[internal/auth]
+            API[internal/agentd Handlers]
+            CLI[cmd/agent]
+            Agentd[cmd/agentd]
+            Orchestrator[cmd/orchestrator]
+            Whisper[cmd/whisper-go]
+            WebUI[web/agentd-ui]
+            Docs[docs + examples + deploy]
+            Config[internal/config]
+
+            Config --> ToolsRegistry
+            Config --> LLM
+            Config --> Persistence
+            Persistence --> Specialists
+            Specialists --> ToolsRegistry
+            ToolsRegistry --> AgentEngine
+            LLM --> AgentEngine
+            WARPP --> AgentEngine
+            RAG --> ToolsRegistry
+            Playground --> API
+            Projects --> API
+            Auth --> API
+            API --> AgentEngine
+            CLI --> AgentEngine
+            Agentd --> API
+            Orchestrator --> WARPP
+            WebUI --> Agentd
+            Docs --> WebUI
+            Whisper --> STT[STT]
+        </div>
+
+        <ul>
+            <li><strong>./web/agentd-ui/</strong>
+                <ul>
+                    <li>Vite-based TypeScript SPA (Svelte/Vue-like) that calls agentd HTTP APIs for chat, tools, projects, playground, experiments, WARPP, etc. Built assets live under <code>web/agentd-ui/dist</code>. Agentd serves them via <code>internal/webui</code>.</li>
+                </ul>
+            </li>
+            <li><strong>./docs/</strong>, <strong>./examples/</strong>, <strong>./deploy/</strong>, <strong>./configs/</strong>, <strong>./scripts/</strong>, <strong>./tools/</strong>, <strong>./external/</strong>, <strong>./dist/</strong>:
+                <ul>
+                    <li>Provide onboarding/architecture guides (<code>docs/*</code>), workflow samples (<code>examples/workflows</code>), deployment scaffolding (docker-compose, vector_db_local, configs), helper scripts, vendor code (<code>external/whisper.cpp</code>), and build artifacts.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h2 id="arch-entrypoints">4. Entrypoints & startup flow</h2>
+        <ul>
+            <li><strong><code>./cmd/agent/main.go</code> – single-run CLI</strong>
+                <ol>
+                    <li><code>internal/config.Load()</code> reads YAML/env to configure LLM, tools, specialists, WARPP, logging, observability, and timeouts.</li>
+                    <li>Initializes logging/OTel via <code>internal/observability</code>, builds HTTP client (with extra headers), configures global LLM logging, and seeds specialists from <code>internal/persistence/databases</code> (reflecting DB overrides).</li>
+                    <li>Builds the LLM provider via <code>internal/llm/providers</code>, registers tools (CLI exec, web search/fetch, patch, text splitter, textbox, TTS, <code>llm_transform</code>, specialists, MCP registrations), and wraps them per <code>cfg.EnableTools</code>/<code>cfg.ToolAllowList</code>.</li>
+                    <li>Connects to MCP servers to register MCP tools.</li>
+                    <li>If <code>-warpp</code> is set, loads WARPP workflows (DB-backed), personalizes intent, and executes via <code>internal/warpp.Runner</code>. Otherwise, optionally routes to a named specialist and ends.</li>
+                    <li>Constructs <code>internal/agent.Engine</code> with prompts/summary rules and runs <code>Engine.Run</code>, respecting <code>AgentRunTimeoutSeconds</code>, printing final response.</li>
+                </ol>
+            </li>
+
+            <li><strong><code>./cmd/agentd/main.go</code> → <code>internal/agentd.Run()</code> – HTTP daemon</strong>
+                <ol>
+                    <li>Loads config/env, initializes logger/OTel/tracing, and builds shared HTTP client + LLM provider (plus summary provider).</li>
+                    <li>Constructs database manager (<code>internal/persistence/databases.NewManager</code>) for chat, projects, playground, specialists, WARPP, MCP, etc., and creates specialist registry overlays.</li>
+                    <li>Registers tools (CLI/web search/fetch, patch, text splitter, textbox, TTS, Kafka, RAG ingest/retrieve, <code>llm_transform</code>, image tools, specialists, agent-wrappers, multi-tool). Applies global tool filters/allow lists to mirror <code>cfg.EnableTools</code>.</li>
+                    <li>Registers MCP clients, loads WARPP workflows (FS/DB), and prepares <code>internal/warpp.Runner</code>.</li>
+                    <li>Builds higher-level services: summary helpers, playground service (<code>internal/playground</code>), project service, RAG ingestion/state, Whisper STT loader, auth provider, metrics reporter.</li>
+                    <li>Wires HTTP routes (<code>router.go</code>, <code>handlers_*</code>): chat, tools, specialists, playground, projects, WARPP, MCP OAuth, audio/STT, metrics, auth, static SPA assets (via <code>internal/webui</code>), and SSE endpoints for progress.</li>
+                    <li>Listens on configured port (default <code>:32180</code>) serving API + SPA.</li>
+                </ol>
+            </li>
+
+            <li><strong><code>./cmd/orchestrator/main.go</code> – Kafka WARPP worker</strong>
+                <ol>
+                    <li>Loads Kafka brokers/topics, Redis dedupe settings, worker counts, timeouts, and logging config.</li>
+                    <li>Initializes Redis dedupe store, Kafka producer/admin, observability, HTTP client, LLM provider, and tool registry (CLI/web/patch/TTS/llm_transform/specialists/Kafka send). Applies tool filters per config.</li>
+                    <li>Registers MCP servers, loads WARPP workflows via <code>internal/warpp</code>, wraps runner with <code>internal/orchestrator.NewWarppAdapter</code>.</li>
+                    <li>Ensures Kafka topics exist (command/response/DLQ), then starts <code>internal/orchestrator.StartKafkaConsumer</code>.</li>
+                    <li>Workers loop: read <code>CommandEnvelope</code>, dedupe (Redis), map reply topic, execute workflows with the WARPP adapter (streaming steps via publisher), and publish success/error <code>ResponseEnvelope</code> plus DLQs when needed.</li>
+                </ol>
+            </li>
+        </ul>
+
+        <div class="mermaid">
+            flowchart TB
+                subgraph Common [Common Bootstrap]
+                    Cfg[Config Load]
+                    Obs[Observability/OTel]
+                    Prov[LLM Provider]
+                end
+
+                subgraph CLI [cmd/agent]
+                    Seed[Seed Specialists]
+                    RegTools1[Register Tools]
+                    WarppCheck{WARPP Mode?}
+                    Eng[Agent Engine]
+                end
+
+                subgraph Daemon [cmd/agentd]
+                    DB[DB Manager]
+                    Svcs[Services: Auth, RAG, Proj]
+                    Rtr[Routes]
+                    Serv[Listen :32180]
+                end
+
+                subgraph Orch [cmd/orchestrator]
+                    Infra[Redis & Kafka]
+                    Wrap[Warpp Adapter]
+                    Loop[Consumer Loop]
+                end
+
+                Cfg --> Obs --> Prov
+
+                Prov --> Seed --> RegTools1 --> WarppCheck
+                WarppCheck -- Yes --> Eng
+                WarppCheck -- No --> Eng
+
+                Prov --> DB --> Svcs --> Rtr --> Serv
+
+                Prov --> Infra --> Wrap --> Loop
+        </div>
+    </section>
+
+    <!-- SECTION 2: RUNTIME -->
+    <section id="runtime">
+        <h1>Manifold – Runtime & Environments</h1>
+
+        <h2 id="runtime-overview">1. Runtime overview</h2>
+        <p>manifold is a long-lived service (<code>cmd/agentd</code>) that exposes a web UI on port 32180 and orchestrates agent workflows (agents, orchestrator, orchestrated prompts, workflows). The platform ships with supporting CLI utilities (e.g., <code>scripts/dev.sh</code> for fmt/vet/build checks, <code>scripts/pre-commit</code> hook) plus additional command binaries under <code>cmd/orchestrator</code>, <code>cmd/agent</code>, etc. The main runtime (<code>agentd</code>) runs as a Go server backed by the configuration loader (<code>internal/config/loader.go</code>), which merges <code>.env</code>, <code>config.yaml</code>, and defaults before wiring OpenAI/Google/Anthropic providers, databases, and metrics exporters.</p>
+
+        <div class="mermaid">
+            flowchart LR
+                User((User)) -->|HTTP:32180| WebUI[Web UI / Node]
+                WebUI -->|API Calls| AgentD[AgentD Runtime\nGo Server]
+                
+                subgraph Core [Core Components]
+                    AgentD -->|Load| Config[Config Loader]
+                    AgentD -->|Orchestrate| Workflows[Workflows & Agents]
+                    AgentD -->|Execute| CLI[CLI Utilities]
+                end
+
+                subgraph Providers [External Providers]
+                    Workflows -->|LLM API| OpenAI[OpenAI / Anthropic]
+                    Workflows -->|Tools| MCP[MCP Integrations]
+                end
+        </div>
+
+        <h2 id="runtime-envs">2. Environments</h2>
+        <ul>
+            <li><strong>local (default)</strong> – development workstation. Uses <code>docker-compose.yml</code> to spin up the Go service, Postgres (<code>pg-manifold</code>), and optional observability stack (ClickHouse + OTEL collector). Configuration files (<code>config.yaml</code>, <code>.env</code>) are tailored for localhost connections, non-HTTPS auth (cookieSecure=false), and demo credentials. This environment is what the quickstart (<code>QUICKSTART.md</code>) walks through; it expects the host to run Docker, Node.js 20, pnpm, and a Chromium browser.</li>
+            <li><strong>dev / custom</strong> – implied by configuration defaults (<code>obs.environment</code> defaults to <code>dev</code>, <code>LlmClient.Provider</code> can be set via env). Switchable by setting <code>ENVIRONMENT</code>, <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>, or alternative config files (<code>SPECIALISTS_CONFIG</code>). This allows pointing at staging/cloud endpoints (e.g., production Kafka brokers or ClickHouse DSNs) without code changes. Feature flags/toggles such as <code>ENABLE_TOOLS</code>/<code>SPECIALISTS_DISABLED</code> and <code>AUTH.*</code> can be changed per environment via <code>.env</code> overrides.</li>
+        </ul>
+
+        <h2 id="runtime-config">3. Configuration</h2>
+        <ul>
+            <li>Primary config files: <code>config.yaml</code> (active) and <code>config.yaml.example</code> (template). The loader (<code>internal/config/loader.go</code>) first merges environment variables (via <code>godotenv.Overload()</code> reading <code>.env</code>), then overlays the YAML file(s), and finally applies hard defaults. <code>.env</code> is expected at repo root and is mounted into the Docker container (<code>docker-compose.yml</code>, service <code>manifold</code>).</li>
+            <li>Environment variables override YAML for every major area: OpenAI/GPT settings (<code>OPENAI_API_KEY</code>, <code>OPENAI_MODEL</code>, <code>LLM_PROVIDER</code>), embedding service (<code>EMBED_*</code>), databases (<code>DATABASE_URL</code>, <code>SEARCH_DSN</code>, etc.), Kafka topics, observability exports (<code>OTEL_SERVICE_NAME</code>, <code>CLICKHOUSE_*</code>), TTS, tools toggles (<code>ENABLE_TOOLS</code>, <code>SPECIALISTS_DISABLED</code>), and runtime controls (timeout, log levels). <code>Load()</code> ensures required settings (<code>OPENAI_API_KEY</code>, <code>WORKDIR</code>) are present and resolves <code>WORKDIR</code> to an absolute path.</li>
+            <li>Specialist definitions (agents/tools) can live in the same <code>config.yaml</code> or an alternate file pointed to by <code>SPECIALISTS_CONFIG</code>; environment variables such as <code>SPECIALISTS_DISABLED</code> or provider-specific vars (e.g., <code>GOOGLE_LLM_API_KEY</code>) take precedence.</li>
+        </ul>
+
+        <div class="mermaid">
+            flowchart TD
+                subgraph Sources [Configuration Sources]
+                    Defaults[Hardcoded Defaults]
+                    YAML[config.yaml]
+                    EnvVars[.env / Environment Variables]
+                end
+
+                Defaults -->|Base| Loader[Config Loader]
+                YAML -->|Overlay| Loader
+                EnvVars -->|Override High Priority| Loader
+
+                Loader -->|Resolve Paths & Secrets| Validation{Valid?}
+                Validation -- Yes --> FinalConfig[Final Runtime Configuration]
+                Validation -- No --> Panic[Panic / Exit]
+
+                FinalConfig -->|Configures| Database
+                FinalConfig -->|Configures| LLM_Provider
+                FinalConfig -->|Configures| Feature_Flags
+</div>
+
+        <h2 id="runtime-local">4. How to run locally</h2>
+        <h3>Prerequisites</h3>
+        <ol>
+            <li><strong>Docker</strong> – required to build containers, start Postgres, Redis, optional ClickHouse/OTEL.</li>
+            <li><strong>Node 20</strong> – required for the UI (<code>web/agentd-ui</code>). Use <code>nvm use 20</code>.</li>
+            <li><strong>pnpm</strong> – install global or via package manager to install frontend deps.</li>
+            <li><strong>Chrome/Chromium</strong> – needed for web tools (Playwright MCP).</li>
+            <li><strong>GNU Make + Go toolchain</strong> – <code>scripts/dev.sh</code>, <code>make fmt</code>, <code>go build</code> run from repo root.</li>
+        </ol>
+
+        <h3>Steps</h3>
+        <pre><code>cd ~/path/to/manifold                 # repo root (“./manifold” in prompt)
+cp example.env .env                   # create env file (contains OPENAI_API_KEY placeholder)
+cp config.yaml.example config.yaml    # copy default configuration
+# edit .env and config.yaml to provide OPENAI_API_KEY, WORKDIR, and any overrides
+# e.g., replace OPENAI_API_KEY in .env with a real key; set WORKDIR to repo root
+
+nvm use 20
+cd web/agentd-ui
+pnpm install
+cd ../..                              # back to repo root
+
+touch manifold.log                    # optional, runtime writes to log
+docker compose up -d manifold pg-manifold</code></pre>
+
+        <div class="mermaid">
+            journey
+                title Local Development Setup
+                section Configuration
+                Copy example.env: 5: Developer
+                Copy config.yaml.example: 5: Developer
+                Set API Keys & Workdir: 3: Developer
+                section Dependencies
+                Install Node (nvm): 5: System
+                Install FrontEnd (pnpm): 4: System
+                section Runtime
+                Docker Compose Up: 5: Docker
+                Access localhost:32180: 5: User
+        </div>
+    </section>
+
+    <!-- SECTION 3: DATA -->
+    <section id="data">
+        <h1>Manifold – Data & Storage</h1>
+
+        <h2 id="data-stores">1. Data stores overview</h2>
+        <div class="mermaid">
+            flowchart TB
+                subgraph Configuration
+                    Config[config.yaml] -->|Load| Loader[Config Loader]
+                    Loader -->|DBConfig| Factory[internal/persistence/databases/factory.go]
+                end
+
+                subgraph "Persistence Layer"
+                    Factory -->|Check DSN| Decision{Has DSN?}
+                    Decision -- Yes --> Postgres[Postgres Implementation]
+                    Decision -- No --> Memory[In-Memory Implementation]
+                end
+
+                subgraph "Domain Subsystems"
+                    Postgres -->|Main Store| StoreMgr[Manager]
+                    Memory -->|Fallback| StoreMgr
+                    
+                    StoreMgr --> Chat[Chat History]
+                    StoreMgr --> Auth[Auth & RBAC]
+                    StoreMgr --> Spec[Specialists]
+                    StoreMgr --> Search[Search/Vector/Graph]
+                end
+
+                classDef db fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+                classDef mem fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
+                class Postgres db;
+                class Memory mem;
+        </div>
+
+        <ul>
+            <li><strong>PostgreSQL (primary relational store)</strong>
+                <ul>
+                    <li><strong>Purpose:</strong> Long-lived persistence for authentication/RBAC, specialists registry, chat sessions/messages, MCP server configurations, WARPP workflows, playground prompts/datasets/exercises, and shared search/vector/graph backends (documents/chunks, embeddings, nodes/edges).</li>
+                    <li><strong>Configuration:</strong> <code>internal/config/config.go</code> exposes <code>Config.Databases</code> → <code>DBConfig</code> struct with <code>DefaultDSN</code> plus per-subsystem <code>Search</code>, <code>Vector</code>, <code>Graph</code>, and <code>Chat</code> configs. <code>internal/persistence/databases/factory.go</code> reads <code>Databases.DBConfig</code> and routes each subsystem to Postgres or an in-memory fallback.</li>
+                </ul>
+            </li>
+            <li><strong>In-memory stores (development/testing fallback)</strong>
+                <ul>
+                    <li><strong>Purpose:</strong> Provide zero-dependency persistence when Postgres is absent for chat, specialists, MCP, WARPP, and the search/vector/graph backends, keeping interfaces consistent for the rest of the app.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h2 id="data-models">2. Core data models / entities</h2>
+        
+        <h3>Authentication / RBAC (<code>internal/auth/store.go</code>)</h3>
+        <table>
+            <thead>
+                <tr><th>Model</th><th>Key fields</th><th>Relationships</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>users</code></td>
+                    <td><code>id BIGSERIAL</code>, unique <code>email</code>, <code>provider</code>, <code>subject</code>, <code>name</code>, <code>picture</code>, <code>created_at</code>, <code>updated_at</code></td>
+                    <td>Linked from <code>user_roles.user_id</code> (RBAC) and <code>sessions.user_id</code> (session ownership).</td>
+                </tr>
+                <tr>
+                    <td><code>roles</code></td>
+                    <td><code>id BIGSERIAL</code>, unique <code>name</code>, <code>description</code></td>
+                    <td><code>user_roles.role_id</code> joins users to roles.</td>
+                </tr>
+                <tr>
+                    <td><code>user_roles</code></td>
+                    <td>Composite PK <code>(user_id, role_id)</code></td>
+                    <td>Many-to-many between <code>users</code> and <code>roles</code>, cascading on delete.</td>
+                </tr>
+                <tr>
+                    <td><code>sessions</code></td>
+                    <td><code>id TEXT PK</code>, <code>user_id FK</code>, <code>expires_at</code>, <code>id_token</code>, <code>created_at</code></td>
+                    <td>Stores OIDC/OAuth sessions; <code>user_id</code> ties sessions to their owner and enables logout flows.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Playgrounds (<code>internal/persistence/databases/playground_store.go</code>)</h3>
+        <table>
+            <thead>
+                <tr><th>Table</th><th>Notes</th><th>Relationships</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>playground_prompts</code></td>
+                    <td>Stores <code>registry.Prompt</code> JSON payloads, indexed by <code>user_id</code>.</td>
+                    <td>Versions stored in <code>playground_prompt_versions</code>.</td>
+                </tr>
+                <tr>
+                    <td><code>playground_prompt_versions</code></td>
+                    <td>History per prompt with <code>created_at</code>, per-user filtering.</td>
+                    <td><code>prompt_id</code> references <code>playground_prompts.id</code> logically (no FK).</td>
+                </tr>
+                <tr>
+                    <td><code>playground_datasets</code></td>
+                    <td>Dataset metadata (JSONB) per <code>user_id</code>.</td>
+                    <td>Used as parent for snapshots.</td>
+                </tr>
+                <tr>
+                    <td><code>playground_snapshots</code></td>
+                    <td>Composite PK <code>(dataset_id, id)</code> with metadata payload.</td>
+                    <td>Each snapshot owns rows (<code>playground_rows</code>).</td>
+                </tr>
+                <tr>
+                    <td><code>playground_rows</code></td>
+                    <td>Rows for each snapshot keyed by <code>(dataset_id, snapshot_id, row_id)</code> to guarantee deterministic uniqueness.</td>
+                    <td>Cascaded/deleted by code before removing a dataset.</td>
+                </tr>
+                <tr>
+                    <td><code>playground_experiments</code></td>
+                    <td>Experiment specs stored as JSONB per user.</td>
+                    <td>Linked to runs.</td>
+                </tr>
+                <tr>
+                    <td><code>playground_runs</code></td>
+                    <td>Run payloads (JSONB); FK enforced by <code>experiment_id</code> in code.</td>
+                    <td>Run results reference <code>run_id</code>.</td>
+                </tr>
+                <tr>
+                    <td><code>playground_run_results</code></td>
+                    <td>Results persisted via batched inserts (uses <code>pgx.Batch</code>).</td>
+                    <td>Owned by runs; deleted manually when experiments removed.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Entity Relationships</h3>
+        <div class="mermaid">
+        erDiagram
+            USERS ||--o{ USER_ROLES : "assigned"
+            ROLES ||--o{ USER_ROLES : "defines"
+            USERS ||--o{ SESSIONS : "owns"
+            USERS ||--o{ SPECIALISTS : "registers"
+            USERS ||--o{ MCP_SERVERS : "configures"
+            USERS ||--o{ WARPP_WORKFLOWS : "creates"
+            USERS ||--o{ PLAYGROUND_PROMPTS : "experiments"
+            
+            CHAT_SESSIONS ||--o{ CHAT_MESSAGES : "log"
+            PLAYGROUND_DATASETS ||--o{ PLAYGROUND_SNAPSHOTS : "version"
+            PLAYGROUND_SNAPSHOTS ||--o{ PLAYGROUND_ROWS : "data"
+            PLAYGROUND_EXPERIMENTS ||--o{ PLAYGROUND_RUNS : "execution"
+            PLAYGROUND_RUNS ||--o{ PLAYGROUND_RUN_RESULTS : "result"
+
+            USERS {
+            bigint id PK
+            string email UK
+            }
+            SPECIALISTS {
+            bigint id PK
+            bigint user_id FK
+            string name
+            }
+            CHAT_SESSIONS {
+            uuid id PK
+            bigint user_id FK
+            }
+            CHAT_MESSAGES {
+            uuid id PK
+            uuid session_id FK
+            }
+        </div>
+
+        <h2 id="data-schema">3. Migrations and schema management</h2>
+        <div class="mermaid">
+            sequenceDiagram
+                participant App as Application Main
+                participant Factory as Database Factory
+                participant Store as Postgres Store
+                participant DB as PostgreSQL
+
+                App->>Factory: NewManager(Config)
+                Factory->>Store: Init() / InitSchema()
+                
+                rect rgb(240, 248, 255)
+                    Note over Store, DB: Self-Bootstrapping (Idempotent)
+                    Store->>DB: CREATE TABLE IF NOT EXISTS...
+                    Store->>DB: ALTER TABLE ... ADD COLUMN...
+                    Store->>DB: CREATE EXTENSION IF NOT EXISTS vector
+                    Store->>DB: CREATE INDEX IF NOT EXISTS...
+                end
+                
+                Store-->>Factory: Ready
+                Factory-->>App: Persistence Manager (Ready)
+                App->>App: Start HTTP Listeners
+        </div>
+        <ul>
+            <li><strong>Location:</strong> Every persistence module bootstraps its schema under <code>internal/persistence/databases/</code> (e.g., <code>auth/store.go</code>, <code>specialists_store.go</code>, <code>chat_store_postgres.go</code>, <code>playground_store.go</code>).</li>
+            <li><strong>How applied:</strong> <code>databases.Manager.Init</code> instantiates each store and invokes <code>Init</code>/<code>InitSchema</code> methods that execute <code>CREATE TABLE IF NOT EXISTS</code> statements.</li>
+            <li><strong>Ordering/versioning:</strong> Schema updates happen at runtime; there’s no explicit migration history. Each initializer runs in code order during startup.</li>
+        </ul>
+    </section>
+
+    <!-- SECTION 4: INTERFACES -->
+    <section id="interfaces">
+        <h1>Manifold – Interfaces & Workflows</h1>
+
+        <h2 id="iface-overview">1. Inbound interfaces overview</h2>
+        <div class="mermaid">
+            flowchart TB
+                subgraph Entrypoints [Application Entrypoints]
+                    AgentD[cmd/agentd<br>HTTP Server]
+                    Orch[cmd/orchestrator<br>Kafka Consumer]
+                    CLI[cmd/agent<br>CLI Tool]
+                end
+
+                subgraph Core [Internal Core Packages]
+                    Router[internal/agentd/router]
+                    Handlers[HTTP Handlers<br>chat/projects/warpp]
+                    Engine[internal/agent.Engine]
+                    OrchLib[internal/orchestrator]
+                    Tools[internal/tools.Registry]
+                end
+
+                subgraph Infra [Infrastructure Services]
+                    Kafka((Kafka))
+                    Redis[(Redis Dedupe)]
+                    DB[(Persistence Stores)]
+                    LLM[LLM Providers]
+                end
+
+                AgentD --> Router
+                Router --> Handlers
+                Handlers --> Engine
+                Handlers --> DB
+                
+                CLI --> Engine
+                
+                Orch --> Kafka
+                Orch --> OrchLib
+                OrchLib --> Redis
+                OrchLib --> Tools
+                
+                Engine --> Tools
+                Engine --> LLM
+                Tools --> LLM
+        </div>
+
+        <h2 id="iface-api">2. HTTP / RPC APIs</h2>
+        <ul>
+            <li><strong>Agentd surface (<code>internal/agentd</code>)</strong>
+                <ul>
+                    <li><code>GET /healthz</code> & <code>GET /readyz</code> – basic liveness/readiness endpoints.</li>
+                    <li><code>/auth/*</code> & <code>/api/me</code> – exposed when auth enabled.</li>
+                    <li><code>/api/projects</code> & <code>/api/projects/{id}</code> – CRUD/listing backed by <code>internal/projects.Service</code>.</li>
+                    <li><code>/api/runs</code>, <code>/api/chat/sessions</code> – chat session management.</li>
+                    <li><code>/agent/run</code> + <code>/agent/vision</code>, <code>/api/prompt</code> – agent execution entrypoints.</li>
+                    <li><code>/api/mcp/*</code> – MCP server listing and OAuth endpoints.</li>
+                </ul>
+            </li>
+            <li><strong>Playground API (<code>internal/httpapi</code>)</strong>
+                <ul>
+                    <li>Prompts (GET list <code>/api/v1/playground/prompts</code>, POST create, GET/DELETE by ID).</li>
+                    <li>Datasets and Experiments (<code>/api/v1/playground/experiments</code>, <code>/runs</code>).</li>
+                </ul>
+            </li>
+            <li><strong>CLI-to-internal APIs</strong>
+                <ul>
+                    <li>CLI agent runs call into <code>internal/agent.Engine</code> directly but expose consistent configuration via <code>cmd/agent/main.go</code>.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h2 id="iface-workflows">3. Key workflows</h2>
+
+        <h3>Agentd HTTP request → agent engine run</h3>
+        <p>Triggered via <code>POST /agent/run</code>. The handler extracts context, builds prompt/history attributes, and calls <code>agent.Engine.Run</code>, which iterates the LLM reasoning loop.</p>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                actor User as Client/User
+                participant Handler as HTTP Handler
+                participant Auth as Auth/Session
+                participant Engine as Agent Engine
+                participant Registry as Tool Registry
+                participant LLM as LLM Provider
+
+                User->>Handler: POST /agent/run
+                Handler->>Auth: Validate User & Session
+                Auth-->>Handler: Session Context
+                
+                Handler->>Engine: Engine.Run(prompt, history)
+                
+                loop Reasoning Loop
+                    Engine->>LLM: Generate Completion
+                    LLM-->>Engine: Response (Content or ToolCall)
+                    
+                    opt Tool Invocation
+                        Engine->>Registry: Dispatch(ToolName, Args)
+                        Registry-->>Engine: JSON Result
+                    end
+                    
+                    Engine->>User: Stream SSE (Delta/ToolEvent)
+                end
+                
+                Engine->>Handler: Final Conversation State
+                Handler->>User: 200 OK (Complete)
+        </div>
+
+        <h3>Kafka command → WARPP workflow execution</h3>
+        <p>Messages posted to the command topic are consumed by the orchestrator, deduped via Redis, and executed via the WARPP runner.</p>
+        <div class="mermaid">
+            stateDiagram-v2
+                direction LR
+                state "Kafka Ingest" as Ingest
+                state "Deduplication" as Dedup
+                state "WARPP Execution" as WARPP {
+                    [*] --> Personalize
+                    Personalize --> Scheduler
+                    Scheduler --> ExecuteTool
+                    ExecuteTool --> MergeDelta
+                    MergeDelta --> CheckDone
+                    CheckDone --> Scheduler : Next Step
+                    CheckDone --> [*] : Complete
+                }
+                state "Result Handling" as Result
+
+                [*] --> Ingest : Message Arrives
+                Ingest --> Dedup : Check CorrelationID
+                Dedup --> WARPP : ID New
+                Dedup --> [*] : ID Exists (Ignore)
+                
+                WARPP --> Result : Workflow Done
+                Result --> PublishSuccess : Success
+                Result --> PublishDLQ : Retry Exhausted
+                
+                PublishSuccess --> [*]
+                PublishDLQ --> [*]
+        </div>
+    </section>
+
+</main>
+
+<script>
+    mermaid.initialize({ 
+        startOnLoad: true,
+        theme: 'default',
+        securityLevel: 'loose',
+        themeVariables: {
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
+            fontSize: '14px'
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Galaxy Shader</title>
+  <style>
+    /* Make sure the canvas fills the whole window without scrollbars */
+    html, body { height: 100%; margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+<canvas id="glcanvas"></canvas>
+<script>
+// ======================= Vertex Shader =======================
+// Sets up camera and computes the ray direction for each pixel
+const vertexShaderSource = `
+attribute vec2 a_Position;
+uniform vec2 u_resolution;
+varying vec3 v_rayDir;
+
+void main() {
+  // Camera setup
+  vec3 cameraPos = vec3(0.0, 1.0, 3.0);
+  vec3 target = vec3(0.0, 0.0, 0.0);
+  vec3 up = vec3(0.0, 1.0, 0.0);
+
+  vec3 forward = normalize(target - cameraPos);
+  vec3 right = normalize(cross(forward, up));
+  vec3 camUp = cross(right, forward);
+
+  // Convert screen coordinate to normalized device coordinate
+  vec2 screen = a_Position * vec2(u_resolution.x / u_resolution.y, 1.0);
+  
+  // Compute ray direction
+  v_rayDir = normalize(screen.x * right + screen.y * camUp + 1.5 * forward);
+
+  // Set clip space position
+  gl_Position = vec4(a_Position, 0.0, 1.0);
+}
+`;
+
+// ======================= Fragment Shader =======================
+// Renders the galaxy with volumetric scattering, nebulae, and stars
+const fragmentShaderSource = `
+precision highp float;
+
+uniform float u_time;       // Time in seconds for animation
+uniform vec2 u_resolution;  // Canvas resolution
+
+varying vec3 v_rayDir;      // Ray direction from vertex shader
+
+// ======================= Constants =======================
+// Number of steps for ray marching
+#define STEPS 64
+
+// Absorption coefficient for Beer's Law (controls overall galaxy transparency)
+// Change this value to make the galaxy more or less transparent
+#define ABS_COEFF 3.5
+
+// Scattering parameter for Henyey-Greenstein phase function (controls scattering anisotropy)
+// 0.5 is moderate scattering; adjust for more forward or backward scattering
+#define SCATTER_G 0.5
+
+// Pi constant for calculations
+#define PI 3.14159265359
+
+// ======================= Noise Functions for procedural detail =======================
+ // Hash function for pseudo-random values based on position
+float hash(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,45.164))) * 43758.5453);}
+
+// 3D noise function with clumpier, more clustered appearance
+float noise3(vec3 p) {
+    // Warp the input position to create clustering
+    p += 0.7 * sin(p.yzx * 1.0 + cos(p.zxy * 1.3)) + 0.4 * cos(p.zxy * 9.1);
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f); // Smooth interpolation
+    return mix(
+        mix(mix(hash(i + vec3(0.0)), hash(i + vec3(1.0,0.0,0.0)), f.x),
+                mix(hash(i + vec3(0.0,1.0,0.0)), hash(i + vec3(1.0,1.0,0.0)), f.x), f.y),
+        mix(mix(hash(i + vec3(0.0,0.0,1.0)), hash(i + vec3(1.0,0.0,1.0)), f.x),
+                mix(hash(i + vec3(0.0,1.0,1.0)), hash(i + vec3(1.1,1.1,1.1)), f.x), f.y),
+        f.z
+    );
+}
+
+// Fractal Brownian Motion for layered noise details
+float fbm3(vec3 p) {
+  float v = 0.1;
+  float a = 0.5;
+  mat3 m = mat3(
+    0.00, 0.80, 0.60,
+   -0.80, 0.36, -0.48,
+   -0.60, -0.48, 0.64
+  );
+  for(int i=0; i<5; i++) {
+    v += a * noise3(p);
+    p = m * p * 8.0;
+    a *= 0.4;
+  }
+  return v;
+}
+
+// Beer's Law for atmospheric absorption (controls how transparent the galaxy appears)
+float BeersLaw(float d) {
+  return exp(-d * ABS_COEFF);
+}
+
+// Henyey-Greenstein phase function for scattering anisotropy
+float HenyeyGreenstein(float g, float mu) {
+  float gg = g * g;
+  return (1.1 / (4.0 * PI)) * ((1.0 - gg) / pow(1.0 + gg - 2.2 * g * mu, 1.5));
+}
+
+// ======================= Galaxy parameters =======================
+// You can tweak these constants to change galaxy appearance
+
+// Galaxy rotation speed (affects the rotation of the spiral arms)
+const float GAL_ROT_SPEED = 0.05;
+
+// Inner and outer radius of the galaxy (adjust to change galaxy size)
+const float R_MIN = 0.5; // Minimum radius
+const float R_MAX = 2.8;  // Maximum radius
+
+// Thickness of the galaxy's disk (adjust to make it thicker or thinner)
+const float THICK = 0.2;
+
+// Number of spiral arms
+const int NUM_ARMS = 1;
+
+// Spiral pitch (how tightly wound the arms are)
+const float PITCH_INV = 5.0;
+
+// Base radius for spiral arms
+const float R0 = 4.0;
+
+// Power for arm width shaping (higher makes arms thinner)
+const float WIDTH_POW = 0.9;
+
+// Bulge parameters (central bright region)
+const float BULGE_RADIUS = 1.; // Radius of the bulge
+const float BULGE_FACTOR = 0.9; // Brightness factor of the bulge
+
+// Density boost (overall brightness scaling)
+const float DENSITY_BOOST = 0.7;
+
+// ======================= Density function =======================
+// Determines how dense the galaxy is at point p
+float getGalaxyDensity(vec3 p) {
+  float R = length(p.xz); // Radial distance from center
+  float ang = atan(p.z, p.x); // Angle around center
+  float yfall = smoothstep(THICK, THICK * 0.4, abs(p.y)); // Vertical falloff
+  
+  if(yfall < 0.001) return 0.0; // Skip points outside the disk
+  
+  // Radial falloff for the galaxy brightness
+  float radial = smoothstep(R_MIN, R_MIN + 0.25, R) * smoothstep(R_MAX, R_MAX - 0.4, R);
+  
+  // Spiral arms calculation
+  float arms = 0.0;
+  for(int i=0; i<NUM_ARMS; i++) {
+    float off = float(i) * (2.0 * PI / float(NUM_ARMS));
+    float arg = ang - (PITCH_INV * log(max(R, 0.001) / R0) + off);
+    // Cosine pattern raised to a power for sharp arms
+    arms += pow(max(0.0, cos(arg)), WIDTH_POW);
+  }
+  // Clamp and scale arms
+  arms = clamp(arms, 0.0, 1.0) * radial;
+
+  // Bulge at the center
+  float d3 = length(p);
+  float bulge = smoothstep(BULGE_RADIUS, BULGE_RADIUS * 0.25, d3) *
+                smoothstep(BULGE_RADIUS * 0.6, BULGE_RADIUS * 0.2, abs(p.y)) * BULGE_FACTOR;
+
+  // Final density combines arms and bulge, modulated by yfall
+  return clamp((arms + bulge) * yfall, 0.0, 1.0);
+}
+
+// ======================= Main rendering loop =======================
+void main() {
+  vec3 ro = vec3(0.0, 1.0, 3.0); // Camera position
+  vec3 rd = normalize(v_rayDir); // Ray direction
+
+  float maxd = 8.0; // Max distance for ray marching (adjust for scene depth)
+  float dt = maxd / float(STEPS); // Step size
+
+  // Add some jitter for anti-aliasing
+  float jitter = hash(vec3(gl_FragCoord.xy / u_resolution, u_time)) * dt;
+  float t = jitter;
+
+  vec3 col = vec3(0.0); // Final color accumulator
+  float alpha = 0.7;    // Opacity accumulator
+
+  // Light source is now at the center of the vortex (0,0,0)
+  // We'll calculate the direction from the current point to the center
+  vec3 sunDir = vec3(0.0); // Center of the galaxy is our light source
+
+  // Animate galaxy rotation
+  float ang = u_time * GAL_ROT_SPEED;
+  float c0 = cos(ang);
+  float s0 = sin(ang);
+  mat2 rot = mat2(c0, s0, -s0, c0); // Rotation matrix
+
+  // Ray marching loop
+  for(int i=0; i<STEPS; i++) {
+    vec3 pw = ro + rd * t; // Current point along the ray
+
+    // Rotate the galaxy for animation
+    vec3 pg = pw;
+    pg.xz = rot * pw.xz;
+
+    // Get the local density
+    float base = getGalaxyDensity(pg);
+    if(base > 0.001) {
+      // Procedural noise for nebulae and details
+      vec3 off1 = vec3(u_time * 0.11, u_time * 0.06, u_time * 0.09);
+      vec3 off2 = vec3(-u_time * 0.07, u_time * 0.13, -u_time * 0.10);
+      
+      // Colors for nebulae
+      vec3 c1 = pg * 1.8 + off1 + vec3(5.2, 1.3, 8.4); // nebula color 1
+      vec3 c2 = pg * 1.8 + off2 + vec3(9.1, 3.8, 2.7); // nebula color 2
+
+      // Warp for turbulence
+      vec3 warp = vec3(fbm3(c1), fbm3(c2), fbm3(c1 * 6.6)) * 1.0;
+
+      // Noise-based density variation
+      float n = fbm3(pg * 9.0 + warp + vec3(0.0, u_time * 0.22, u_time * 0.32));
+      float n2 = fbm3(pg * 8.0 + vec3(11.3, 23.7, 31.9) + vec3(0.0, u_time * 0.37, u_time * 0.52)) * 1.4;
+      n = mix(n, n2, n2);
+
+      // Final density at this point
+      float dens = clamp(base * smoothstep(0.3, 0.7, n) / DENSITY_BOOST, 0.0, 2.0);
+
+      if(dens > 0.0) {
+        // Light absorption
+        float trans = BeersLaw(dens * dt);
+        float a = 1.0 - trans;
+
+        // Calculate direction from current point to the center (light source)
+        vec3 toCenter = normalize(vec3(0.0) - pw);
+        
+        // Scattering phase (controls how light scatters)
+        // We use the angle between the ray direction and the direction to the center
+        float phase = HenyeyGreenstein(SCATTER_G, dot(rd, toCenter));
+        
+        // Nebula color
+        // Mix of star colors
+        float temp = fbm3(pg * 2.5) * 0.8 + 0.2; // Temperature factor 0.2-1.0
+        vec3 hotStar = vec3(0.6, 0.7, 1.0);     // Blue-white
+        vec3 medStar = vec3(1.0, 0.9, 0.6);     // Yellow-white
+        vec3 coolStar = vec3(1.0, 0.5, 0.2);    // Orange-red
+        vec3 ccol = mix(coolStar, mix(medStar, hotStar, smoothstep(0.4, 0.8, temp)), 
+            smoothstep(0.2, 0.6, temp));
+        
+        // Light intensity based on proximity to center
+        float distToCenter = length(pw);
+        float lightIntensity = smoothstep(6.0, 0.9, distToCenter);
+        
+        // Diffuse lighting effect from center
+        float diffuse = max(10.0, dot(toCenter, -rd)) * lightIntensity;
+        
+        // Mix nebula colors based on light angles
+        ccol = mix(ccol * 0.2, ccol * 1.2, diffuse) + ccol * diffuse * 0.2;
+        
+        // Apply scattering phase
+        ccol *= phase;
+        
+        // Add to accumulated color with transparency
+        col += (1.0 - alpha) * ccol * a;
+        alpha += a * (1.0 - alpha);
+      }
+    }
+    if(alpha > 0.99) break; // Early stop if scene is opaque
+    t += dt;
+    if(t > maxd) break; // Exit if max distance exceeded
+  }
+
+  // Background color (changed to a darker blue-black for better contrast)
+  vec3 bg = mix(vec3(0.01, 0.01, 0.04), vec3(0.1, 0.15, 0.25), clamp(rd.y * 0.5 + 0.5, 0.0, 1.0));
+
+  // Final color blend between background and galaxy
+  col = mix(bg, col, alpha);
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+// ======================= WebGL setup functions =======================
+function createShader(gl, type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(shader));
+  }
+  return shader;
+}
+
+function createProgram(gl, vsSource, fsSource) {
+  const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
+  const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(prog));
+  }
+  return prog;
+}
+
+// ======================= Initialize WebGL =======================
+const canvas = document.getElementById('glcanvas');
+const gl = canvas.getContext('webgl');
+if (!gl) { 
+  console.error('WebGL not supported');
+  document.body.innerHTML = '<div style="color:white;padding:20px;">Your browser does not support WebGL, which is required for this demo.</div>';
+}
+
+// Fullscreen quad positions
+const positions = new Float32Array([
+  -1, -1,
+   1, -1,
+  -1,  1,
+  -1,  1,
+   1, -1,
+   1,  1
+]);
+const buffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);
+gl.useProgram(program);
+
+// Attribute setup
+const posLoc = gl.getAttribLocation(program, 'a_Position');
+gl.enableVertexAttribArray(posLoc);
+gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+// Uniform locations
+const uTimeLoc = gl.getUniformLocation(program, 'u_time');
+const uResLoc = gl.getUniformLocation(program, 'u_resolution');
+
+// Handle window resize
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ======================= Render Loop =======================
+function render(time) {
+  time *= 0.001; // Convert to seconds
+  gl.useProgram(program);
+  gl.uniform1f(uTimeLoc, time);
+  gl.uniform2f(uResLoc, canvas.width, canvas.height);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

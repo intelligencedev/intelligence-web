@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="{{ .Site.LanguageCode | default "en" }}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ .Title }} | {{ .Site.Title }}</title>
+  {{ with .Params.description }}<meta name="description" content="{{ . }}" />{{ end }}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: auto; }
+
+    body {
+      background: #05070c;
+      color: #e6edf3;
+      overflow-x: hidden;
+      /* Hide scrollbar — immersive feel while still being scrollable */
+      scrollbar-width: none;
+    }
+    body::-webkit-scrollbar { display: none; }
+
+    /* ─────────────────────────────────────────────────────────────
+       VIZ LAYER  — fixed, covers full viewport, fades on scroll
+    ───────────────────────────────────────────────────────────── */
+    #viz-wrap {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      overflow: hidden;
+      will-change: opacity;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0; left: 0;
+    }
+
+    /* Glow layer — anamorphic horizontal bloom */
+    #cg {
+      width: 100%; height: 100%;
+      filter: blur(24px) brightness(1.65) saturate(2.1);
+      mix-blend-mode: screen;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.88;
+      transform: scaleX(1.15);
+      transform-origin: center center;
+    }
+
+    /* Sharp layer */
+    #cm {
+      width: 100%; height: 100%;
+      mix-blend-mode: screen;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* Cinematic vignette */
+    .vignette {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      background: radial-gradient(
+        ellipse 76% 76% at 50% 47%,
+        transparent 32%,
+        rgba(5,7,12,0.52) 100%
+      );
+    }
+
+    /* Site brand */
+    .site-brand {
+      position: fixed;
+      top: 22px; left: 26px;
+      z-index: 6;
+      font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(230,237,243,0.45);
+      text-decoration: none;
+      letter-spacing: 0.01em;
+      pointer-events: auto;
+      opacity: 0;
+      animation: fadeUp 0.8s ease-out 0.5s forwards;
+    }
+    .site-brand:hover { color: rgba(230,237,243,0.78); }
+
+    /* Title */
+    .viz-title {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      pointer-events: none;
+      padding: 6vw;
+      font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      color: #e6edf3;
+    }
+    .viz-title-inner { max-width: min(1100px, 92vw); }
+    .viz-title h1 {
+      font-size: clamp(44px, 7vw, 112px);
+      line-height: 0.94;
+      font-weight: 800;
+      letter-spacing: -0.055em;
+      opacity: 0;
+      animation: fadeUp 1.2s ease-out 0.3s forwards;
+      text-shadow:
+        0 2px 12px rgba(5,7,12,0.55),
+        0 8px 30px rgba(5,7,12,0.35),
+        0 20px 60px rgba(5,7,12,0.18);
+    }
+    .title-rule {
+      width: 42px; height: 1px;
+      margin: clamp(10px, 1.5vw, 18px) auto;
+      background: linear-gradient(to right, transparent, rgba(154,180,255,0.38), transparent);
+      opacity: 0;
+      animation: fadeUp 0.8s ease-out 0.9s forwards;
+    }
+    .viz-subtitle {
+      font-size: clamp(14px, 1.7vw, 24px);
+      line-height: 1.25;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      color: #e6edf3;
+      opacity: 0;
+      animation: fadeUp 1s ease-out 1.1s forwards;
+      text-shadow:
+        0 2px 10px rgba(5,7,12,0.45),
+        0 8px 24px rgba(5,7,12,0.22);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       SCROLL CUE — down arrow at bottom-center
+    ───────────────────────────────────────────────────────────── */
+    .scroll-cue {
+      position: absolute;
+      bottom: 34px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      opacity: 0;
+      animation: fadeIn 0.7s ease-out 2.8s forwards;
+    }
+    .scroll-cue .cue-label {
+      font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(154,180,255,0.40);
+    }
+    .scroll-cue svg {
+      display: block;
+      animation: arrowBounce 2.1s ease-in-out infinite;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       SPACER — 100vh, creates the scroll distance for the fade.
+       At scrollY == viewport height, the article top sits exactly
+       at the top of the viewport. The viz has fully faded by then.
+    ───────────────────────────────────────────────────────────── */
+    #viz-spacer { height: 100vh; }
+
+    /* ─────────────────────────────────────────────────────────────
+       ARTICLE — normal flow, starts after the spacer
+    ───────────────────────────────────────────────────────────── */
+    #article-wrap {
+      position: relative;
+      z-index: 1;
+      background: #05070c;
+      opacity: 0;
+      will-change: opacity;
+    }
+
+    .article-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 88px 24px 160px;
+      font-family: 'Inter Tight', ui-sans-serif, system-ui, sans-serif;
+    }
+
+    /* ── Article typography ──────────────────────────────────── */
+    .article-inner h1 {
+      font-size: clamp(28px, 4.5vw, 56px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.0;
+      color: #e6edf3;
+      margin: 0 0 6px;
+    }
+
+    .article-inner h2 {
+      font-size: clamp(17px, 2vw, 24px);
+      font-weight: 700;
+      letter-spacing: -0.022em;
+      line-height: 1.2;
+      color: #e6edf3;
+      margin: 60px 0 16px;
+      padding-top: 28px;
+      border-top: 1px solid rgba(230,237,243,0.08);
+    }
+
+    .article-inner h3 {
+      font-size: clamp(14px, 1.55vw, 18px);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: rgba(154,180,255,0.85);
+      margin: 38px 0 10px;
+    }
+
+    .article-inner p {
+      font-size: clamp(15px, 1.45vw, 18px);
+      line-height: 1.80;
+      color: rgba(230,237,243,0.86);
+      margin: 0 0 22px;
+    }
+
+    .article-inner hr {
+      border: 0;
+      border-top: 1px solid rgba(230,237,243,0.10);
+      margin: 44px 0;
+    }
+
+    .article-inner blockquote {
+      margin: 26px 0;
+      padding: 4px 20px;
+      border-left: 2px solid rgba(154,180,255,0.28);
+      color: rgba(230,237,243,0.70);
+    }
+    .article-inner blockquote p { color: inherit; font-size: inherit; }
+
+    .article-inner a { color: #6aaefc; text-decoration: none; }
+    .article-inner a:hover { text-decoration: underline; }
+
+    .article-inner code {
+      font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+      font-size: 0.875em;
+      background: rgba(230,237,243,0.08);
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .article-inner pre {
+      background: rgba(230,237,243,0.05);
+      border: 1px solid rgba(230,237,243,0.08);
+      border-radius: 10px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      margin: 24px 0;
+    }
+    .article-inner pre code {
+      background: none; padding: 0;
+      font-size: 14px; line-height: 1.65;
+      color: rgba(230,237,243,0.88);
+    }
+
+    .article-inner table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 28px 0;
+      font-size: 14px;
+    }
+    .article-inner th {
+      text-align: left;
+      padding: 9px 14px;
+      border-bottom: 1px solid rgba(230,237,243,0.18);
+      color: rgba(154,180,255,0.82);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .article-inner td {
+      padding: 9px 14px;
+      border-bottom: 1px solid rgba(230,237,243,0.07);
+      color: rgba(230,237,243,0.78);
+      vertical-align: top;
+      line-height: 1.55;
+    }
+
+    .article-inner ul,
+    .article-inner ol {
+      padding-left: 22px;
+      margin: 0 0 22px;
+    }
+    .article-inner li {
+      font-size: clamp(14px, 1.4vw, 17px);
+      line-height: 1.75;
+      color: rgba(230,237,243,0.80);
+      margin-bottom: 6px;
+    }
+
+    .article-inner sup { line-height: 0; }
+    .article-inner sup a {
+      color: rgba(154,180,255,0.55);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Footnotes — generated by Hugo's goldmark renderer */
+    .article-inner .footnotes {
+      margin-top: 56px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(230,237,243,0.08);
+      font-size: 13px;
+      color: rgba(230,237,243,0.50);
+      line-height: 1.6;
+    }
+    .article-inner .footnotes ol { padding-left: 20px; }
+    .article-inner .footnotes li { margin-bottom: 10px; }
+    .article-inner .footnotes a { color: rgba(106,174,252,0.60); }
+    /* Back-reference arrow */
+    .article-inner .footnote-backref { margin-left: 4px; }
+
+    /* ─────────────────────────────────────────────────────────────
+       KEYFRAMES
+    ───────────────────────────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn { to { opacity: 1; } }
+    @keyframes arrowBounce {
+      0%, 100% { transform: translateY(0);    opacity: 0.38; }
+      50%       { transform: translateY(8px); opacity: 0.88; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .viz-title h1, .title-rule, .viz-subtitle,
+      .site-brand, .scroll-cue { animation: none; opacity: 1; }
+      .scroll-cue svg { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       VIZ LAYER — fixed fullscreen, fades out as user scrolls
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="viz-wrap">
+    <canvas id="cg"></canvas>
+    <canvas id="cm"></canvas>
+    <div class="vignette"></div>
+    <a class="site-brand" href="/">{{ .Site.Title }}</a>
+    <div class="viz-title">
+      <div class="viz-title-inner">
+        <h1>Mapping the Flood</h1>
+        <div class="title-rule"></div>
+        <p class="viz-subtitle">The Proliferation of AI Agents, 2025–2026</p>
+      </div>
+    </div>
+
+    <!-- Scroll cue: down arrow at bottom-center -->
+    <div class="scroll-cue" aria-label="Scroll to read article">
+      <span class="cue-label">Scroll</span>
+      <!-- Double-chevron arrow — clearly directional, softly animated -->
+      <svg width="24" height="30" viewBox="0 0 24 30" fill="none"
+           stroke="rgba(154,180,255,0.60)" stroke-width="1.5"
+           stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true">
+        <polyline points="4 6 12 13 20 6"/>
+        <polyline points="4 16 12 23 20 16"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SPACER — 100vh block in normal flow.
+       Provides the scroll distance for the transition.
+       When scrollY == innerHeight, the article top is at the
+       viewport top and the viz has fully faded.
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="viz-spacer"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ARTICLE — fades in as viz fades out
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="article-wrap">
+    <div class="article-inner">
+      {{ .Content }}
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CANVAS ANIMATION — particle swarm visualization
+  ═══════════════════════════════════════════════════════════ -->
+  <script>
+  (() => {
+    'use strict';
+    const TAU = Math.PI * 2;
+    const rng = (lo, hi) => lo + Math.random() * (hi - lo);
+
+    /* ── Canvas setup ──────────────────────────────────────── */
+    const cm = document.getElementById('cm');
+    const cg = document.getElementById('cg');
+    const mc = cm.getContext('2d', { alpha: true, desynchronized: true });
+    const gc = cg.getContext('2d', { alpha: true, desynchronized: true });
+
+    const GS = 0.25;
+    let W = 1, H = 1, GW = 1, GH = 1, CX = 1, CY = 1, ORB_R = 60;
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      W = window.innerWidth;
+      H = window.innerHeight;
+      CX = W * 0.5;
+      CY = H * 0.5;
+      ORB_R = Math.min(W, H) * 0.064;
+      cm.width = (W * dpr) | 0;
+      cm.height = (H * dpr) | 0;
+      mc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      GW = (W * GS) | 0;
+      GH = (H * GS) | 0;
+      cg.width = GW;
+      cg.height = GH;
+      cg.style.width = W + 'px';
+      cg.style.height = H + 'px';
+    }
+    window.addEventListener('resize', resize, { passive: true });
+
+    /* ── Particle pool (SoA + free-list) ───────────────────── */
+    const MAX = 100000;
+    const ppx = new Float32Array(MAX);
+    const ppy = new Float32Array(MAX);
+    const pvx = new Float32Array(MAX);
+    const pvy = new Float32Array(MAX);
+    const phue = new Uint16Array(MAX);
+    const plif = new Uint16Array(MAX);
+    const pmxl = new Uint16Array(MAX);
+    const psz  = new Float32Array(MAX);
+    const pbrt = new Uint8Array(MAX);
+
+    const pfnx = new Int32Array(MAX);
+    for (let i = 0; i < MAX - 1; i++) pfnx[i] = i + 1;
+    pfnx[MAX - 1] = -1;
+    let pfHead = 0, pfCount = MAX;
+
+    function palloc() {
+      if (!pfCount) return -1;
+      const i = pfHead;
+      pfHead = pfnx[i];
+      pfCount--;
+      return i;
+    }
+    function pdealloc(i) {
+      pfnx[i] = pfHead;
+      pfHead = i;
+      pfCount++;
+    }
+
+    const pact = new Uint16Array(MAX);
+    let pactN = 0;
+
+    function pspawn(x, y, vx, vy, sz, hue, life, brt) {
+      const i = palloc();
+      if (i < 0) return;
+      ppx[i] = x; ppy[i] = y;
+      pvx[i] = vx; pvy[i] = vy;
+      psz[i] = sz;
+      phue[i] = ((hue | 0) % 360 + 360) % 360;
+      plif[i] = pmxl[i] = life | 0;
+      pbrt[i] = brt;
+      pact[pactN++] = i;
+    }
+
+    /* ── Color buckets (pre-computed HSLA strings) ─────────── */
+    const HB = 24, AB = 4;
+    const ALPHAS = [0.11, 0.28, 0.55, 0.88];
+    const NBKT = HB * AB;
+    const mcColors = new Array(NBKT);
+    const gcColors = new Array(NBKT);
+    for (let h = 0; h < HB; h++) {
+      const hv = (h / HB * 360) | 0;
+      for (let a = 0; a < AB; a++) {
+        const al = ALPHAS[a];
+        mcColors[h * AB + a] = 'hsla(' + hv + ',100%,75%,' + al.toFixed(2) + ')';
+        gcColors[h * AB + a] = 'hsla(' + hv + ',100%,93%,' + (al * 0.36).toFixed(2) + ')';
+      }
+    }
+    const bktHead = new Int32Array(NBKT);
+    const bktNext = new Int32Array(MAX);
+
+    /* ── Depth palette ─────────────────────────────────────── */
+    const D = 8;
+    const DEPTH_HUES   = [168, 182, 198, 214, 222, 232, 244, 258];
+    const DEPTH_LIGHTS = [95, 88, 80, 74, 68, 62, 56, 50];
+    const DEPTH_ALPHAS = [0.94, 0.84, 0.74, 0.63, 0.52, 0.42, 0.33, 0.25];
+    const DEPTH_WIDTHS = [3.0, 2.4, 1.85, 1.4, 1.1, 0.85, 0.65, 0.48];
+    const DEPTH_STROKES = DEPTH_HUES.map((h, i) =>
+      'hsla(' + h + ',100%,' + DEPTH_LIGHTS[i] + '%,' + DEPTH_ALPHAS[i] + ')');
+    const tipGroups = Array.from({ length: D }, () => []);
+
+    /* ── Branch tip system ─────────────────────────────────── */
+    const MAX_TIPS = 200;
+    const tips = [];
+    const pendingBranches = [];
+
+    function makeTip(x, y, angle, depth, speed) {
+      return { x, y, px: x, py: y, angle, depth, age: 0, speed };
+    }
+
+    function spawnWave(n) {
+      const r = ORB_R * 1.05;
+      for (let k = 0; k < n; k++) {
+        if (tips.length >= MAX_TIPS) break;
+        const a = Math.random() * TAU;
+        tips.push(makeTip(
+          CX + Math.cos(a) * r,
+          CY + Math.sin(a) * r,
+          a, 0,
+          rng(3.0, 5.4)
+        ));
+      }
+    }
+
+    function stepTips() {
+      for (let i = tips.length - 1; i >= 0; i--) {
+        const t = tips[i];
+        t.px = t.x;
+        t.py = t.y;
+        t.age++;
+
+        if (Math.random() < 0.052) t.angle += rng(-0.68, 0.68);
+        else t.angle += rng(-0.048, 0.048);
+
+        const dx = t.x - CX, dy = t.y - CY;
+        const dd = dx * dx + dy * dy;
+        if (dd < (ORB_R * 9) * (ORB_R * 9)) {
+          const outA = Math.atan2(dy, dx);
+          let da = outA - t.angle;
+          if (da >  Math.PI) da -= TAU;
+          if (da < -Math.PI) da += TAU;
+          t.angle += da * 0.028;
+        }
+
+        t.x += Math.cos(t.angle) * t.speed;
+        t.y += Math.sin(t.angle) * t.speed;
+
+        const d = Math.min(t.depth, D - 1);
+        const pHue = DEPTH_HUES[d];
+
+        if (pfCount > 1) {
+          pspawn(
+            t.x + rng(-0.7, 0.7), t.y + rng(-0.7, 0.7),
+            rng(-0.07, 0.07), rng(-0.07, 0.07),
+            rng(0.7, 1.9), pHue, rng(6, 22) | 0, 2
+          );
+        }
+        if (pfCount > 1 && (t.age & 1) === 0) {
+          pspawn(
+            t.x + rng(-3.5, 3.5), t.y + rng(-3.5, 3.5),
+            rng(-0.20, 0.20), rng(-0.20, 0.20),
+            rng(2.5, 6.0),
+            ((pHue + rng(-24, 24)) | 0 + 360) % 360,
+            rng(28, 72) | 0, 1
+          );
+        }
+
+        const bProb = 0.013 + Math.min(t.depth, 4) * 0.003;
+        if (
+          tips.length + pendingBranches.length < MAX_TIPS &&
+          t.age > 7 &&
+          t.depth < 8 &&
+          Math.random() < bProb
+        ) {
+          const spread = rng(0.22, 0.52);
+          const newSpd = t.speed * rng(0.75, 0.93);
+          burstFlash(t.x, t.y, d);
+          pendingBranches.push(
+            makeTip(t.x, t.y, t.angle + spread + rng(-0.05, 0.05), t.depth + 1, newSpd),
+            makeTip(t.x, t.y, t.angle - spread + rng(-0.05, 0.05), t.depth + 1, newSpd)
+          );
+        }
+
+        if (t.x < -100 || t.x > W + 100 || t.y < -100 || t.y > H + 100 || t.age > 520) {
+          tips.splice(i, 1);
+        }
+      }
+      for (const b of pendingBranches) {
+        if (tips.length < MAX_TIPS) tips.push(b);
+      }
+      pendingBranches.length = 0;
+    }
+
+    function burstFlash(x, y, depthIdx) {
+      const hue = DEPTH_HUES[Math.min(depthIdx, D - 1)];
+      for (let k = 0; k < 8 && pfCount > 0; k++) {
+        const a = Math.random() * TAU;
+        const spd = rng(0.5, 3.2);
+        pspawn(
+          x + rng(-2.5, 2.5), y + rng(-2.5, 2.5),
+          Math.cos(a) * spd, Math.sin(a) * spd,
+          rng(1.0, 3.5), hue, rng(8, 26) | 0, 2
+        );
+      }
+      for (let k = 0; k < 2 && pfCount > 0; k++) {
+        pspawn(
+          x + rng(-1, 1), y + rng(-1, 1),
+          rng(-0.2, 0.2), rng(-0.2, 0.2),
+          rng(3.5, 6.0), hue, rng(4, 9) | 0, 2
+        );
+      }
+    }
+
+    function stepParticles() {
+      for (let ai = pactN - 1; ai >= 0; ai--) {
+        const i = pact[ai];
+        if (--plif[i] <= 0) {
+          pdealloc(i);
+          pact[ai] = pact[--pactN];
+          continue;
+        }
+        pvx[i] *= 0.974;
+        pvy[i] *= 0.974;
+        ppx[i] += pvx[i];
+        ppy[i] += pvy[i];
+      }
+    }
+
+    /* ── Pulse rings ───────────────────────────────────────── */
+    const rings = [];
+    const RING_DUR = 1100;
+    function addRing(t0) {
+      rings.push(t0);
+      if (rings.length > 6) rings.shift();
+    }
+
+    function renderRings(t) {
+      mc.save();
+      mc.globalCompositeOperation = 'lighter';
+      const maxR = Math.min(W, H) * 0.68;
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const prog = (t - rings[i]) / RING_DUR;
+        if (prog > 1) { rings.splice(i, 1); continue; }
+        const r = prog * maxR;
+        const a = (1 - prog) * (1 - prog) * 0.72;
+        mc.strokeStyle = 'rgba(106,174,252,' + a.toFixed(3) + ')';
+        mc.lineWidth = 2.6 * (1 - prog);
+        mc.beginPath();
+        mc.arc(CX, CY, r, 0, TAU);
+        mc.stroke();
+      }
+      mc.restore();
+    }
+
+    /* ── Frame fade ────────────────────────────────────────── */
+    function renderFade() {
+      mc.globalCompositeOperation = 'source-over';
+      mc.fillStyle = 'rgba(5,7,12,0.16)';
+      mc.fillRect(0, 0, W, H);
+      gc.globalCompositeOperation = 'source-over';
+      gc.fillStyle = 'rgba(5,7,12,0.20)';
+      gc.fillRect(0, 0, GW, GH);
+    }
+
+    /* ── Central orb ───────────────────────────────────────── */
+    function renderOrb(t) {
+      const pulse = 1 + 0.10 * Math.sin(t * 0.0028);
+      const innerR = ORB_R * pulse;
+      const outerR = ORB_R * 4.8 * pulse;
+
+      mc.save();
+      mc.globalCompositeOperation = 'lighter';
+
+      const g1 = mc.createRadialGradient(CX, CY, 0, CX, CY, outerR);
+      g1.addColorStop(0,    'rgba(2,3,6,0.96)');
+      g1.addColorStop(0.22, 'rgba(8,14,24,0.88)');
+      g1.addColorStop(0.55, 'rgba(24,40,68,0.42)');
+      g1.addColorStop(0.82, 'rgba(44,70,116,0.10)');
+      g1.addColorStop(1,    'rgba(0,0,0,0)');
+      mc.fillStyle = g1;
+      mc.beginPath();
+      mc.arc(CX, CY, outerR, 0, TAU);
+      mc.fill();
+
+      mc.fillStyle = 'rgba(0,0,0,1)';
+      mc.beginPath();
+      mc.arc(CX, CY, innerR, 0, TAU);
+      mc.fill();
+
+      for (let ring = 0; ring < 3; ring++) {
+        const phase = t * 0.00022 * (1 + ring * 0.5);
+        const r = innerR * (0.4 + ring * 0.2);
+        const squish = 0.25 + ring * 0.1;
+        mc.strokeStyle = 'rgba(106,174,252,' + (0.022 + ring * 0.007).toFixed(3) + ')';
+        mc.lineWidth = 0.6;
+        mc.beginPath();
+        mc.ellipse(CX, CY, r, r * squish, phase, 0, TAU);
+        mc.stroke();
+      }
+
+      mc.strokeStyle = 'rgba(97,244,208,0.065)';
+      mc.lineWidth = 1.2;
+      mc.beginPath();
+      mc.arc(CX, CY, innerR * 1.015, 0, TAU);
+      mc.stroke();
+      mc.restore();
+
+      gc.save();
+      gc.globalCompositeOperation = 'lighter';
+      const gr = innerR * GS * 10.5;
+      const gg = gc.createRadialGradient(CX * GS, CY * GS, 0, CX * GS, CY * GS, gr);
+      gg.addColorStop(0,    'rgba(5,7,12,0.92)');
+      gg.addColorStop(0.30, 'rgba(20,36,60,0.44)');
+      gg.addColorStop(0.68, 'rgba(48,74,124,0.14)');
+      gg.addColorStop(1,    'rgba(5,7,12,0)');
+      gc.fillStyle = gg;
+      gc.beginPath();
+      gc.arc(CX * GS, CY * GS, gr, 0, TAU);
+      gc.fill();
+      gc.restore();
+    }
+
+    /* ── Branch line rendering ─────────────────────────────── */
+    function renderTips() {
+      for (let d = 0; d < D; d++) tipGroups[d].length = 0;
+      for (let i = 0; i < tips.length; i++) {
+        tipGroups[Math.min(tips[i].depth, D - 1)].push(tips[i]);
+      }
+      mc.save();
+      mc.globalCompositeOperation = 'lighter';
+      mc.lineCap = 'round';
+      for (let d = 0; d < D; d++) {
+        const g = tipGroups[d];
+        if (!g.length) continue;
+        mc.strokeStyle = DEPTH_STROKES[d];
+        mc.lineWidth = DEPTH_WIDTHS[d];
+        mc.beginPath();
+        for (let k = 0; k < g.length; k++) {
+          mc.moveTo(g[k].px, g[k].py);
+          mc.lineTo(g[k].x, g[k].y);
+        }
+        mc.stroke();
+      }
+      mc.restore();
+    }
+
+    /* ── Particle rendering ────────────────────────────────── */
+    function renderParticles() {
+      bktHead.fill(-1);
+      for (let ai = 0; ai < pactN; ai++) {
+        const i = pact[ai];
+        const lt = plif[i] / pmxl[i];
+        if (lt < 0.02) continue;
+        const hb = ((phue[i] / 360 * HB) | 0) % HB;
+        const ab = Math.min(AB - 1, (lt * AB) | 0);
+        const bkt = hb * AB + ab;
+        bktNext[i] = bktHead[bkt];
+        bktHead[bkt] = i;
+      }
+
+      mc.save();
+      mc.globalCompositeOperation = 'lighter';
+      for (let b = 0; b < NBKT; b++) {
+        if (bktHead[b] < 0) continue;
+        mc.fillStyle = mcColors[b];
+        mc.beginPath();
+        let i = bktHead[b];
+        while (i >= 0) {
+          const lt = plif[i] / pmxl[i];
+          const r = psz[i] * (0.44 + lt * 0.82);
+          mc.moveTo(ppx[i] + r, ppy[i]);
+          mc.arc(ppx[i], ppy[i], r, 0, TAU);
+          i = bktNext[i];
+        }
+        mc.fill();
+      }
+      mc.restore();
+
+      gc.save();
+      gc.globalCompositeOperation = 'lighter';
+      for (let b = 0; b < NBKT; b++) {
+        if (bktHead[b] < 0) continue;
+        let chk = bktHead[b], hasBolt = false;
+        while (chk >= 0) {
+          if (pbrt[chk] >= 2) { hasBolt = true; break; }
+          chk = bktNext[chk];
+        }
+        if (!hasBolt) continue;
+        gc.fillStyle = gcColors[b];
+        gc.beginPath();
+        let i = bktHead[b];
+        while (i >= 0) {
+          if (pbrt[i] >= 2) {
+            const lt = plif[i] / pmxl[i];
+            const r = Math.max(1.2, psz[i] * GS * 6.2 * (0.5 + lt * 0.72));
+            const gx = ppx[i] * GS, gy = ppy[i] * GS;
+            gc.moveTo(gx + r, gy);
+            gc.arc(gx, gy, r, 0, TAU);
+          }
+          i = bktNext[i];
+        }
+        gc.fill();
+      }
+      gc.restore();
+    }
+
+    /* ── Main loop ─────────────────────────────────────────── */
+    const PULSE_PERIOD = 1550;
+    let lastPulse = -PULSE_PERIOD;
+
+    function loop(t) {
+      if (!W || !H) resize();
+      if (document.hidden) { requestAnimationFrame(loop); return; }
+
+      if (t - lastPulse >= PULSE_PERIOD) {
+        addRing(t);
+        lastPulse = t;
+        spawnWave(16 + (tips.length < 10 ? 14 : 0));
+      }
+
+      if (pfCount > 200) {
+        const mA = Math.random() * TAU;
+        const mR = ORB_R * rng(1.12, 2.1);
+        pspawn(
+          CX + Math.cos(mA) * mR, CY + Math.sin(mA) * mR,
+          Math.cos(mA) * rng(0.01, 0.06), Math.sin(mA) * rng(0.01, 0.06),
+          rng(1.5, 3.0),
+          rng(200, 228) | 0,
+          rng(40, 90) | 0, 1
+        );
+      }
+
+      stepTips();
+      stepParticles();
+      renderFade();
+      renderOrb(t);
+      renderRings(t);
+      renderTips();
+      renderParticles();
+
+      requestAnimationFrame(loop);
+    }
+
+    resize();
+    spawnWave(28);
+    requestAnimationFrame(loop);
+  })();
+  </script>
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SCROLL TRANSITION
+       Crossfades viz → article as user scrolls through the spacer.
+
+       Progress 0 (scrollY=0):    viz=1.0  article=0.0
+       Progress 0.5 (scrollY=½h): viz=0.5  article=0.0  (article not yet in viewport)
+       Progress 0.65:             viz=0.35 article fades in begins
+       Progress 1.0 (scrollY=1h): viz=0.0  article=1.0  (article top at viewport top)
+  ═══════════════════════════════════════════════════════════ -->
+  <script>
+  (() => {
+    'use strict';
+
+    const vizWrap     = document.getElementById('viz-wrap');
+    const articleWrap = document.getElementById('article-wrap');
+    const vizSpacer   = document.getElementById('viz-spacer');
+
+    /* Match spacer to exact pixel height so the article top aligns
+       flush with the viewport top when scrollY == innerHeight.       */
+    function syncSpacer() {
+      vizSpacer.style.height = window.innerHeight + 'px';
+    }
+    syncSpacer();
+    window.addEventListener('resize', syncSpacer, { passive: true });
+
+    let rafScheduled = false;
+
+    function applyScroll() {
+      rafScheduled = false;
+
+      const scrollY = window.scrollY;
+      const vh      = window.innerHeight;
+
+      /* Clamp progress 0 → 1 over exactly one viewport height of scroll */
+      const p = Math.min(1, Math.max(0, scrollY / vh));
+
+      /* Viz: linear fade-out */
+      vizWrap.style.opacity = String(1 - p);
+
+      /* Article: begins fading in at 65% progress, completes at 100%.
+         This creates a cinematic crossfade in the final stretch of scroll
+         where the article is already rising into the viewport from below. */
+      const ap = p < 0.65 ? 0 : (p - 0.65) / 0.35;
+      articleWrap.style.opacity = String(ap);
+
+      /* Once fully transitioned, remove viz from the accessibility tree
+         and interaction model so it does not interfere with article links. */
+      if (p >= 1) {
+        vizWrap.style.visibility   = 'hidden';
+        vizWrap.style.pointerEvents = 'none';
+      } else {
+        vizWrap.style.visibility   = '';
+        vizWrap.style.pointerEvents = '';
+      }
+    }
+
+    window.addEventListener('scroll', () => {
+      if (!rafScheduled) {
+        rafScheduled = true;
+        requestAnimationFrame(applyScroll);
+      }
+    }, { passive: true });
+
+    /* Apply on load in case user refreshes mid-scroll */
+    applyScroll();
+  })();
+  </script>
+
+</body>
+</html>

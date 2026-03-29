@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Manifold Quickstart | intelligence.dev</title>
+    <meta name="description" content="Step-by-step guide to deploying Manifold with Docker." />
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background: #0b0c10; color: #e6edf3; }
+      a { color: #6aaefc; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .container { max-width: 980px; margin: 0 auto; padding: 28px 18px 60px; }
+      .site-title { font-size: 14px; opacity: 0.9; margin: 0 0 18px; }
+      .site-title a { color: inherit; }
+      .page-title { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.01em; }
+      .page-desc { margin: 0 0 14px; opacity: 0.85; }
+      .page-meta { margin-left: 10px; opacity: 0.7; font-size: 12px; }
+      .content { line-height: 1.65; }
+      .content pre { overflow: auto; padding: 12px; border-radius: 10px; background: rgba(230,237,243,0.06); }
+      .content code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .content blockquote { margin: 18px 0; padding: 2px 14px; border-left: 3px solid rgba(230,237,243,0.18); opacity: 0.9; }
+      .page-list { list-style: none; padding: 0; margin: 18px 0 0; }
+      .page-list-item { padding: 12px 0; border-top: 1px solid rgba(230,237,243,0.10); }
+      .page-link { font-weight: 600; }
+      .muted { opacity: 0.7; }
+      hr { border: 0; border-top: 1px solid rgba(230,237,243,0.12); margin: 22px 0; }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <div class="site-title"><a href="/">intelligence.dev</a></div>
+      
+  <article>
+    <header class="page-header">
+      <h1 class="page-title">Manifold Quickstart</h1>
+      <div class="page-meta">2025-10-18</div>
+      <p class="page-desc">Step-by-step guide to deploying Manifold with Docker.</p>
+    </header>
+
+    <div class="content">
+      <h1 id="overview">Overview</h1>
+<p>This guide walks you through deploying Manifold locally using Docker. Follow these steps to get up and running quickly.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><strong>Docker</strong> installed and running</li>
+<li><strong>Git</strong> for cloning and updating submodules</li>
+<li>An <strong>OpenAI API key</strong> (for AI features)</li>
+</ul>
+<h2 id="step-1-prepare-environment-files">Step 1: Prepare Environment Files</h2>
+<p>Rename the example environment and config files:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>cp example.env .env
+</span></span><span style="display:flex;"><span>cp config.yaml.example config.yaml
+</span></span></code></pre></div><h2 id="step-2-configure-openai-api-key">Step 2: Configure OpenAI API Key</h2>
+<p>Edit your <code>.env</code> file to set your real OpenAI API key:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="color:#75715e"># Replace test123 with your actual key</span>
+</span></span><span style="display:flex;"><span>sed -i <span style="color:#e6db74">&#39;&#39;</span> <span style="color:#e6db74">&#39;s/^OPENAI_API_KEY=&#34;[^&#34;]*&#34;/OPENAI_API_KEY=&#34;your-key-here&#34;/&#39;</span> .env
+</span></span></code></pre></div><h2 id="step-3-update-submodules">Step 3: Update Submodules</h2>
+<p>Initialize and update git submodules:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>git submodule update --init --recursive
+</span></span></code></pre></div><h2 id="step-4-create-log-file">Step 4: Create Log File</h2>
+<p>Create a log file for Manifold:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>touch manifold.log
+</span></span></code></pre></div><h2 id="step-5-optional-enable-web-search">Step 5: (Optional) Enable Web Search</h2>
+<p>To enable web search and fetch without SearXNG, pull the DuckDuckGo container:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>docker pull mcp/duckduckgo
+</span></span></code></pre></div><h2 id="step-6-deploy-manifold">Step 6: Deploy Manifold</h2>
+<p>Start the minimal deployment (this may take a few minutes):</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>docker compose up -d manifold pg-manifold
+</span></span></code></pre></div><h2 id="access-the-web-ui">Access the Web UI</h2>
+<p>Once containers are running, open your browser and go to:</p>
+<p><a href="http://localhost:32180">http://localhost:32180</a></p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<ul>
+<li>Check <code>manifold.log</code> for errors.</li>
+<li>The most common issue is database DSN misconfiguration. Ensure your <code>.env</code> and <code>config.yaml</code> match the Docker Compose settings for the <code>pg-manifold</code> service.</li>
+</ul>
+<hr>
+<p>For more details, see the <a href="../README.md">Manifold Documentation</a> or contact the development team.</p>
+
+    </div>
+
+    
+      <hr />
+      <div class="muted">Tags:
+        
+          <a href="/tags/manifold/">Manifold</a>
+        
+          , <a href="/tags/deployment/">Deployment</a>
+        
+          , <a href="/tags/quickstart/">Quickstart</a>
+        
+      </div>
+    
+  </article>
+
+    </main>
+  </body>
+</html>
