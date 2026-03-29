@@ -8,6 +8,9 @@
 {{- $scrollLabel := "Scroll" }}
 {{- if eq $lang "es" }}{{ $scrollLabel = "Bajar" }}{{ end }}
 {{- if eq $lang "cn" }}{{ $scrollLabel = "向下" }}{{ end }}
+{{- $tocLabel := "Table of contents" }}
+{{- if eq $lang "es" }}{{ $tocLabel = "Índice" }}{{ end }}
+{{- if eq $lang "cn" }}{{ $tocLabel = "目录" }}{{ end }}
 <html lang="{{ $htmlLang }}">
 <head>
   <meta charset="UTF-8" />
@@ -379,6 +382,103 @@
     .article-inner .footnote-backref { margin-left: 4px; }
 
     /* ─────────────────────────────────────────────────────────────
+       TABLE OF CONTENTS — fixed left gutter, non-intrusive
+       Visible only on viewports wide enough (≥ 1180px) to have
+       left gutter space beside the 720px centred article column.
+    ───────────────────────────────────────────────────────────── */
+    #toc-nav {
+      position: fixed;
+      /* Vertically centred in viewport */
+      top: 50%;
+      transform: translateY(-50%);
+      /* Left-gutter: gap from article left edge ≈ 16px */
+      left: max(12px, calc(50vw - 576px));
+      width: 200px;
+      max-height: 76vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: none;
+      z-index: 49;
+      /* Hidden until article is fully in view */
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.55s ease;
+    }
+    #toc-nav::-webkit-scrollbar { display: none; }
+
+    /* Revealed by JS once article is fully scrolled into view */
+    #toc-nav.toc-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #toc-nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    #toc-nav li {
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Base link style — h2 chapters (primary nav items) */
+    .toc-link {
+      display: block;
+      font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      font-size: 11px;
+      line-height: 1.45;
+      font-weight: 400;
+      color: rgba(230, 237, 243, 0.28);
+      text-decoration: none;
+      padding: 2.5px 4px 2.5px 11px;
+      border-left: 1.5px solid transparent;
+      /* Single-line with ellipsis for chapters */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.18s ease, border-color 0.18s ease;
+    }
+    .toc-link:hover {
+      color: rgba(230, 237, 243, 0.78);
+      text-decoration: none;
+    }
+    .toc-link.toc-active {
+      color: rgba(154, 180, 255, 0.92);
+      border-left-color: rgba(154, 180, 255, 0.48);
+      font-weight: 500;
+    }
+
+    /* h1 PART headings — dim uppercase section-divider labels */
+    .toc-link.toc-h1 {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: rgba(154, 180, 255, 0.20);
+      padding-left: 0;
+      border-left: none;
+      margin-top: 10px;
+      /* Allow wrapping so long translated PART titles fit */
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      line-height: 1.3;
+    }
+    .toc-link.toc-h1:hover {
+      color: rgba(154, 180, 255, 0.52);
+    }
+    .toc-link.toc-h1.toc-active {
+      color: rgba(154, 180, 255, 0.52);
+      border-left: none;
+    }
+
+    /* Hide entirely on viewports too narrow for the left gutter */
+    @media (max-width: 1180px) {
+      #toc-nav { display: none; }
+    }
+
+    /* ─────────────────────────────────────────────────────────────
        KEYFRAMES
     ───────────────────────────────────────────────────────────── */
     @keyframes fadeUp {
@@ -460,6 +560,12 @@
       {{ .Content }}
     </div>
   </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       TABLE OF CONTENTS — built by JS, fixed to the left gutter.
+       Language-agnostic: reads headings from the rendered DOM.
+  ═══════════════════════════════════════════════════════════ -->
+  <nav id="toc-nav" role="navigation" aria-label="{{ $tocLabel }}"></nav>
 
 
   <!-- ═══════════════════════════════════════════════════════════
@@ -985,6 +1091,122 @@
 
     /* Apply on load in case user refreshes mid-scroll */
     applyScroll();
+  })();
+  </script>
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       TABLE OF CONTENTS — scroll-driven, language-agnostic.
+       Builds itself from the rendered heading elements so it works
+       for English, Spanish, and Chinese with zero extra markup.
+  ═══════════════════════════════════════════════════════════ -->
+  <script>
+  (() => {
+    'use strict';
+
+    const tocNav      = document.getElementById('toc-nav');
+    const articleInner = document.querySelector('#article-wrap .article-inner');
+    if (!tocNav || !articleInner) return;
+
+    /* ── Build TOC list from h1 + h2 headings ──────────────── */
+    const ul = document.createElement('ul');
+    tocNav.appendChild(ul);
+
+    // Collect every h1 and h2 in document order
+    const allHeadings = [...articleInner.querySelectorAll('h1, h2')];
+    const items = [];          // { el, id, link }
+    let firstH1Skipped = false;
+
+    allHeadings.forEach(el => {
+      // Hugo goldmark always adds an id to headings; skip any that don't have one
+      if (!el.id) return;
+
+      const tag  = el.tagName.toLowerCase();   // 'h1' or 'h2'
+      const text = el.textContent.trim();
+
+      // Skip the document-title h1 (first h1 in .article-inner)
+      // It duplicates the title already shown in the fullscreen viz
+      if (tag === 'h1' && !firstH1Skipped) {
+        firstH1Skipped = true;
+        return;
+      }
+
+      const a  = document.createElement('a');
+      a.href        = '#' + el.id;
+      a.textContent = text;
+      a.title       = text;          // full text tooltip when truncated
+      a.className   = 'toc-link toc-' + tag;
+      a.dataset.tocId = el.id;
+
+      // Smooth-scroll on click without changing the URL hash abruptly
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      const li = document.createElement('li');
+      li.appendChild(a);
+      ul.appendChild(li);
+      items.push({ el, id: el.id, link: a });
+    });
+
+    /* ── Active-section tracking ───────────────────────────── */
+    let rafPending   = false;
+    let lastActiveId = null;
+
+    function updateToc() {
+      rafPending = false;
+
+      const scrollY = window.scrollY;
+      const vh      = window.innerHeight;
+
+      // TOC is only shown after the viz has fully scrolled away
+      if (scrollY >= vh) {
+        tocNav.classList.add('toc-visible');
+      } else {
+        tocNav.classList.remove('toc-visible');
+        return; // nothing more to do while in the viz
+      }
+
+      // Active item = the last heading whose top edge is at or above
+      // 15% down the viewport (a comfortable reading-ahead threshold)
+      const threshold = Math.min(120, vh * 0.15);
+      let activeId = null;
+
+      for (const { el, id } of items) {
+        if (el.getBoundingClientRect().top <= threshold) activeId = id;
+      }
+
+      // Only update DOM if the active section actually changed
+      if (activeId === lastActiveId) return;
+      lastActiveId = activeId;
+
+      let activeLink = null;
+      items.forEach(({ id, link }) => {
+        const on = (id === activeId);
+        link.classList.toggle('toc-active', on);
+        if (on) activeLink = link;
+      });
+
+      // Auto-scroll the TOC panel so the active item stays visible
+      if (activeLink) {
+        const navBox = tocNav.getBoundingClientRect();
+        const lnkBox = activeLink.getBoundingClientRect();
+        if (lnkBox.top < navBox.top + 20 || lnkBox.bottom > navBox.bottom - 20) {
+          activeLink.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+      }
+    }
+
+    window.addEventListener('scroll', () => {
+      if (!rafPending) {
+        rafPending = true;
+        requestAnimationFrame(updateToc);
+      }
+    }, { passive: true });
+
+    // Handle the case where the page is loaded/refreshed mid-scroll
+    updateToc();
   })();
   </script>
 

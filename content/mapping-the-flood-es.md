@@ -2,7 +2,7 @@
 title: "Cartografía del Diluvio"
 date: 2025-01-01
 layout: "viz-article"
-description: "La Proliferación de los Agentes de IA, 2025–2026"
+description: "La Proliferación de los Agentes de IA"
 tags: ["ia", "agentes", "investigación", "autonomía"]
 ---
 

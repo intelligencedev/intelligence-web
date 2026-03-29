@@ -2,7 +2,7 @@
 title: "绘测洪流"
 date: 2025-01-01
 layout: "viz-article"
-description: "AI智能体的扩散，2025–2026"
+description: "AI智能体的扩散"
 tags: ["ai", "agents", "research", "autonomy"]
 ---
 

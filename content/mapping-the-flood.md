@@ -2,7 +2,7 @@
 title: "Mapping the Flood"
 date: 2025-01-01
 layout: "viz-article"
-description: "The Proliferation of AI Agents, 2025–2026"
+description: "The Proliferation of AI Agents"
 tags: ["ai", "agents", "research", "autonomy"]
 ---
 
