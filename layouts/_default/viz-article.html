@@ -1,5 +1,14 @@
 <!doctype html>
-<html lang="{{ .Site.LanguageCode | default "en" }}">
+{{- $lang := "en" }}
+{{- if strings.HasSuffix .File.BaseFileName "-es" }}{{ $lang = "es" }}{{ end }}
+{{- if strings.HasSuffix .File.BaseFileName "-cn" }}{{ $lang = "cn" }}{{ end }}
+{{- $htmlLang := "en" }}
+{{- if eq $lang "es" }}{{ $htmlLang = "es" }}{{ end }}
+{{- if eq $lang "cn" }}{{ $htmlLang = "zh" }}{{ end }}
+{{- $scrollLabel := "Scroll" }}
+{{- if eq $lang "es" }}{{ $scrollLabel = "Bajar" }}{{ end }}
+{{- if eq $lang "cn" }}{{ $scrollLabel = "向下" }}{{ end }}
+<html lang="{{ $htmlLang }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -87,6 +96,53 @@
       animation: fadeUp 0.8s ease-out 0.5s forwards;
     }
     .site-brand:hover { color: rgba(230,237,243,0.78); }
+
+    /* ─────────────────────────────────────────────────────────────
+       LANGUAGE SWITCHER — top center of viz layer
+    ───────────────────────────────────────────────────────────── */
+    .lang-switcher {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: rgba(5, 7, 12, 0.50);
+      border: 1px solid rgba(154, 180, 255, 0.13);
+      border-radius: 99px;
+      padding: 4px 6px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      opacity: 0;
+      animation: fadeIn 0.8s ease-out 0.6s forwards;
+      pointer-events: auto;
+    }
+
+    .lang-btn {
+      font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(230, 237, 243, 0.36);
+      text-decoration: none;
+      padding: 5px 13px;
+      border-radius: 99px;
+      transition: color 0.18s ease, background 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .lang-btn:hover {
+      color: rgba(230, 237, 243, 0.78);
+      text-decoration: none;
+    }
+
+    .lang-btn.lang-active {
+      color: rgba(230, 237, 243, 0.92);
+      background: rgba(154, 180, 255, 0.15);
+    }
 
     /* Title */
     .viz-title {
@@ -337,7 +393,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .viz-title h1, .title-rule, .viz-subtitle,
-      .site-brand, .scroll-cue { animation: none; opacity: 1; }
+      .site-brand, .scroll-cue, .lang-switcher { animation: none; opacity: 1; }
       .scroll-cue svg { animation: none; }
     }
   </style>
@@ -352,17 +408,31 @@
     <canvas id="cm"></canvas>
     <div class="vignette"></div>
     <a class="site-brand" href="/">{{ .Site.Title }}</a>
+
+    <!-- Language switcher — top center -->
+    <div class="lang-switcher" role="navigation" aria-label="Language">
+      <a href="{{ "/mapping-the-flood/" | relURL }}"
+         class="lang-btn{{ if eq $lang "en" }} lang-active{{ end }}"
+         aria-current="{{ if eq $lang "en" }}page{{ else }}false{{ end }}">EN</a>
+      <a href="{{ "/mapping-the-flood-es/" | relURL }}"
+         class="lang-btn{{ if eq $lang "es" }} lang-active{{ end }}"
+         aria-current="{{ if eq $lang "es" }}page{{ else }}false{{ end }}">ES</a>
+      <a href="{{ "/mapping-the-flood-cn/" | relURL }}"
+         class="lang-btn{{ if eq $lang "cn" }} lang-active{{ end }}"
+         aria-current="{{ if eq $lang "cn" }}page{{ else }}false{{ end }}">中文</a>
+    </div>
+
     <div class="viz-title">
       <div class="viz-title-inner">
-        <h1>Mapping the Flood</h1>
+        <h1>{{ .Title }}</h1>
         <div class="title-rule"></div>
-        <p class="viz-subtitle">The Proliferation of AI Agents</p>
+        <p class="viz-subtitle">{{ .Params.description }}</p>
       </div>
     </div>
 
     <!-- Scroll cue: down arrow at bottom-center -->
     <div class="scroll-cue" aria-label="Scroll to read article">
-      <span class="cue-label">Scroll</span>
+      <span class="cue-label">{{ $scrollLabel }}</span>
       <!-- Double-chevron arrow — clearly directional, softly animated -->
       <svg width="24" height="30" viewBox="0 0 24 30" fill="none"
            stroke="rgba(154,180,255,0.60)" stroke-width="1.5"
