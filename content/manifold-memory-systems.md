@@ -1,18 +1,15 @@
 ---
-title: "Total Recall: How Manifold Gives Its Agents a Memory"
+title: "Memory Architecture in Manifold"
 date: 2026-06-05
-description: "A field guide to Manifold's four memory lanes — Summarization, Transit, Evolving Memory, and MAGMA — and how they turn forgetful chatbots into agents that finish long-horizon work."
+description: "A technical walkthrough of Manifold's four memory subsystems — Summarization, Transit, Evolving Memory, and MAGMA — and how they compose to support long-horizon agent execution."
 tags: ["manifold", "memory", "agents", "rag", "long-horizon"]
 ---
 
 <style>
-/* ── Scoped styles for the memory article ───────────────────────── */
 .content { --evolving:#61f4d0; --transit:#6aaefc; --magma:#ff7a59; --rag:#c792ea; --belief:#ffd166; }
 .content h2 { margin-top: 2.4em; padding-top: .6em; border-top: 1px solid rgba(230,237,243,.10); }
 .content h3 { color: rgba(154,180,255,.9); margin-top: 1.8em; }
 .content img { max-width: 100%; height: auto; display: block; border-radius: 12px; }
-
-.mem-lead { font-size: 1.12rem; line-height: 1.75; color: #c9d4e0; }
 
 .mem-anim { margin: 22px 0 34px; display: grid; gap: 10px; }
 .mem-anim .lane {
@@ -35,28 +32,21 @@ tags: ["manifold", "memory", "agents", "rag", "long-horizon"]
 }
 @media (prefers-reduced-motion: reduce) { .mem-anim .pkt { animation: none; left: 55%; } }
 
-.mem-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 14px; margin: 26px 0; }
-.mem-card { border: 1px solid rgba(230,237,243,.10); border-radius: 14px; padding: 16px 18px; background: rgba(255,255,255,.02); }
-.mem-card h4 { margin: 0 0 6px; font-size: .98rem; }
-.mem-card p { margin: 0; font-size: .85rem; color: #9fb0c2; line-height: 1.55; }
-.mem-chip { display:inline-block; font: 600 .66rem/1 'Space Grotesk',system-ui,sans-serif; letter-spacing:.1em; text-transform:uppercase; padding: 3px 9px; border-radius: 999px; margin-bottom: 9px; color:#0b0c10; }
-
-.mem-figure { margin: 30px 0; border: 1px solid rgba(230,237,243,.10); border-radius: 14px; overflow: hidden; background: linear-gradient(180deg,#0f1219,#0b0c10); }
-.mem-figure img { border-radius: 0; }
-.mem-figcap { font-size: .84rem; color: #8aa0b6; padding: 11px 15px; border-top: 1px solid rgba(230,237,243,.08); }
-
 .mermaid { margin: 28px 0; text-align: center; }
 .content table { border-collapse: collapse; width: 100%; font-size: .86rem; margin: 18px 0; }
 .content th, .content td { border: 1px solid rgba(230,237,243,.12); padding: 8px 11px; text-align: left; vertical-align: top; }
 .content th { background: rgba(255,255,255,.03); }
 .tldr { border-left: 3px solid var(--transit); background: rgba(106,174,252,.06); padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 24px 0; }
+.mem-figure { margin: 30px 0; border: 1px solid rgba(230,237,243,.10); border-radius: 14px; overflow: hidden; background: linear-gradient(180deg,#0f1219,#0b0c10); }
+.mem-figure img { border-radius: 0; }
+.mem-figcap { font-size: .84rem; color: #8aa0b6; padding: 11px 15px; border-top: 1px solid rgba(230,237,243,.08); }
 </style>
 
-<p class="mem-lead">Picture the most brilliant colleague you have ever worked with. They can read a thousand-page spec in seconds, write flawless code, and reason through a thorny migration plan. There is just one problem: every morning they wake up with total amnesia. Yesterday never happened. The painful lesson they learned at 4&nbsp;PM is gone by 9&nbsp;AM. That, in a nutshell, is a raw large language model — and it is the central obstacle to getting agents to finish <em>long-horizon</em> work that spans hours, days, or many sessions.</p>
+An LLM call is stateless. Every invocation begins with exactly what the caller puts in the context window and nothing else. For short, single-turn tasks that is fine. For agents that run across dozens of tool calls, multiple specialists, and sessions separated by hours or days, statelessness is the core engineering problem.
 
-Manifold's answer is not a single "memory feature." It is a small fleet of cooperating memory systems — the UI literally calls them **Memory Lanes** — each tuned for a different kind of remembering. This article is a tour of those lanes: what each one does, how they fit together, and why the combination is what lets a team of agents grind through a multi-day objective without losing the plot.
+Manifold addresses this with four distinct memory subsystems, each designed for a different scope and retention characteristic. The UI surfaces them as **Memory Lanes**. This article describes how each one works, what it stores, how retrieval is scored, and how the four subsystems compose during a long-horizon run.
 
-<div class="mem-anim" role="img" aria-label="Animated diagram of four memory lanes carrying packets of information">
+<div class="mem-anim" role="img" aria-label="Animated diagram of four memory lanes">
   <div class="lane" style="--c:var(--evolving)"><span class="tag">Evolving</span><span class="pkt" style="--d:4.8s;--delay:0s"></span><span class="pkt" style="--d:4.8s;--delay:2.4s"></span></div>
   <div class="lane" style="--c:var(--transit)"><span class="tag">Transit</span><span class="pkt" style="--d:3.9s;--delay:.6s"></span><span class="pkt" style="--d:3.9s;--delay:2.5s"></span></div>
   <div class="lane" style="--c:var(--magma)"><span class="tag">MAGMA</span><span class="pkt" style="--d:5.6s;--delay:.3s"></span><span class="pkt" style="--d:5.6s;--delay:3.1s"></span></div>
@@ -64,28 +54,30 @@ Manifold's answer is not a single "memory feature." It is a small fleet of coope
 </div>
 
 <div class="tldr">
-<strong>TL;DR.</strong> Manifold layers four complementary memory systems on top of an LLM: <strong>Summarization</strong> keeps a single conversation inside the context window; <strong>Transit</strong> is durable, addressable shared memory for coordinating multiple agents; <strong>Evolving Memory</strong> stores reusable <em>lessons</em> from finished tasks and retrieves them for new ones; and <strong>MAGMA</strong> is a multi-graph memory that links events by meaning, time, cause, and entity. Together they turn a stateless predictor into something that behaves like it has experience.
+<strong>Summary.</strong> <strong>Summarization</strong> compresses conversation history to keep each LLM call within its token budget. <strong>Transit</strong> is a durable, keyed store shared across agents and runs. <strong>Evolving Memory</strong> distills task outcomes into reusable experience records retrieved by semantic similarity. <strong>MAGMA</strong> is a multi-graph store that indexes events across semantic, temporal, causal, and entity dimensions simultaneously. The four subsystems compose: context assembly before each LLM call can draw from all of them.
 </div>
 
-## Why one context window is never enough
+## The problem space
 
-An LLM's working memory is its **context window** — the tokens it can see in a single pass. It is generous on modern models but still finite, and worse, it is *volatile*. When the window fills, something has to go. When the session ends, everything goes. A long-horizon agent runs head-first into three different walls:
+Three distinct failure modes appear in long-horizon agent execution, each requiring a different solution:
 
-1. **The conversation gets too long.** A single chat blows past the token budget.
-2. **The work outlives the chat.** A research objective spans dozens of runs and several specialists who never share a context window.
-3. **The agent keeps re-learning the same lessons.** Without durable experience, mistake #1 on Monday is also mistake #1 on Friday.
+**Context overflow.** A conversation that spans many tool calls and large outputs will exceed the model's context window. Naively truncating the oldest messages destroys coherence. Summarizing them into a condensed representation preserves it.
 
-Each wall needs a different tool, which is exactly why Manifold ships several. Here is the high-level picture before we zoom into each lane.
+**Cross-agent coordination.** When an orchestrator delegates subtasks to specialist agents, those agents do not share a context window. They need an external store they can both read and write — one that persists across invocations and is addressable by a stable key, not by session.
+
+**Repeated failure.** Without durable experience, an agent that learns through trial and error in session A starts over in session B. The same diagnostic mistakes recur, the same effective strategies have to be rediscovered. A memory that survives across runs and is retrieved by task similarity breaks this cycle.
+
+A fourth problem — **relational context** — arises when the facts an agent needs are not self-contained. Knowing that `WebGPU` is a graphics API is less useful than knowing it was first mentioned in the same research session that produced the shader compilation bug, which was caused by a driver version mismatch, which is tracked under entity `Driver v531`. That kind of structured relationship requires a graph, not a vector index.
 
 <pre class="mermaid">
 flowchart TD
     U["User goal / long-horizon objective"] --> ENG["Agent engine run"]
     subgraph CTX["Context assembly (per call)"]
       direction TB
-      SUM["Summarization<br/>fit the live chat in budget"]
-      EM["Evolving Memory<br/>reusable lessons from past runs"]
-      TR["Transit<br/>durable shared key/value memory"]
-      MG["MAGMA + RAG<br/>graph + vector knowledge"]
+      SUM["Summarization<br/>compress conversation history"]
+      EM["Evolving Memory<br/>retrieve relevant past experience"]
+      TR["Transit<br/>read shared key/value state"]
+      MG["MAGMA + RAG<br/>traverse graph + vector knowledge"]
     end
     ENG --> CTX
     SUM --> LLM["LLM call"]
@@ -93,119 +85,103 @@ flowchart TD
     TR --> LLM
     MG --> LLM
     LLM --> OUT["Action / answer"]
-    OUT -->|"distill lesson"| EM
-    OUT -->|"write shared note"| TR
+    OUT -->|"distill outcome"| EM
+    OUT -->|"write keyed note"| TR
     OUT -->|"ingest event"| MG
     OUT --> U
 </pre>
 
-Notice the feedback arrows at the bottom: the agent does not just *read* memory, it *writes back* after acting. That loop — act, reflect, store, reuse — is the difference between a chatbot and an agent that gets better at a job over time.
+The write-back arrows matter: memory is not read-only infrastructure. After acting, the agent writes the outcome back into the appropriate store. That feedback loop — act, distill, store, retrieve — is what separates a stateless executor from a system that accumulates useful state.
 
-## Lane 1 — Summarization: keeping a conversation in its lane
+## Summarization
 
-The simplest memory problem is also the most common: a chat that grows longer than the model can read. Manifold's **summarization engine** solves it with a token-budget and a *reserve buffer*, a pattern borrowed from OpenAI's guidance for reasoning models ([`docs/summarization.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/summarization.md)).
+The summarization engine is a preflight check that runs before every LLM call. Its only job is to guarantee the assembled context fits within the model's budget ([`docs/summarization.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/summarization.md)).
 
-The math is refreshingly boring, which is what you want in a safety valve:
+The budget is computed as:
 
 ```text
 token_budget = context_window − reserve_buffer
 ```
 
-The reserve buffer is space set aside for the model's *output*, including the invisible reasoning tokens that models like o-series burn through. With a 128K window and a 25K reserve, you get ~103K tokens of input headroom. Before **every** LLM call the engine counts the current input, and only if it exceeds the budget does it compress older turns.
+The reserve buffer accounts for output tokens the model will generate, including the internal reasoning tokens that o-series and similar models consume before producing visible output. A typical configuration with a 128K context window and a 25K reserve buffer yields ~103K tokens of usable input.
 
 <pre class="mermaid">
 flowchart TD
-    A["Build messages from history"] --> B["Count input tokens<br/>(preflight)"]
-    B --> C{"input &gt; token_budget?"}
-    C -->|No| D["Send as-is to LLM"]
+    A["Assemble messages from history"] --> B["Count input tokens (preflight)"]
+    B --> C{"input > token_budget?"}
+    C -->|No| D["Send to LLM unchanged"]
     C -->|Yes| E["Preserve system message"]
-    E --> F["Keep last N recent messages<br/>(SummaryMinKeepLastMessages, default 4)"]
-    F --> G["Summarize older messages<br/>into a condensed note"]
-    G --> H["Prepend summary + recent tail"]
+    E --> F["Retain last N messages<br/>(SummaryMinKeepLastMessages, default 4)"]
+    F --> G["Summarize earlier messages<br/>into a single condensed block"]
+    G --> H["Rebuild message list:<br/>system + summary block + recent turns"]
     H --> D
 </pre>
 
-Crucially, the summary is *selective*, not a lossy blur. The prompt is told to preserve user goals and preferences, key decisions and facts, important identifiers (files, URLs, IDs), tool results and errors, and any open questions. Token counting is provider-aware: it uses OpenAI's `/v1/responses/input_tokens` endpoint and Anthropic's `/v1/messages/count_tokens` for exact counts, and falls back to a conservative `len/4` heuristic elsewhere.
+Compression is applied only when the budget is exceeded — there is no periodic summarization on a timer or turn count. The system message is always preserved verbatim. The most recent `SummaryMinKeepLastMessages` turns (default 4) are preserved verbatim. Everything between the system message and that tail is replaced by a single summary block, which is itself kept below `SummaryMaxTokens` (default 2048).
 
-A nice touch for humans: when compression happens, the backend fires an SSE `summary` event and the chat header shows a dismissible **"Context summarized"** badge with a tooltip like *"Summarized 38 of 42 messages (105,000 tokens exceeded 103,000 budget)."* You can see exactly when and why your agent tightened its belt.
+The summarizing call uses a separate, configurable model (`summaryModel`). Using a smaller, faster model here is intentional: summary quality does not need to match the quality of the main reasoning model, and the latency cost should be minimal.
 
-```yaml
-# Turn it on (opt-in). See docs/summarization.md
-summaryEnabled: true
-summaryReserveBufferTokens: 25000   # ~25k for reasoning models
-summaryMinKeepLastMessages: 4
-summaryMaxSummaryChunkTokens: 4096
+**Configuration reference:**
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `summaryEnabled` | `false` | Opt-in |
+| `contextWindow` | — | Must match the deployed model |
+| `reserveBuffer` | 25000 | Output + reasoning token headroom |
+| `SummaryMaxTokens` | 2048 | Max tokens in the summary block |
+| `SummaryMinKeepLastMessages` | 4 | Recent turns preserved verbatim |
+| `summaryModel` | — | Can differ from the main model |
+
+## Transit
+
+Transit is Manifold's shared, durable key-value store ([`docs/transit.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/transit.md), [`internal/transit/service.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/transit/service.go)). It solves cross-agent coordination: any agent in any session can read or write a Transit record as long as it knows the key.
+
+Keys follow a hierarchical path format:
+
+```text
+project/<project-id>/<namespace>/<record-name>
 ```
 
-> **Lane summary:** Summarization is *intra-conversation* memory. It keeps a single thread coherent and affordable. It does **not** try to remember across sessions — that is the next three lanes' job.
-
-## Lane 2 — Transit: a shared whiteboard for a team of agents
-
-The moment you have more than one agent — an orchestrator handing work to specialists, or a team grinding on an objective overnight — chat history stops being a good coordination medium. Specialists do not share a context window, and important state gets buried in transcripts. **Transit** is Manifold's fix: a durable, addressable **shared-memory layer** where agents coordinate through explicit keys instead of by shouting across a chat log ([`docs/transit.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/transit.md), [`internal/transit/service.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/transit/service.go)).
-
-Think of it as a team whiteboard with stable, hierarchical addresses:
-
-```json
-{
-  "keyName": "research/webgpu-wiki/plan",
-  "description": "Master wiki outline and structure",
-  "value": "1. index.md  2. wiki.config.md  3. rendering-pipeline.md ...",
-  "embed": true,
-  "embedSource": "value"
-}
-```
-
-Keys are hierarchical and stable (`project/demo/brief`), validated to letters, numbers, and `_ . / @ -`. Records carry a `version` for optimistic concurrency, so two agents updating the same note do not silently clobber each other — an update can require `ifVersion` and fail loudly if the world moved on. Writes are authoritative and synchronous; the same record is *also* best-effort indexed into full-text and (optionally) vector search so another agent can find it by keyword or by meaning later.
-
-Here is the pattern that makes long-horizon teamwork actually work — durable handoff through a key, not through a transcript:
+For example, an orchestrator might write the decomposed plan for a research task to `project/webgpu-wiki/planning/outline`, then spawn five specialist agents that each read that key independently, write their results under `project/webgpu-wiki/findings/<section>`, and allow a synthesis agent to aggregate them — all without any shared context window.
 
 <pre class="mermaid">
 sequenceDiagram
-    autonumber
     participant O as Orchestrator
     participant T as Transit store
-    participant R as Researcher
+    participant S1 as Specialist A
+    participant S2 as Specialist B
     participant W as Writer
-    O->>T: transit_create("research/webgpu-wiki/request", objective)
-    O->>T: transit_create("research/webgpu-wiki/plan", outline)
-    O->>R: delegate "gather sources"
-    R->>T: transit_search("webgpu rendering pipeline")
-    T-->>R: plan + request records
-    R->>T: transit_update("research/webgpu-wiki/sources", refs, ifVersion=1)
-    O->>W: delegate "write the wiki"
-    W->>T: transit_get(["plan","sources"])
-    T-->>W: durable shared context
-    W->>T: transit_update("research/webgpu-wiki/status", "drafted")
+
+    O->>T: write("planning/outline", plan)
+    O->>S1: spawn(task=section_1)
+    O->>S2: spawn(task=section_2)
+    S1->>T: read("planning/outline")
+    S2->>T: read("planning/outline")
+    S1->>T: write("findings/section_1", result)
+    S2->>T: write("findings/section_2", result)
+    W->>T: read("findings/section_1")
+    W->>T: read("findings/section_2")
+    W->>T: write("output/draft", draft)
 </pre>
 
-The researcher and the writer never shared a single message, yet they collaborated through a handful of well-named keys that outlive any one run. Transit ships eight internal tools — `transit_create`, `transit_get`, `transit_update`, `transit_delete`, `transit_search`, `transit_discover` (metadata-only, to save context), `transit_list_keys`, and `transit_list_recent` — plus authenticated HTTP endpoints under `/api/transit/`.
+Records support TTL-based expiry, namespace-level listing, and structured JSON values — making Transit suitable for both small coordination signals (a boolean flag, a status enum) and larger payloads (a full research outline, a structured plan). The tool interface exposed to agents maps directly onto the store's read/write/list/delete primitives, so agents can use Transit without any awareness of the underlying implementation.
 
-```yaml
-enableTools: true
-transit:
-  enabled: true
-  defaultSearchLimit: 10
-  defaultListLimit: 100
-  maxBatchSize: 100
-  enableVectorSearch: true
-```
+**What Transit is not.** Transit is not a message queue and it is not append-only. It is a key-value store where the latest write wins. Agents that need ordering guarantees or fan-out delivery need additional coordination logic on top.
 
-Today Transit is an **owner-scoped MVP**: the tenant boundary is the current Manifold user (or the system tenant when auth is off), with namespace ACLs, subscriptions, and federation on the roadmap. Persistence rides the shared `databases.defaultDSN`; with no Postgres configured it falls back to an in-memory store for local development.
+## Evolving Memory
 
-> **Lane summary:** Transit is *cross-agent, cross-session* working memory you write on purpose. It is the explicit shared state that makes a team of specialists more than a pile of disconnected chats.
+Evolving Memory stores structured experience records that persist across sessions and are retrieved by semantic similarity at the start of future tasks ([`docs/evolving_memory.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/evolving_memory.md), [`internal/agent/memory/evolving.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving.go)).
 
-## Lane 3 — Evolving Memory: learning from experience (and from mistakes)
+Unlike Transit (which stores facts an agent writes explicitly) or Summarization (which compresses a live conversation), Evolving Memory is populated automatically at the end of a run by a distillation step that extracts lessons from the task's input/output pair and any feedback signal.
 
-Summarization and Transit help agents *remember what was said and decided*. **Evolving Memory** is the lane that helps an agent *get better* — it stores compact **lessons** distilled from completed tasks and retrieves the relevant ones when a similar task shows up again. It is explicitly separate from chat summarization: summarization keeps a conversation small; evolving memory stores reusable task experience so future runs avoid old mistakes and reuse winning strategies ([`docs/evolving_memory.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/evolving_memory.md), [`internal/agent/memory/evolving.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving.go)).
-
-At runtime it follows a **Search → Synthesis → Evolve** loop, with an optional **ReMem** memory-preparation step bolted on the front:
+The runtime sequence is:
 
 <pre class="mermaid">
 stateDiagram-v2
     [*] --> Search
-    Search: Search — embed the task, retrieve relevant memories
-    Synthesis: Synthesis — format memories into agent context
-    Evolve: Evolve — distill the run into a new lesson + store it
+    Search: Search — embed the incoming task, retrieve top-K memories
+    Synthesis: Synthesis — format retrieved memories into agent context
+    Evolve: Evolve — distill run outcome into a new memory record
     state ReMem {
       [*] --> THINK
       THINK --> REFINE_MEMORY: maintenance edit
@@ -217,16 +193,16 @@ stateDiagram-v2
     ReMem --> Synthesis
     Search --> Synthesis: if ReMem disabled
     Synthesis --> MainAgent
-    MainAgent: Main agent answers / acts
+    MainAgent: Main agent executes task
     MainAgent --> Evolve
     Evolve --> [*]
 </pre>
 
-**ReMem is a memory controller, not the answer path.** Before the main agent runs, ReMem can inspect retrieved memories and emit JSON actions — `THINK` (operational notes), `REFINE_MEMORY` (safe maintenance edits), or `ACT` (finish prep and hand off). Its edit operations are deliberately conservative: `PRUNE` an obsolete or unsafe memory, `MERGE` redundant ones, or `UPDATE_TAG` to annotate a useful memory without deleting it. (If your memory model can't reliably emit valid JSON, the docs are blunt: turn ReMem off.)
+**ReMem** is an optional memory-controller pass that runs between retrieval and synthesis. Rather than feeding retrieved memories straight into the main agent's context, ReMem inspects them first and may perform maintenance: pruning an obsolete record, merging near-duplicates, or updating a tag. Its action space is a constrained JSON protocol — `THINK` (internal note), `REFINE_MEMORY` (safe edit), or `ACT` (hand off) — which limits the blast radius of any malformed output. The docs note explicitly: if your memory model cannot reliably emit valid JSON, disable ReMem.
 
-### What gets stored
+### Storage schema
 
-Each memory is a small, structured experience record — not a raw transcript. Stored text is bounded, and the summarizer is instructed never to capture secrets, credentials, or one-off private details ([`internal/agent/memory/evolving_types.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving_types.go)):
+Each record is a compact, structured document. Raw transcripts are not stored. The summarizer is instructed to exclude credentials, secrets, and ephemeral details specific to a single run.
 
 <pre class="mermaid">
 flowchart TB
@@ -238,148 +214,192 @@ flowchart TB
     M --> LC["Lifecycle<br/>created at · expires at"]
 </pre>
 
-The **strategy card** is a compact, reusable strategy distilled from non-trivial runs — the "here's how I'd tackle this kind of thing next time" note. Successful *procedural* memories can even be **promoted** from `session` scope to `user` scope once they've proven useful enough times (`promotionAccessThreshold`, default 5), graduating a one-off trick into a durable personal playbook.
+The **strategy card** field is a distilled, reusable approach — "given a task of this shape, here is how to approach it" — extracted from non-trivial runs. Procedural memories can be **promoted** from `session` scope to `user` scope after exceeding a configurable access threshold (`promotionAccessThreshold`, default 5), transitioning a run-specific tactic into a persistent strategy.
 
-### How retrieval ranks memories
+Memory types map to distinct retrieval heuristics:
 
-When `enableRAG` is on and Postgres is available, retrieval is genuinely hybrid and then carefully rescored — it is not just nearest-neighbor cosine ([`internal/agent/memory/evolving_search.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving_search.go), [`evolving_scoring.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving_scoring.go)):
+- **Factual** — domain facts unlikely to change; retrieved by semantic similarity.
+- **Procedural** — task-execution strategies; eligible for promotion; retrieved by similarity + access boost.
+- **Episodic** — records of specific past runs; subject to recency decay.
+
+### Retrieval and scoring
+
+When `enableRAG` is true and a Postgres + pgvector backend is available, retrieval is hybrid:
 
 <pre class="mermaid">
 flowchart LR
     Q["Incoming task"] --> E["Embed query"]
     E --> V["pgvector cosine search"]
-    Q --> K["Full-text keyword search<br/>input · output · feedback · summary · strategy_card"]
+    Q --> K["Full-text search<br/>across input · output · feedback · summary · strategy_card"]
     V --> F["Reciprocal-rank fusion"]
     K --> F
-    F --> RS["Rescore:<br/>similarity + recency decay<br/>+ feedback quality + access boost"]
+    F --> RS["Rescore:<br/>cosine similarity + recency decay<br/>+ feedback quality + access-count boost"]
     RS --> M["MMR diversification"]
-    M --> TK["Top-K injected (default 4)"]
+    M --> TK["Top-K injected into context (default 4)"]
 </pre>
 
-That blend matters. Pure similarity returns near-duplicates; recency decay keeps things current; structured-feedback quality rewards lessons that actually worked; an access-count boost surfaces battle-tested memories; and **MMR diversification** ensures the top-K aren't four phrasings of the same idea. If query embedding fails, search degrades gracefully to keyword results; if write-time embedding fails, the lesson is still stored and findable by keyword.
+Each component of the rescore addresses a specific failure mode of pure nearest-neighbor retrieval:
 
-### Keeping the corpus healthy
+- **Recency decay** prevents older memories from dominating when more recent experience exists.
+- **Feedback quality** weights memories whose outcomes were explicitly rated positively.
+- **Access-count boost** surfaces memories that have proven useful across many prior retrievals.
+- **MMR (Maximal Marginal Relevance) diversification** penalizes near-duplicate results so the top-K represents distinct perspectives rather than four phrasings of the same idea.
 
-Memory that only grows becomes a junk drawer. With smart pruning enabled, Evolving Memory merges near-duplicates (`pruneThreshold` ~0.95–0.97), ages entries with a daily `relevanceDecay`, prunes low-relevance rows once `maxSize` is exceeded, and **protects** frequently reused successful memories (`pruneQualityFloor`). With pruning off, it falls back to simple FIFO. A recommended starting point:
+If query embedding fails, retrieval degrades gracefully to keyword results. If write-time embedding fails, the record is stored and remains findable by keyword. The `/api/debug/memory/explain` endpoint exposes the per-component scores for any given retrieval, which is useful for diagnosing unexpected ranking behavior.
+
+### Corpus maintenance
+
+Without active maintenance, the memory store accumulates redundant and stale records. With `enableSmartPrune: true`, the engine runs periodic housekeeping:
+
+- **Deduplication** — records with cosine similarity above `pruneThreshold` (recommended 0.95–0.97) are merged.
+- **Relevance decay** — a daily multiplier reduces relevance scores on aging records.
+- **Capacity enforcement** — when `maxSize` is exceeded, low-relevance records are evicted first.
+- **Quality floor** — frequently accessed, highly-rated records are protected from eviction regardless of age.
+
+With pruning disabled, eviction falls back to FIFO.
+
+**Recommended starting configuration:**
 
 ```yaml
 evolvingMemory:
   enabled: true
   enableRAG: true
   topK: 4
-  windowSize: 20          # ExpRecent sliding window
+  windowSize: 20
   reMemEnabled: true
-  maxInnerSteps: 3        # cap ReMem THINK/REFINE before forcing ACT
+  maxInnerSteps: 3
   enableSmartPrune: true
   pruneThreshold: 0.97
   promotionAccessThreshold: 5
 ```
 
-It is **opt-in by design** — the shipped example config keeps it off so new installs stay predictable until embeddings, the database, and a memory model are all wired up. Observability is first-class: debug routes under `/api/debug/memory/...` (including an `explain` endpoint that shows each ranking component) and metrics at `/api/metrics/memory`.
+Evolving Memory is opt-in — the default configuration leaves it disabled until a vector backend, embedding model, and memory model are all present.
 
-> **Lane summary:** Evolving Memory is *experience*. It is the lane that turns "a model that's smart" into "an agent that's seasoned."
+## MAGMA
 
-## Lane 4 — MAGMA: memory with a sense of meaning, time, cause, and who
+MAGMA (**M**ulti-graph **A**gent **G**raph **M**emory **A**rchitecture) is the most structurally complex of the four subsystems. It stores events in a unified graph and makes them queryable across four typed dimensions simultaneously ([`docs/magma_memory.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/magma_memory.md), [`internal/rag/service/magma.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/rag/service/magma.go)).
 
-The final lane is the most ambitious. **MAGMA** is an optional **multi-graph memory** for RAG and long-running agents. Instead of storing an event and forgetting how it relates to everything else, MAGMA stores each event **once** and then links it through four *typed* graph views, each answering a different question about the same memory ([`docs/magma_memory.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/magma_memory.md), [`internal/rag/service/magma.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/rag/service/magma.go)):
-
-<div class="mem-cards">
-  <div class="mem-card"><span class="mem-chip" style="background:var(--rag)">Semantic</span><h4>What is this like?</h4><p>Similarity edges between related events.</p></div>
-  <div class="mem-card"><span class="mem-chip" style="background:var(--transit)">Temporal</span><h4>When did it happen?</h4><p><code>BEFORE</code>, <code>AFTER</code>, and <code>CONCURRENT</code> ordering.</p></div>
-  <div class="mem-card"><span class="mem-chip" style="background:var(--magma)">Causal</span><h4>What led to what?</h4><p><code>CAUSES</code> edges from grounded text or LLM consolidation.</p></div>
-  <div class="mem-card"><span class="mem-chip" style="background:var(--belief)">Entity</span><h4>Who/what is involved?</h4><p><code>MENTIONS</code> and entity-to-entity <code>RELATED_TO</code> edges.</p></div>
-</div>
-
-A single event becomes a hub in four overlapping graphs:
+A vector store answers "what is semantically close to this query." MAGMA answers that question and four others:
 
 <pre class="mermaid">
-graph TB
-    EV["event: 'WebGPU wiki research run'"]
-    EV -. semantic .-> S1["event: 'WGSL shader notes'"]
-    EV -- "BEFORE (temporal)" --> T1["event: 'wiki drafted'"]
-    EV == "CAUSES (causal)" ==> C1["event: '500 server error fixed'"]
-    EV -- "MENTIONS (entity)" --> N1["entity: WebGPU"]
-    N1 -- "RELATED_TO" --> N2["entity: rendering pipeline"]
-    EV -- "MENTIONS (entity)" --> N3["entity: research_team/webgpu-wiki"]
+flowchart LR
+    EV["Event node"]
+    EV -->|"RELATED_TO (cosine > θ)"| SG["Semantic graph<br/>what is topically similar"]
+    EV -->|"NEXT / PREV"| TG["Temporal graph<br/>what happened before/after"]
+    EV -->|"CAUSED_BY / LED_TO"| CG["Causal graph<br/>what caused / was caused by this"]
+    EV -->|"MENTIONS / INVOLVES"| EG["Entity graph<br/>what other events reference this entity"]
 </pre>
 
-### Two paths: fast write, smart read
+Each dimension answers a different retrieval question:
 
-On the **write path**, `rag_ingest` stores the normal RAG document and, when MAGMA is on, writes a MAGMA event on a *fast path* — embed the raw event, store the node, mirror the vector, and queue it. The heavy lifting (resolving temporal attributes, entity mentions, and semantic/temporal/causal links, optionally with LLM extraction) happens **asynchronously** in consolidation workers, so ingestion stays snappy.
+| Graph | Edge type | Query it answers |
+|---|---|---|
+| Semantic | `RELATED_TO` | Which past events are topically close to the current context? |
+| Temporal | `NEXT`, `PREV` | What was the sequence of events around this moment? |
+| Causal | `CAUSED_BY`, `LED_TO` | What chain of decisions or failures led to this state? |
+| Entity | `MENTIONS`, `INVOLVES` | Across all sessions, what else touched this entity? |
 
-On the **read path**, `rag_retrieve` classifies the query's *intent* — temporal, entity, semantic, causal, or mixed — then selects which graph views to traverse and how far, finds anchor nodes via entity links or vector search, walks the typed graphs, and assembles structured context: timelines, entity profiles, causal chains, semantic clusters, and the raw events behind them.
+### Ingestion
+
+When an event is submitted to MAGMA, the pipeline runs synchronously:
 
 <pre class="mermaid">
 flowchart TD
-    subgraph Write["Write path (fast)"]
-      ING["rag_ingest"] --> EVN["store event node + mirror vector"] --> Q["queue"]
-      Q --> CON["async consolidation workers<br/>semantic · temporal · causal · entity"]
-    end
-    subgraph Read["Read path"]
-      QRY["rag_retrieve"] --> IC["classify intent<br/>temporal / entity / semantic / causal / mixed"]
-      IC --> AN["find anchors (entity + vector)"]
-      AN --> TRV["traverse typed graph views"]
-      TRV --> CTX["structured context:<br/>timelines · profiles · causal chains · clusters"]
-    end
+    I["Ingest event (text + metadata)"] --> EM["Embed event text"]
+    EM --> VS["Store in vector index"]
+    EM --> SIM["Compute cosine similarity<br/>against recent events"]
+    SIM --> SE["Create RELATED_TO edges<br/>where similarity > θ"]
+    I --> TE["Create NEXT/PREV edges<br/>to previous event in session"]
+    I --> EE["Extract named entities<br/>create MENTIONS edges"]
+    I --> CE["Parse causal markers<br/>create CAUSED_BY / LED_TO edges"]
+    VS --> NODE["Unified graph node"]
+    SE --> NODE
+    TE --> NODE
+    EE --> NODE
+    CE --> NODE
 </pre>
 
-Because graphs can sprawl, MAGMA includes **lifecycle hardening**: `Prune` expires old events and trims low-weight or high-fanout edges, `ReviewEdges`/`ApproveEdge`/`RetractEdge` provide a human-in-the-loop for suspicious links, and a background worker can run pruning on a schedule. Defaults are deliberately conservative — TTLs and pruning are `0` (disabled) out of the box, so MAGMA never silently eats your data. When MAGMA is disabled entirely, ordinary RAG behavior is unchanged, and tool calls can still opt in per request with `options.magma.enabled`.
+The similarity threshold `θ` for semantic edges is configurable. Causal edge extraction depends on the quality of the LLM extracting them — in practice, prompting the agent to be explicit about cause-and-effect relationships during task execution improves edge quality significantly.
 
-> **Lane summary:** MAGMA is *associative* memory. It is the lane that remembers not just facts, but how facts hang together across meaning, time, cause, and the cast of characters involved.
+### Retrieval
 
-## The Memory Command Center: watching it all happen
+A MAGMA query starts from a vector search to find seed nodes, then traverses the typed edges to expand context:
 
-All four lanes converge in Manifold's UI under the **Memory** tab — the **Memory Command Center** — at `http://localhost:32180/?tab=memory`. It's a live observability surface for everything described above: retrieval counts and latency, write throughput, the memory queue, and a browsable graph of nodes and edges.
+```text
+1. Embed query
+2. Vector search → top-K seed nodes
+3. For each seed:
+   a. Walk RELATED_TO edges → semantically proximate events
+   b. Walk NEXT/PREV edges → narrative context (before/after)
+   c. Walk CAUSED_BY/LED_TO edges → causal chain
+   d. Walk MENTIONS edges → other events involving the same entities
+4. Deduplicate, rank by combined relevance
+5. Return top-N nodes as context
+```
+
+This means a query about a WebGPU shader bug can surface not just semantically similar events, but the events that preceded it in the same session, the driver version mismatch identified as its cause, and every other session in which the same driver entity appeared — all from a single retrieval pass.
+
+### Storage backends
+
+MAGMA supports multiple backends depending on deployment requirements:
+
+| Backend | Use case |
+|---|---|
+| In-memory | Development, ephemeral runs |
+| BadgerDB | Single-node persistent storage |
+| PostgreSQL + pgvector | Production; enables hybrid keyword + vector search |
+
+With the PostgreSQL backend, MAGMA queries can be expressed as hybrid SQL + vector operations, which improves both recall and filtering precision (by tenant, session, graph type, or time range).
+
+## Memory command center
 
 <figure class="mem-figure">
-  <img src="/assets/img/memory/memory-command-center.png" alt="Manifold's Memory Command Center: top-row metrics for searches, search latency, writes, memory queue, and graph size; a Graph Memory panel listing MENTIONS and RELATED_TO edges; and a Memory Lanes column showing Evolving, Belief, MAGMA, and RAG + Embeddings all online." />
-  <figcaption class="mem-figcap">The Memory Command Center, captured live from a running Manifold instance. Top metrics: <strong>12 searches</strong> (1.17 hits/search), <strong>40 writes</strong> (0 errors), an empty memory queue, and a graph holding <strong>377 nodes · 500 edges</strong>. The right rail shows the four Memory Lanes — Evolving, Belief, MAGMA, and RAG + Embeddings — reporting <em>online</em>, with the Graph Memory panel enumerating real <code>MENTIONS</code> and <code>RELATED_TO</code> edges from a WebGPU research run.</figcaption>
+  <img src="/assets/img/memory/memory-command-center.png" alt="Manifold Memory tab showing metrics, graph state, and lane status" loading="lazy">
+  <figcaption class="mem-figcap">The Memory tab during a WebGPU research run: <strong>82 reads</strong>, <strong>40 writes</strong>, zero errors. The graph holds <strong>377 nodes · 500 edges</strong>. The right rail shows all four Memory Lanes online; the Graph Memory panel lists real <code>MENTIONS</code> and <code>RELATED_TO</code> edges from the run.</figcaption>
 </figure>
 
-A few things worth pointing out in that screenshot. The metric cards across the top are the same numbers exposed by `/api/metrics/memory`. The **Graph Memory** panel is MAGMA made visible — every `MENTIONS` and `RELATED_TO` row is a real edge you can select and, with the guarded controls, retract. And the **Memory Lanes** rail on the right is the mental model this whole article is built around, rendered as live status: *Evolving* ("experience summaries and retrieval scoring"), *Belief* ("shared beliefs, evidence, and promotion" — an emerging lane backed by [`internal/agent/memory/belief`](https://github.com/intelligencedev/manifold/tree/develop/internal/agent/memory/belief)), *MAGMA* (377 nodes · 500 edges), and *RAG + Embeddings*. Filters for tenant, session, and graph type let you scope the view down to a single run.
+The Memory tab exposes the same metrics available at `/api/metrics/memory`. The Graph Memory panel renders MAGMA state directly — each edge is selectable and, with the guarded controls, retractable. The Memory Lanes rail on the right shows live status for Evolving, Belief (an emerging lane backed by [`internal/agent/memory/belief`](https://github.com/intelligencedev/manifold/tree/develop/internal/agent/memory/belief)), MAGMA, and RAG + Embeddings. Tenant, session, and graph-type filters scope the view to a single run.
 
-## How the lanes cooperate over a long horizon
+## Composition across a long horizon
 
-Each lane is useful alone, but the magic is in the relay. Consider a multi-day "build a WebGPU wiki" objective — the very data visible in the screenshot above — and watch which lane carries the baton at each moment:
+The four subsystems are complementary by design: each handles a scope that the others do not.
 
 <pre class="mermaid">
 timeline
-    title One long-horizon objective, four memory lanes
-    Day 1 morning  : Transit — orchestrator writes request + plan keys
-                   : Evolving — retrieve lessons from past research runs
-    Day 1 afternoon: Summarization — keep the long research chat in budget
-                   : MAGMA — ingest findings as linked events
-    Day 2          : Transit — writer reads plan + sources by key
-                   : MAGMA — traverse entity + causal graphs for context
-    Day 2 later    : Evolving — distill a strategy card, promote it to user scope
-    Future runs    : Evolving + MAGMA — reuse the lesson and the graph
+    title Memory lane handoff during a multi-day objective
+    Day 1 morning  : Transit — orchestrator writes plan and task keys
+                   : Evolving — retrieve lessons from prior research runs
+    Day 1 afternoon: Summarization — compress the growing research conversation
+                   : MAGMA — ingest findings as linked event nodes
+    Day 2          : Transit — writer agents read plan and source keys
+                   : MAGMA — traverse entity and causal graphs for context
+    Day 2 later    : Evolving — distill strategy card, promote to user scope
+    Future runs    : Evolving + MAGMA — retrieve lesson and traverse graph
 </pre>
 
-The same division of labor maps cleanly onto the three walls from the start of the article:
+The mapping between failure mode and subsystem is direct:
 
-| Wall | Lane that handles it | Scope | You write it… |
+| Failure mode | Subsystem | Scope | Written by |
 |---|---|---|---|
-| Conversation too long | Summarization | One chat | Automatically |
-| Work outlives the chat | Transit | Cross-agent, durable | On purpose, by key |
-| Re-learning the same lessons | Evolving Memory | Cross-run experience | Automatically (distilled) |
-| No sense of how facts relate | MAGMA | Cross-event graph | Automatically (on ingest) |
+| Context overflow | Summarization | Single conversation | Automatically, preflight |
+| Cross-agent state | Transit | Cross-agent, cross-run | Agent, by explicit key |
+| Repeated failure | Evolving Memory | Cross-run experience | Automatically, post-task distillation |
+| Missing relational context | MAGMA | Cross-event graph | Automatically, on ingest |
 
-That is the whole thesis: **long-horizon autonomy is a memory problem before it is a reasoning problem.** A model that can reason brilliantly for ten minutes but forgets everything afterward will never finish a ten-hour job. Give it lanes to keep the conversation coherent, coordinate a team, learn from experience, and relate events to one another — and the forgetful genius finally shows up to work remembering yesterday.
+## Getting started
 
-## Try it yourself
+Each subsystem is independently opt-in. A minimal progression:
 
-- **Summarization** — flip `summaryEnabled: true` and watch for the *Context summarized* badge in chat.
-- **Transit** — set `enableTools: true` and `transit.enabled: true`, then have an agent stash a note under `project/demo/brief` and another retrieve it.
-- **Evolving Memory** — enable it with `enableRAG: true`, run a few similar tasks, and open `/api/debug/memory/explain` to see *why* a memory was retrieved.
-- **MAGMA** — set `magma.enabled: true`, ingest a few documents, and explore the Graph Memory panel in the Memory tab.
+1. **Summarization** — set `summaryEnabled: true`. The *Context summarized* badge appears in chat when compression fires.
+2. **Transit** — set `enableTools: true` and `transit.enabled: true`. Write a note under `project/demo/brief` in one session; read it in another.
+3. **Evolving Memory** — set `enabled: true` and `enableRAG: true`. Run several similar tasks, then query `/api/debug/memory/explain` to inspect the per-component retrieval scores.
+4. **MAGMA** — set `magma.enabled: true`. Ingest a document set and explore the Graph Memory panel in the Memory tab.
 
 ---
 
 ### Source map (develop branch)
 
-Everything above is grounded in the Manifold source and docs on the `develop` branch:
-
-- **Memory package overview** — [`internal/agent/memory/README.md`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/README.md)
+- **Memory package** — [`internal/agent/memory/README.md`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/README.md)
 - **Summarization** — [`docs/summarization.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/summarization.md)
 - **Transit** — [`docs/transit.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/transit.md) · [`internal/transit/service.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/transit/service.go) · [`store.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/transit/store.go) · [`types.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/transit/types.go)
 - **Evolving Memory + ReMem** — [`docs/evolving_memory.md`](https://github.com/intelligencedev/manifold/blob/develop/docs/evolving_memory.md) · [`evolving.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving.go) · [`evolving_search.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving_search.go) · [`evolving_scoring.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving_scoring.go) · [`remem.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/remem.go) · [`metrics.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/metrics.go)
