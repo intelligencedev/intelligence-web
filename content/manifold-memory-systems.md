@@ -229,34 +229,13 @@ stateDiagram-v2
 Each memory is a small, structured experience record — not a raw transcript. Stored text is bounded, and the summarizer is instructed never to capture secrets, credentials, or one-off private details ([`internal/agent/memory/evolving_types.go`](https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving_types.go)):
 
 <pre class="mermaid">
-classDiagram
-    class EvolvingMemory {
-      +string Input
-      +string Output
-      +string Feedback
-      +string Summary
-      +string StrategyCard
-      +MemoryType Type
-      +MemoryScope Scope
-      +float Embedding
-      +int AccessCount
-      +float RelevanceScore
-      +time CreatedAt
-      +time ExpiresAt
-    }
-    class MemoryType {
-      <<enumeration>>
-      factual
-      procedural
-      episodic
-    }
-    class MemoryScope {
-      <<enumeration>>
-      session
-      user
-    }
-    EvolvingMemory --> MemoryType
-    EvolvingMemory --> MemoryScope
+flowchart TB
+    M["EvolvingMemory record"]
+    M --> IO["Task trace<br/>input · output · feedback"]
+    M --> LS["Reusable lesson<br/>summary · strategy card"]
+    M --> CL["Classification<br/>type: factual / procedural / episodic<br/>scope: session / user"]
+    M --> RT["Retrieval signals<br/>embedding · access count · relevance score"]
+    M --> LC["Lifecycle<br/>created at · expires at"]
 </pre>
 
 The **strategy card** is a compact, reusable strategy distilled from non-trivial runs — the "here's how I'd tackle this kind of thing next time" note. Successful *procedural* memories can even be **promoted** from `session` scope to `user` scope once they've proven useful enough times (`promotionAccessThreshold`, default 5), graduating a one-off trick into a durable personal playbook.
