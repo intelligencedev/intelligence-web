@@ -86,34 +86,13 @@ stateDiagram-v2
     MainAgent --> Evolve
     Evolve --> [*]
 </pre><p><strong>ReMem is a memory controller, not the answer path.</strong> Before the main agent runs, ReMem can inspect retrieved memories and emit JSON actions — <code>THINK</code> (operational notes), <code>REFINE_MEMORY</code> (safe maintenance edits), or <code>ACT</code> (finish prep and hand off). Its edit operations are deliberately conservative: <code>PRUNE</code> an obsolete or unsafe memory, <code>MERGE</code> redundant ones, or <code>UPDATE_TAG</code> to annotate a useful memory without deleting it. (If your memory model can&rsquo;t reliably emit valid JSON, the docs are blunt: turn ReMem off.)</p><h3 id=what-gets-stored>What gets stored</h3><p>Each memory is a small, structured experience record — not a raw transcript. Stored text is bounded, and the summarizer is instructed never to capture secrets, credentials, or one-off private details (<a href=https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving_types.go><code>internal/agent/memory/evolving_types.go</code></a>):</p><pre class=mermaid>
-classDiagram
-    class EvolvingMemory {
-      +string Input
-      +string Output
-      +string Feedback
-      +string Summary
-      +string StrategyCard
-      +MemoryType Type
-      +MemoryScope Scope
-      +float Embedding
-      +int AccessCount
-      +float RelevanceScore
-      +time CreatedAt
-      +time ExpiresAt
-    }
-    class MemoryType {
-      <<enumeration>>
-      factual
-      procedural
-      episodic
-    }
-    class MemoryScope {
-      <<enumeration>>
-      session
-      user
-    }
-    EvolvingMemory --> MemoryType
-    EvolvingMemory --> MemoryScope
+flowchart TB
+    M["EvolvingMemory record"]
+    M --> IO["Task trace<br>input · output · feedback"]
+    M --> LS["Reusable lesson<br>summary · strategy card"]
+    M --> CL["Classification<br>type: factual / procedural / episodic<br>scope: session / user"]
+    M --> RT["Retrieval signals<br>embedding · access count · relevance score"]
+    M --> LC["Lifecycle<br>created at · expires at"]
 </pre><p>The <strong>strategy card</strong> is a compact, reusable strategy distilled from non-trivial runs — the &ldquo;here&rsquo;s how I&rsquo;d tackle this kind of thing next time&rdquo; note. Successful <em>procedural</em> memories can even be <strong>promoted</strong> from <code>session</code> scope to <code>user</code> scope once they&rsquo;ve proven useful enough times (<code>promotionAccessThreshold</code>, default 5), graduating a one-off trick into a durable personal playbook.</p><h3 id=how-retrieval-ranks-memories>How retrieval ranks memories</h3><p>When <code>enableRAG</code> is on and Postgres is available, retrieval is genuinely hybrid and then carefully rescored — it is not just nearest-neighbor cosine (<a href=https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving_search.go><code>internal/agent/memory/evolving_search.go</code></a>, <a href=https://github.com/intelligencedev/manifold/blob/develop/internal/agent/memory/evolving_scoring.go><code>evolving_scoring.go</code></a>):</p><pre class=mermaid>
 flowchart LR
     Q["Incoming task"] --> E["Embed query"]
