@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Rag on intelligence.dev</title><link>https://intelligence.dev/tags/rag/</link><description>Recent content in Rag on intelligence.dev</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Fri, 05 Jun 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://intelligence.dev/tags/rag/index.xml" rel="self" type="application/rss+xml"/><item><title>Total Recall: How Manifold Gives Its Agents a Memory</title><link>https://intelligence.dev/manifold-memory-systems/</link><pubDate>Fri, 05 Jun 2026 00:00:00 +0000</pubDate><guid>https://intelligence.dev/manifold-memory-systems/</guid><description>&lt;style&gt;
+/* ── Scoped styles for the memory article ───────────────────────── */
+.content { --evolving:#61f4d0; --transit:#6aaefc; --magma:#ff7a59; --rag:#c792ea; --belief:#ffd166; }
+.content h2 { margin-top: 2.4em; padding-top: .6em; border-top: 1px solid rgba(230,237,243,.10); }
+.content h3 { color: rgba(154,180,255,.9); margin-top: 1.8em; }
+.content img { max-width: 100%; height: auto; display: block; border-radius: 12px; }
+
+.mem-lead { font-size: 1.12rem; line-height: 1.75; color: #c9d4e0; }
+
+.mem-anim { margin: 22px 0 34px; display: grid; gap: 10px; }
+.mem-anim .lane {
+ position: relative; height: 38px; border-radius: 999px; overflow: hidden;
+ border: 1px solid rgba(230,237,243,.10); background: rgba(255,255,255,.025);
+}
+.mem-anim .tag {
+ position: absolute; left: 16px; top: 50%; transform: translateY(-50%); z-index: 2;
+ font: 600 .72rem/1 'Space Grotesk', system-ui, sans-serif; letter-spacing: .12em;
+ text-transform: uppercase; color: var(--c);
+}
+.mem-anim .pkt {
+ position: absolute; top: 50%; width: 11px; height: 11px; margin-top: -5.5px;
+ border-radius: 50%; background: var(--c); box-shadow: 0 0 12px var(--c);
+ left: -5%; animation: memflow var(--d,4.5s) linear infinite var(--delay,0s);
+}
+@keyframes memflow {
+ 0% { left: -5%; opacity: 0; } 8% { opacity: 1; }
+ 92% { opacity: 1; } 100% { left: 105%; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .mem-anim .pkt { animation: none; left: 55%; } }
+
+.mem-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 14px; margin: 26px 0; }
+.mem-card { border: 1px solid rgba(230,237,243,.10); border-radius: 14px; padding: 16px 18px; background: rgba(255,255,255,.02); }
+.mem-card h4 { margin: 0 0 6px; font-size: .98rem; }
+.mem-card p { margin: 0; font-size: .85rem; color: #9fb0c2; line-height: 1.55; }
+.mem-chip { display:inline-block; font: 600 .66rem/1 'Space Grotesk',system-ui,sans-serif; letter-spacing:.1em; text-transform:uppercase; padding: 3px 9px; border-radius: 999px; margin-bottom: 9px; color:#0b0c10; }
+
+.mem-figure { margin: 30px 0; border: 1px solid rgba(230,237,243,.10); border-radius: 14px; overflow: hidden; background: linear-gradient(180deg,#0f1219,#0b0c10); }
+.mem-figure img { border-radius: 0; }
+.mem-figcap { font-size: .84rem; color: #8aa0b6; padding: 11px 15px; border-top: 1px solid rgba(230,237,243,.08); }
+
+.mermaid { margin: 28px 0; text-align: center; }
+.content table { border-collapse: collapse; width: 100%; font-size: .86rem; margin: 18px 0; }
+.content th, .content td { border: 1px solid rgba(230,237,243,.12); padding: 8px 11px; text-align: left; vertical-align: top; }
+.content th { background: rgba(255,255,255,.03); }
+.tldr { border-left: 3px solid var(--transit); background: rgba(106,174,252,.06); padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 24px 0; }
+&lt;/style&gt;
+&lt;p class="mem-lead"&gt;Picture the most brilliant colleague you have ever worked with. They can read a thousand-page spec in seconds, write flawless code, and reason through a thorny migration plan. There is just one problem: every morning they wake up with total amnesia. Yesterday never happened. The painful lesson they learned at 4&amp;nbsp;PM is gone by 9&amp;nbsp;AM. That, in a nutshell, is a raw large language model — and it is the central obstacle to getting agents to finish &lt;em&gt;long-horizon&lt;/em&gt; work that spans hours, days, or many sessions.&lt;/p&gt;</description></item></channel></rss>
