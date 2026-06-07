@@ -1,0 +1,1883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manifold — The AI Orchestration Engine</title>
+  <meta name="description" content="Manifold is a cutting-edge AI orchestration platform with specialist registries, adaptive memory, visual workflows, and more." />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
+
+  <style>
+    /* ─── Design tokens ───────────────────────────────────────── */
+    :root {
+      --bg:        #04060d;
+      --surface:   #080c18;
+      --border:    rgba(120, 160, 255, 0.12);
+      --text:      rgba(235, 242, 255, 0.93);
+      --muted:     rgba(180, 200, 255, 0.58);
+      --accent:    #7eb3ff;
+      --accent2:   #a78bfa;
+      --accent3:   #34d399;
+      --glow:      rgba(126, 179, 255, 0.25);
+      --glow2:     rgba(167, 139, 250, 0.25);
+      --r:         12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 84px;
+    }
+    body {
+      font-family: "Inter Tight", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ─── Canvas layer ────────────────────────────────────────── */
+    #engine-canvas {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.92;
+      transform: translateZ(0);
+    }
+    /* ─── Nav ─────────────────────────────────────────────────── */
+    .nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px clamp(24px, 5vw, 72px);
+      background: rgba(4, 6, 13, 0.72);
+      backdrop-filter: blur(18px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-logo-icon {
+      width: 28px; height: 28px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 28px;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    .nav-links a { transition: color 180ms ease; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-badge {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 180, 0, 0.4);
+      color: rgba(255, 200, 60, 0.85);
+      background: rgba(255, 160, 0, 0.08);
+    }
+
+    /* ─── Sections ────────────────────────────────────────────── */
+    section {
+      position: relative;
+      z-index: 2;
+      scroll-margin-top: 84px;
+    }
+
+    /* ─── Hero ────────────────────────────────────────────────── */
+    .hero {
+      min-height: 100svh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 48px;
+      padding: 120px clamp(24px, 6vw, 96px) 80px;
+    }
+    .hero-left { max-width: 560px; }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      margin-bottom: 20px;
+      opacity: 0;
+    }
+    .hero-eyebrow::before {
+      content: "";
+      display: block;
+      width: 24px; height: 1px;
+      background: var(--accent);
+    }
+    .hero-title {
+      font-size: clamp(42px, 6vw, 80px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.0;
+      margin-bottom: 24px;
+      opacity: 0;
+    }
+    .hero-title .grad {
+      background: linear-gradient(135deg, #a5c8ff 0%, #b49dff 50%, #67e8c8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: clamp(15px, 2vw, 18px);
+      color: var(--muted);
+      max-width: 480px;
+      line-height: 1.65;
+      margin-bottom: 36px;
+      opacity: 0;
+    }
+    .hero-cta-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      opacity: 0;
+    }
+    .btn-primary {
+      padding: 12px 24px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #4a7dff, #7c5cff);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: opacity 200ms, transform 200ms;
+      box-shadow: 0 0 32px rgba(100, 130, 255, 0.35);
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-ghost {
+      padding: 11px 24px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      transition: border-color 200ms, color 200ms;
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ─── Hero machine canvas ─────────────────────────────────── */
+    .hero-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+    }
+    #machine-canvas {
+      width: min(520px, 90vw);
+      height: min(520px, 90vw);
+    }
+
+    /* ─── Scroll indicator ────────────────────────────────────── */
+    .scroll-hint {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: 0;
+    }
+    .scroll-hint-line {
+      width: 1px; height: 40px;
+      background: linear-gradient(to bottom, transparent, var(--accent));
+      animation: scrollPulse 2s ease-in-out infinite;
+    }
+    @keyframes scrollPulse {
+      0%, 100% { opacity: 0.3; transform: scaleY(1); }
+      50%       { opacity: 1;   transform: scaleY(1.2); }
+    }
+
+    /* ─── Features ────────────────────────────────────────────── */
+    .features-label {
+      text-align: center;
+      padding: 80px clamp(24px,6vw,96px) 0;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      opacity: 0;
+    }
+    .features-heading {
+      text-align: center;
+      padding: 16px clamp(24px,6vw,96px) 72px;
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      opacity: 0;
+    }
+
+    /* ─── Feature section ─────────────────────────────────────── */
+    .feature-section {
+      min-height: 100svh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 64px;
+      padding: 80px clamp(24px, 6vw, 96px);
+      opacity: 0;
+      transform: translateY(48px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .feature-section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .feature-section:nth-child(even) .feature-visual { order: -1; }
+
+    .feature-visual {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .feature-svg-wrap {
+      position: relative;
+      width: min(440px, 85vw);
+      height: min(360px, 70vw);
+    }
+    .feature-svg-wrap svg {
+      width: 100%;
+      height: 100%;
+    }
+    /* Glow orb behind each SVG */
+    .feature-svg-wrap::before {
+      content: "";
+      position: absolute;
+      inset: -30%;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.18;
+      pointer-events: none;
+    }
+    .glow-blue::before  { background: radial-gradient(circle, #7eb3ff 0%, transparent 70%); }
+    .glow-purple::before { background: radial-gradient(circle, #a78bfa 0%, transparent 70%); }
+    .glow-green::before  { background: radial-gradient(circle, #34d399 0%, transparent 70%); }
+    .glow-orange::before { background: radial-gradient(circle, #f59e0b 0%, transparent 70%); }
+    .glow-pink::before   { background: radial-gradient(circle, #f472b6 0%, transparent 70%); }
+    .glow-cyan::before   { background: radial-gradient(circle, #22d3ee 0%, transparent 70%); }
+
+    .feature-content {}
+    .feature-number {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .feature-number::before {
+      content: "";
+      display: block;
+      width: 28px; height: 1px;
+      background: currentColor;
+    }
+    .feature-title {
+      font-size: clamp(24px, 3.5vw, 42px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 20px;
+    }
+    .feature-desc {
+      font-size: clamp(15px, 1.8vw, 17px);
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 480px;
+      margin-bottom: 28px;
+    }
+    .section-subhead {
+      margin: 0 0 8px;
+      font-size: clamp(15px, 1.4vw, 18px);
+      line-height: 1.35;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: rgba(235, 242, 255, 0.88);
+    }
+    .dummy-copy {
+      max-width: 520px;
+      margin-bottom: 28px;
+      color: rgba(180, 200, 255, 0.5);
+      font-size: 14px;
+      line-height: 1.75;
+    }
+    .hero-extra {
+      margin-top: 30px;
+      opacity: 0;
+    }
+    .hero-extra .section-subhead { margin-top: 0; }
+    .hero-extra .dummy-copy { margin-bottom: 0; }
+    .cta-section .section-subhead {
+      color: rgba(235, 242, 255, 0.82);
+    }
+    .feature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+      transition: border-color 200ms, color 200ms;
+    }
+    .tag:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ─── Divider ─────────────────────────────────────────────── */
+    .section-divider {
+      margin: 0 clamp(24px,6vw,96px);
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, var(--border) 30%, var(--border) 70%, transparent 100%);
+    }
+
+    /* ─── CTA footer ──────────────────────────────────────────── */
+    .cta-section {
+      text-align: center;
+      padding: 120px clamp(24px,6vw,96px) 100px;
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .cta-section.visible { opacity: 1; transform: translateY(0); }
+    .cta-section h2 {
+      font-size: clamp(30px, 5vw, 60px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      margin-bottom: 20px;
+    }
+    .cta-section p {
+      font-size: 17px;
+      color: var(--muted);
+      margin-bottom: 40px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .cta-glow {
+      display: inline-flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* ─── Footer ──────────────────────────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 32px;
+      font-size: 13px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent); }
+
+    /* ─── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding-top: 100px;
+      }
+      .hero-left { max-width: 100%; }
+      .hero-eyebrow { justify-content: center; }
+      .hero-sub { margin-left: auto; margin-right: auto; }
+      .hero-cta-row { justify-content: center; }
+      .hero-right { order: -1; }
+      .feature-section {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        text-align: center;
+        min-height: auto;
+        padding: 64px clamp(24px, 6vw, 96px);
+      }
+      .feature-section:nth-child(even) .feature-visual { order: 0; }
+      .feature-number { justify-content: center; }
+      .feature-desc { margin-left: auto; margin-right: auto; }
+      .dummy-copy { margin-left: auto; margin-right: auto; }
+      .feature-tags { justify-content: center; }
+      .feature-svg-wrap { width: min(340px, 85vw); height: min(280px, 70vw); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Particle field -->
+<canvas id="engine-canvas" aria-hidden="true"></canvas>
+
+<!-- Nav -->
+<nav class="nav" aria-label="Main navigation">
+  <div class="nav-logo">
+    <svg class="nav-logo-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="14" cy="14" r="13" stroke="#7eb3ff" stroke-width="1.2"/>
+      <circle cx="14" cy="14" r="3" fill="#7eb3ff"/>
+      <line x1="14" y1="3" x2="14" y2="11" stroke="#7eb3ff" stroke-width="1.2"/>
+      <line x1="14" y1="17" x2="14" y2="25" stroke="#7eb3ff" stroke-width="1.2"/>
+      <line x1="3"  y1="14" x2="11" y2="14" stroke="#a78bfa" stroke-width="1.2"/>
+      <line x1="17" y1="14" x2="25" y2="14" stroke="#a78bfa" stroke-width="1.2"/>
+      <circle cx="14" cy="3"  r="1.5" fill="#7eb3ff"/>
+      <circle cx="14" cy="25" r="1.5" fill="#7eb3ff"/>
+      <circle cx="3"  cy="14" r="1.5" fill="#a78bfa"/>
+      <circle cx="25" cy="14" r="1.5" fill="#a78bfa"/>
+    </svg>
+    Manifold
+  </div>
+  <div class="nav-links">
+    <a href="https://github.com/intelligencedev/manifold">GitHub</a>
+    <a href="/manifold-memory-systems/">Memory Docs</a>
+    <a href="/manifold-quickstart/">Quickstart</a>
+    <span class="nav-badge">Dev Preview</span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════════════════════ -->
+<section class="hero" aria-labelledby="hero-heading">
+  <div class="hero-left">
+    <p class="hero-eyebrow" id="hero-eyebrow">AI Orchestration Engine</p>
+    <h1 class="hero-title" id="hero-heading">
+      One engine.<br/>
+      <span class="grad">Infinite intelligence.</span>
+    </h1>
+    <p class="hero-sub" id="hero-sub">
+      Manifold orchestrates AI specialists, stores memory across time,
+      and runs your agents on schedules — all through a single, composable engine.
+    </p>
+    <div class="hero-cta-row" id="hero-cta">
+      <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Explore on GitHub</a>
+      <a class="btn-ghost"    href="/manifold-quickstart/">Quick Start →</a>
+    </div>
+    <div class="hero-extra" id="hero-extra">
+      <h2 class="section-subhead">Section 00 — Command Center</h2>
+      <p class="dummy-copy">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer agents converge,
+        route context, and hand off work through a calm, luminous control plane.
+      </p>
+    </div>
+  </div>
+  <div class="hero-right" id="hero-right">
+    <canvas id="machine-canvas" aria-label="Animated Manifold machine diagram" role="img"></canvas>
+  </div>
+  <div class="scroll-hint" id="scroll-hint" aria-hidden="true">
+    <span>Scroll · ↑ / ↓</span>
+    <div class="scroll-hint-line"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURES INTRO
+═══════════════════════════════════════════════════════════════ -->
+<p class="features-label" id="features-label">What Manifold does</p>
+<h2 class="features-heading" id="features-heading">
+  Every capability your agents need.<br/>
+  <span style="color:var(--muted); font-weight:500;">Already built in.</span>
+</h2>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 1 — Specialists + Teams
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="specialists" aria-labelledby="f1-title">
+  <div class="feature-visual">
+    <div class="feature-svg-wrap glow-blue">
+      <svg id="svg-specialists" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <radialGradient id="gSpecCenter" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stop-color="#7eb3ff" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#7eb3ff" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="fBlur"><feGaussianBlur stdDeviation="3"/></filter>
+        </defs>
+        <!-- Hub glow -->
+        <ellipse cx="220" cy="180" rx="60" ry="60" fill="url(#gSpecCenter)" filter="url(#fBlur)"/>
+        <!-- Hub node -->
+        <circle class="spec-hub" cx="220" cy="180" r="28" fill="none" stroke="#7eb3ff" stroke-width="1.5"/>
+        <circle cx="220" cy="180" r="8" fill="#7eb3ff"/>
+        <text x="220" y="185" text-anchor="middle" font-size="9" fill="#7eb3ff" font-family="Inter Tight,sans-serif" font-weight="600">MANIFOLD</text>
+        <!-- Satellite nodes with connector lines -->
+        <!-- Agent 1 -->
+        <line class="spec-line" x1="220" y1="180" x2="100" y2="80"  stroke="#7eb3ff" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+        <circle class="spec-node" cx="100" cy="80"  r="18" fill="none" stroke="#7eb3ff" stroke-width="1.2"/>
+        <circle cx="100" cy="80"  r="4" fill="#7eb3ff" opacity="0.8"/>
+        <text x="100" y="75" text-anchor="middle" font-size="7.5" fill="#9ab4ff" font-family="Inter Tight,sans-serif">GPT-4o</text>
+        <!-- Agent 2 -->
+        <line class="spec-line" x1="220" y1="180" x2="340" y2="80"  stroke="#a78bfa" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+        <circle class="spec-node" cx="340" cy="80"  r="18" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
+        <circle cx="340" cy="80"  r="4" fill="#a78bfa" opacity="0.8"/>
+        <text x="340" y="75" text-anchor="middle" font-size="7.5" fill="#b8a3ff" font-family="Inter Tight,sans-serif">Claude</text>
+        <!-- Agent 3 -->
+        <line class="spec-line" x1="220" y1="180" x2="60"  y2="210" stroke="#7eb3ff" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+        <circle class="spec-node" cx="60"  cy="210" r="18" fill="none" stroke="#7eb3ff" stroke-width="1.2"/>
+        <circle cx="60"  cy="210" r="4" fill="#7eb3ff" opacity="0.8"/>
+        <text x="60"  y="205" text-anchor="middle" font-size="7.5" fill="#9ab4ff" font-family="Inter Tight,sans-serif">Gemini</text>
+        <!-- Agent 4 -->
+        <line class="spec-line" x1="220" y1="180" x2="380" y2="210" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+        <circle class="spec-node" cx="380" cy="210" r="18" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
+        <circle cx="380" cy="210" r="4" fill="#a78bfa" opacity="0.8"/>
+        <text x="380" y="205" text-anchor="middle" font-size="7.5" fill="#b8a3ff" font-family="Inter Tight,sans-serif">Local LLM</text>
+        <!-- Agent 5 -->
+        <line class="spec-line" x1="220" y1="180" x2="140" y2="300" stroke="#34d399" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+        <circle class="spec-node" cx="140" cy="300" r="18" fill="none" stroke="#34d399" stroke-width="1.2"/>
+        <circle cx="140" cy="300" r="4" fill="#34d399" opacity="0.8"/>
+        <text x="140" y="295" text-anchor="middle" font-size="7.5" fill="#6ee7b7" font-family="Inter Tight,sans-serif">Researcher</text>
+        <!-- Agent 6 -->
+        <line class="spec-line" x1="220" y1="180" x2="300" y2="300" stroke="#34d399" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+        <circle class="spec-node" cx="300" cy="300" r="18" fill="none" stroke="#34d399" stroke-width="1.2"/>
+        <circle cx="300" cy="300" r="4" fill="#34d399" opacity="0.8"/>
+        <text x="300" y="295" text-anchor="middle" font-size="7.5" fill="#6ee7b7" font-family="Inter Tight,sans-serif">Coder</text>
+        <!-- Team bracket labels -->
+        <text x="220" y="44"  text-anchor="middle" font-size="8" fill="rgba(180,200,255,0.4)" font-family="Inter Tight,sans-serif" font-style="italic">— Team Alpha —</text>
+        <text x="220" y="326" text-anchor="middle" font-size="8" fill="rgba(52,211,153,0.5)"  font-family="Inter Tight,sans-serif" font-style="italic">— Team Builders —</text>
+        <!-- Pulse rings on hub -->
+        <circle class="spec-pulse" cx="220" cy="180" r="38" fill="none" stroke="#7eb3ff" stroke-width="0.6" opacity="0"/>
+        <circle class="spec-pulse2" cx="220" cy="180" r="52" fill="none" stroke="#7eb3ff" stroke-width="0.4" opacity="0"/>
+      </svg>
+    </div>
+  </div>
+  <div class="feature-content">
+    <p class="feature-number" aria-hidden="true">01</p>
+    <h3 class="feature-title" id="f1-title">Specialists Registry<br/><span style="color:var(--accent2);">+ Teams</span></h3>
+    <p class="feature-desc">
+      Register any AI model — cloud or local — as a named specialist. Compose them into
+      Teams that collaborate on objectives. The orchestrator routes tasks automatically,
+      delegates subtasks, and synthesises results across specialists.
+    </p>
+    <h4 class="section-subhead">Section 01 — Specialist handoff</h4>
+    <p class="dummy-copy">
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent nodes exchange intent,
+      negotiate capability, and resolve the next action with graceful precision.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Agent Routing</span>
+      <span class="tag">Multi-model</span>
+      <span class="tag">Team Composition</span>
+      <span class="tag">Local + Cloud</span>
+      <span class="tag">Dynamic Delegation</span>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 2 — 4 Memory Subsystems
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="memory" aria-labelledby="f2-title">
+  <div class="feature-content">
+    <p class="feature-number" aria-hidden="true">02</p>
+    <h3 class="feature-title" id="f2-title">Four Memory<br/><span style="color:var(--accent3);">Subsystems</span></h3>
+    <p class="feature-desc">
+      Summarization compresses context on the fly. Transit shares state across agents in real time.
+      Evolving Memory distils lessons across runs. MAGMA builds a multi-dimensional knowledge graph
+      with semantic, temporal, causal, and entity edges — all composing before every LLM call.
+    </p>
+    <h4 class="section-subhead">Section 02 — Memory substrate</h4>
+    <p class="dummy-copy">
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur traces settle into layers,
+      preserving signal while old context folds into durable, searchable memory.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Summarization</span>
+      <span class="tag">Transit KV Store</span>
+      <span class="tag">Evolving Memory</span>
+      <span class="tag">MAGMA Graph</span>
+      <span class="tag">RAG + Embeddings</span>
+    </div>
+  </div>
+  <div class="feature-visual">
+    <div class="feature-svg-wrap glow-green">
+      <svg id="svg-memory" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <radialGradient id="gMemGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#34d399" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#34d399" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="220" cy="180" rx="70" ry="70" fill="url(#gMemGlow)"/>
+        <!-- Four quadrant memory rings -->
+        <!-- Summarization — top-left -->
+        <circle class="mem-ring" cx="220" cy="180" r="55" fill="none" stroke="#7eb3ff" stroke-width="1" stroke-dasharray="20 6" opacity="0.6"/>
+        <circle class="mem-ring2" cx="220" cy="180" r="80" fill="none" stroke="#a78bfa" stroke-width="0.8" stroke-dasharray="14 8" opacity="0.4"/>
+        <circle class="mem-ring3" cx="220" cy="180" r="108" fill="none" stroke="#34d399" stroke-width="0.6" stroke-dasharray="10 10" opacity="0.3"/>
+        <!-- Center LLM node -->
+        <circle cx="220" cy="180" r="22" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+        <circle cx="220" cy="180" r="7"  fill="rgba(255,255,255,0.7)"/>
+        <text x="220" y="185" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.6)" font-family="Inter Tight,sans-serif">LLM</text>
+        <!-- Four memory node labels -->
+        <!-- Summarization -->
+        <circle class="mem-node" cx="220" cy="112" r="14" fill="#050a18" stroke="#7eb3ff" stroke-width="1.2"/>
+        <text x="220" y="108" text-anchor="middle" font-size="7" fill="#7eb3ff" font-family="Inter Tight,sans-serif" font-weight="600">SUM</text>
+        <text x="220" y="118" text-anchor="middle" font-size="6" fill="rgba(126,179,255,0.5)" font-family="Inter Tight,sans-serif">Context</text>
+        <!-- Transit -->
+        <circle class="mem-node" cx="328" cy="180" r="14" fill="#050a18" stroke="#a78bfa" stroke-width="1.2"/>
+        <text x="328" y="176" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Inter Tight,sans-serif" font-weight="600">TRANSIT</text>
+        <text x="328" y="186" text-anchor="middle" font-size="6" fill="rgba(167,139,250,0.5)" font-family="Inter Tight,sans-serif">KV Store</text>
+        <!-- Evolving -->
+        <circle class="mem-node" cx="220" cy="248" r="14" fill="#050a18" stroke="#34d399" stroke-width="1.2"/>
+        <text x="220" y="244" text-anchor="middle" font-size="7" fill="#34d399" font-family="Inter Tight,sans-serif" font-weight="600">EVOLVING</text>
+        <text x="220" y="254" text-anchor="middle" font-size="6" fill="rgba(52,211,153,0.5)" font-family="Inter Tight,sans-serif">Experience</text>
+        <!-- MAGMA -->
+        <circle class="mem-node" cx="112" cy="180" r="14" fill="#050a18" stroke="#f59e0b" stroke-width="1.2"/>
+        <text x="112" y="176" text-anchor="middle" font-size="7" fill="#f59e0b" font-family="Inter Tight,sans-serif" font-weight="600">MAGMA</text>
+        <text x="112" y="186" text-anchor="middle" font-size="6" fill="rgba(245,158,11,0.5)" font-family="Inter Tight,sans-serif">Graph</text>
+        <!-- Connector spokes -->
+        <line x1="220" y1="158" x2="220" y2="126" stroke="#7eb3ff" stroke-width="0.8" opacity="0.4"/>
+        <line x1="242" y1="180" x2="314" y2="180" stroke="#a78bfa" stroke-width="0.8" opacity="0.4"/>
+        <line x1="220" y1="202" x2="220" y2="234" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+        <line x1="198" y1="180" x2="126" y2="180" stroke="#f59e0b" stroke-width="0.8" opacity="0.4"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 3 — Visual Workflow DAG
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="dag" aria-labelledby="f3-title">
+  <div class="feature-visual">
+    <div class="feature-svg-wrap glow-purple">
+      <svg id="svg-dag" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <marker id="arrowBlue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#7eb3ff" opacity="0.7"/>
+          </marker>
+          <marker id="arrowPurple" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#a78bfa" opacity="0.7"/>
+          </marker>
+        </defs>
+        <!-- DAG nodes -->
+        <!-- Trigger -->
+        <rect class="dag-node" x="170" y="20" width="100" height="36" rx="8" fill="none" stroke="#34d399" stroke-width="1.2"/>
+        <text x="220" y="42" text-anchor="middle" font-size="10" fill="#34d399" font-family="Inter Tight,sans-serif" font-weight="600">⚡ Trigger</text>
+        <!-- Node A -->
+        <rect class="dag-node" x="60" y="100" width="110" height="36" rx="8" fill="none" stroke="#7eb3ff" stroke-width="1.2"/>
+        <text x="115" y="122" text-anchor="middle" font-size="10" fill="#7eb3ff" font-family="Inter Tight,sans-serif" font-weight="600">Fetch Data</text>
+        <!-- Node B -->
+        <rect class="dag-node" x="270" y="100" width="110" height="36" rx="8" fill="none" stroke="#7eb3ff" stroke-width="1.2"/>
+        <text x="325" y="122" text-anchor="middle" font-size="10" fill="#7eb3ff" font-family="Inter Tight,sans-serif" font-weight="600">Validate</text>
+        <!-- Node C -->
+        <rect class="dag-node" x="60" y="190" width="110" height="36" rx="8" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
+        <text x="115" y="212" text-anchor="middle" font-size="10" fill="#a78bfa" font-family="Inter Tight,sans-serif" font-weight="600">LLM Enrich</text>
+        <!-- Node D -->
+        <rect class="dag-node" x="270" y="190" width="110" height="36" rx="8" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
+        <text x="325" y="212" text-anchor="middle" font-size="10" fill="#a78bfa" font-family="Inter Tight,sans-serif" font-weight="600">Transform</text>
+        <!-- Merge -->
+        <rect class="dag-node" x="155" y="278" width="130" height="36" rx="8" fill="none" stroke="#f59e0b" stroke-width="1.2"/>
+        <text x="220" y="300" text-anchor="middle" font-size="10" fill="#f59e0b" font-family="Inter Tight,sans-serif" font-weight="600">⚙ Merge + Output</text>
+        <!-- Edges -->
+        <line class="dag-edge" x1="190" y1="56" x2="115" y2="100" stroke="#34d399" stroke-width="1" opacity="0.5" marker-end="url(#arrowBlue)"/>
+        <line class="dag-edge" x1="250" y1="56" x2="325" y2="100" stroke="#34d399" stroke-width="1" opacity="0.5" marker-end="url(#arrowBlue)"/>
+        <line class="dag-edge" x1="115" y1="136" x2="115" y2="190" stroke="#7eb3ff" stroke-width="1" opacity="0.5" marker-end="url(#arrowPurple)"/>
+        <line class="dag-edge" x1="325" y1="136" x2="325" y2="190" stroke="#7eb3ff" stroke-width="1" opacity="0.5" marker-end="url(#arrowPurple)"/>
+        <line class="dag-edge" x1="170" y1="226" x2="205" y2="278" stroke="#a78bfa" stroke-width="1" opacity="0.5" marker-end="url(#arrowPurple)"/>
+        <line class="dag-edge" x1="270" y1="226" x2="235" y2="278" stroke="#a78bfa" stroke-width="1" opacity="0.5" marker-end="url(#arrowPurple)"/>
+        <!-- Active flow pulse dots (animated via JS) -->
+        <circle class="dag-dot" r="4" fill="#34d399" opacity="0"/>
+        <circle class="dag-dot2" r="4" fill="#7eb3ff" opacity="0"/>
+        <circle class="dag-dot3" r="4" fill="#a78bfa" opacity="0"/>
+      </svg>
+    </div>
+  </div>
+  <div class="feature-content">
+    <p class="feature-number" aria-hidden="true">03</p>
+    <h3 class="feature-title" id="f3-title">Visual Workflow<br/><span style="color:var(--accent2);">DAG Editor</span></h3>
+    <p class="feature-desc">
+      Build complex agent pipelines visually. Connect nodes for data retrieval, LLM enrichment,
+      transformations, and outputs. Chains execute in dependency order — parallel where possible,
+      sequential where required — with real-time flow visualisation.
+    </p>
+    <h4 class="section-subhead">Section 03 — Workflow topology</h4>
+    <p class="dummy-copy">
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam branches align, split, and merge
+      as each dependency resolves into a readable, inspectable execution path.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Node-based editor</span>
+      <span class="tag">Parallel execution</span>
+      <span class="tag">Conditional branches</span>
+      <span class="tag">Live DAG preview</span>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 4 — Scheduled Tasks (Pulse)
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="pulse" aria-labelledby="f4-title">
+  <div class="feature-content">
+    <p class="feature-number" aria-hidden="true">04</p>
+    <h3 class="feature-title" id="f4-title">Scheduled Tasks<br/><span style="color:var(--accent);">for AI Agents</span></h3>
+    <p class="feature-desc">
+      Pulse lets you schedule agents to run on intervals, daily times, or one-off timestamps.
+      Agents wake up, execute their prompts, write results to Transit, and go quiet — no manual
+      intervention required. Fully integrated with the room and project system.
+    </p>
+    <h4 class="section-subhead">Section 04 — Timed execution</h4>
+    <p class="dummy-copy">
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed temporal triggers pulse quietly,
+      waking the right specialist at the right moment and then fading back into standby.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Cron-like scheduling</span>
+      <span class="tag">Interval tasks</span>
+      <span class="tag">One-shot execution</span>
+      <span class="tag">Agent wake-up</span>
+      <span class="tag">Room-scoped</span>
+    </div>
+  </div>
+  <div class="feature-visual">
+    <div class="feature-svg-wrap glow-orange">
+      <svg id="svg-pulse" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Clock face -->
+        <circle cx="220" cy="180" r="120" fill="none" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+        <circle cx="220" cy="180" r="100" fill="none" stroke="rgba(245,158,11,0.2)" stroke-width="1"/>
+        <circle cx="220" cy="180" r="80"  fill="none" stroke="rgba(245,158,11,0.3)" stroke-width="1.2"/>
+        <!-- Tick marks (12 hours) -->
+        <g stroke="#f59e0b" stroke-width="1.5" opacity="0.5">
+          <line x1="220" y1="100" x2="220" y2="110"/>
+          <line x1="260" y1="107" x2="255" y2="116"/>
+          <line x1="293" y1="147" x2="285" y2="152"/>
+          <line x1="300" y1="180" x2="290" y2="180"/>
+          <line x1="293" y1="213" x2="285" y2="208"/>
+          <line x1="260" y1="253" x2="255" y2="244"/>
+          <line x1="220" y1="260" x2="220" y2="250"/>
+          <line x1="180" y1="253" x2="185" y2="244"/>
+          <line x1="147" y1="213" x2="155" y2="208"/>
+          <line x1="140" y1="180" x2="150" y2="180"/>
+          <line x1="147" y1="147" x2="155" y2="152"/>
+          <line x1="180" y1="107" x2="185" y2="116"/>
+        </g>
+        <!-- Hour/minute hands (animated) -->
+        <line id="pulse-hour"   x1="220" y1="180" x2="220" y2="118" stroke="#f59e0b" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+        <line id="pulse-minute" x1="220" y1="180" x2="259" y2="180" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
+        <circle cx="220" cy="180" r="5" fill="#f59e0b"/>
+        <!-- Scheduled task pills -->
+        <rect x="42" y="60"  width="88" height="24" rx="12" fill="none" stroke="rgba(245,158,11,0.45)" stroke-width="1"/>
+        <text x="86" y="76"  text-anchor="middle" font-size="8.5" fill="#f59e0b" font-family="Inter Tight,sans-serif">Daily 09:00</text>
+        <rect x="310" y="60"  width="88" height="24" rx="12" fill="none" stroke="rgba(126,179,255,0.45)" stroke-width="1"/>
+        <text x="354" y="76"  text-anchor="middle" font-size="8.5" fill="#7eb3ff" font-family="Inter Tight,sans-serif">Every 1h</text>
+        <rect x="42" y="278" width="100" height="24" rx="12" fill="none" stroke="rgba(167,139,250,0.45)" stroke-width="1"/>
+        <text x="92"  y="294" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-family="Inter Tight,sans-serif">Mon 08:30</text>
+        <rect x="298" y="278" width="100" height="24" rx="12" fill="none" stroke="rgba(52,211,153,0.45)" stroke-width="1"/>
+        <text x="348" y="294" text-anchor="middle" font-size="8.5" fill="#34d399" font-family="Inter Tight,sans-serif">On demand</text>
+        <!-- Connector dots -->
+        <line x1="130" y1="72" x2="158" y2="120" stroke="rgba(245,158,11,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="310" y1="72" x2="282" y2="120" stroke="rgba(126,179,255,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="142" y1="278" x2="158" y2="240" stroke="rgba(167,139,250,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="298" y1="278" x2="282" y2="240" stroke="rgba(52,211,153,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 5 — Playground
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="playground" aria-labelledby="f5-title">
+  <div class="feature-visual">
+    <div class="feature-svg-wrap glow-pink">
+      <svg id="svg-playground" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Terminal / editor window chrome -->
+        <rect x="40" y="30" width="360" height="300" rx="10" fill="rgba(10,12,24,0.9)" stroke="rgba(244,114,182,0.3)" stroke-width="1"/>
+        <!-- Title bar -->
+        <rect x="40" y="30" width="360" height="32" rx="10" fill="rgba(244,114,182,0.08)"/>
+        <rect x="40" y="52" width="360" height="10" rx="0" fill="rgba(244,114,182,0.08)"/>
+        <circle cx="62"  cy="46" r="5" fill="rgba(255,100,100,0.6)"/>
+        <circle cx="80"  cy="46" r="5" fill="rgba(255,200,60,0.6)"/>
+        <circle cx="98"  cy="46" r="5" fill="rgba(80,220,100,0.6)"/>
+        <text x="220" y="51" text-anchor="middle" font-size="9" fill="rgba(244,114,182,0.7)" font-family="Inter Tight,sans-serif" font-weight="600">Manifold Playground</text>
+        <!-- Three tabs -->
+        <rect x="52"  y="72" width="60" height="20" rx="4" fill="rgba(244,114,182,0.15)" stroke="rgba(244,114,182,0.4)" stroke-width="0.8"/>
+        <text x="82" y="86" text-anchor="middle" font-size="8" fill="#f472b6" font-family="Inter Tight,sans-serif">Prompts</text>
+        <rect x="122" y="72" width="60" height="20" rx="4" fill="none" stroke="rgba(180,200,255,0.2)" stroke-width="0.8"/>
+        <text x="152" y="86" text-anchor="middle" font-size="8" fill="rgba(180,200,255,0.5)" font-family="Inter Tight,sans-serif">Datasets</text>
+        <rect x="192" y="72" width="72" height="20" rx="4" fill="none" stroke="rgba(180,200,255,0.2)" stroke-width="0.8"/>
+        <text x="228" y="86" text-anchor="middle" font-size="8" fill="rgba(180,200,255,0.5)" font-family="Inter Tight,sans-serif">Experiments</text>
+        <!-- Code/prompt lines -->
+        <rect x="52" y="106" width="220" height="7" rx="3" fill="rgba(244,114,182,0.25)"/>
+        <rect x="52" y="120" width="180" height="7" rx="3" fill="rgba(126,179,255,0.2)"/>
+        <rect x="52" y="134" width="260" height="7" rx="3" fill="rgba(126,179,255,0.15)"/>
+        <rect x="52" y="148" width="140" height="7" rx="3" fill="rgba(244,114,182,0.2)"/>
+        <rect x="52" y="162" width="200" height="7" rx="3" fill="rgba(167,139,250,0.2)"/>
+        <rect x="52" y="176" width="170" height="7" rx="3" fill="rgba(126,179,255,0.12)"/>
+        <!-- Output pane separator -->
+        <line x1="40" y1="200" x2="400" y2="200" stroke="rgba(244,114,182,0.15)" stroke-width="1"/>
+        <text x="52" y="218" font-size="8" fill="rgba(244,114,182,0.5)" font-family="Inter Tight,sans-serif" font-weight="600">OUTPUT</text>
+        <!-- Output result lines -->
+        <rect x="52" y="226" width="300" height="7" rx="3" fill="rgba(52,211,153,0.2)"/>
+        <rect x="52" y="240" width="240" height="7" rx="3" fill="rgba(52,211,153,0.15)"/>
+        <rect x="52" y="254" width="200" height="7" rx="3" fill="rgba(52,211,153,0.12)"/>
+        <!-- Blinking cursor -->
+        <rect class="pg-cursor" x="52" y="268" width="6" height="11" rx="1" fill="#f472b6" opacity="0.9"/>
+        <!-- Run button -->
+        <rect x="320" y="260" width="70" height="28" rx="6" fill="rgba(244,114,182,0.2)" stroke="rgba(244,114,182,0.5)" stroke-width="1"/>
+        <text x="355" y="278" text-anchor="middle" font-size="9.5" fill="#f472b6" font-family="Inter Tight,sans-serif" font-weight="600">▶ Run</text>
+      </svg>
+    </div>
+  </div>
+  <div class="feature-content">
+    <p class="feature-number" aria-hidden="true">05</p>
+    <h3 class="feature-title" id="f5-title">Prompt, Dataset<br/>&amp; Experiments<br/><span style="color:#f472b6;">Playground</span></h3>
+    <p class="feature-desc">
+      Iterate on prompts with live model output. Load datasets and run batch evaluations. Compare
+      experiment runs side-by-side. Everything stays versioned and reproducible — turn any playground
+      session into a reusable workflow in one click.
+    </p>
+    <h4 class="section-subhead">Section 05 — Experiment bay</h4>
+    <p class="dummy-copy">
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla prompt variants shimmer through
+      controlled runs, turning rough ideas into measured, repeatable agent behavior.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Live prompt editor</span>
+      <span class="tag">Dataset runner</span>
+      <span class="tag">A/B experiments</span>
+      <span class="tag">Version history</span>
+      <span class="tag">Batch eval</span>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 6 — MCP Support
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="mcp" aria-labelledby="f6-title">
+  <div class="feature-content">
+    <p class="feature-number" aria-hidden="true">06</p>
+    <h3 class="feature-title" id="f6-title">MCP<br/><span style="color:#22d3ee;">Support</span></h3>
+    <p class="feature-desc">
+      Manifold implements the Model Context Protocol, letting any MCP-compatible tool or server
+      plug directly into the agent engine. Expose file systems, APIs, databases, and custom tools —
+      agents discover and invoke them automatically with zero boilerplate.
+    </p>
+    <h4 class="section-subhead">Section 06 — Tool mesh</h4>
+    <p class="dummy-copy">
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi connectors fan outward,
+      binding external systems into a single mesh that agents can discover and operate.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">MCP client</span>
+      <span class="tag">Tool autodiscovery</span>
+      <span class="tag">Stdio + SSE transports</span>
+      <span class="tag">Bring-your-own tools</span>
+    </div>
+  </div>
+  <div class="feature-visual">
+    <div class="feature-svg-wrap glow-cyan">
+      <svg id="svg-mcp" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Central MCP hub hexagon -->
+        <polygon class="mcp-hex" points="220,130 260,153 260,200 220,223 180,200 180,153"
+          fill="none" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="220" y="176" text-anchor="middle" font-size="10" fill="#22d3ee" font-family="Inter Tight,sans-serif" font-weight="700">MCP</text>
+        <text x="220" y="192" text-anchor="middle" font-size="8"  fill="rgba(34,211,238,0.5)" font-family="Inter Tight,sans-serif">Protocol</text>
+        <!-- Tool servers radiating out -->
+        <!-- File system -->
+        <line x1="200" y1="143" x2="110" y2="80" stroke="#22d3ee" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
+        <rect x="58"  y="60" width="88" height="30" rx="6" fill="none" stroke="rgba(34,211,238,0.5)" stroke-width="1"/>
+        <text x="102" y="79" text-anchor="middle" font-size="8.5" fill="#22d3ee" font-family="Inter Tight,sans-serif">📁 Filesystem</text>
+        <!-- Database -->
+        <line x1="240" y1="143" x2="330" y2="80" stroke="#22d3ee" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
+        <rect x="294" y="60" width="88" height="30" rx="6" fill="none" stroke="rgba(34,211,238,0.5)" stroke-width="1"/>
+        <text x="338" y="79" text-anchor="middle" font-size="8.5" fill="#22d3ee" font-family="Inter Tight,sans-serif">🗄 Database</text>
+        <!-- Web/API -->
+        <line x1="260" y1="176" x2="380" y2="176" stroke="#a78bfa" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
+        <rect x="294" y="162" width="88" height="30" rx="6" fill="none" stroke="rgba(167,139,250,0.5)" stroke-width="1"/>
+        <text x="338" y="181" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-family="Inter Tight,sans-serif">🌐 Web API</text>
+        <!-- Custom tools -->
+        <line x1="240" y1="210" x2="330" y2="272" stroke="#34d399" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
+        <rect x="294" y="257" width="88" height="30" rx="6" fill="none" stroke="rgba(52,211,153,0.5)" stroke-width="1"/>
+        <text x="338" y="276" text-anchor="middle" font-size="8.5" fill="#34d399" font-family="Inter Tight,sans-serif">🔧 Custom Tool</text>
+        <!-- Code runner -->
+        <line x1="200" y1="210" x2="110" y2="272" stroke="#f472b6" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
+        <rect x="58" y="257" width="88" height="30" rx="6" fill="none" stroke="rgba(244,114,182,0.5)" stroke-width="1"/>
+        <text x="102" y="276" text-anchor="middle" font-size="8.5" fill="#f472b6" font-family="Inter Tight,sans-serif">⚙ Code Runner</text>
+        <!-- Search -->
+        <line x1="180" y1="176" x2="60"  y2="176" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
+        <rect x="20"  y="162" width="88" height="30" rx="6" fill="none" stroke="rgba(245,158,11,0.5)" stroke-width="1"/>
+        <text x="64"  y="181" text-anchor="middle" font-size="8.5" fill="#f59e0b" font-family="Inter Tight,sans-serif">🔍 Search</text>
+        <!-- Pulse dots on lines -->
+        <circle class="mcp-dot" r="3.5" fill="#22d3ee" opacity="0"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CTA
+═══════════════════════════════════════════════════════════════ -->
+<section class="cta-section" aria-labelledby="cta-heading">
+  <h2 id="cta-heading">
+    Ready to orchestrate<br/>
+    <span class="grad" style="background:linear-gradient(135deg,#a5c8ff,#b49dff,#67e8c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+      something brilliant?
+    </span>
+  </h2>
+  <h3 class="section-subhead">Section 07 — Launch sequence</h3>
+  <p>Manifold is open source and free. Bring your own models.</p>
+  <p class="dummy-copy">
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse orchestration lights up,
+    inviting every model, memory, and tool to move as one coordinated system.
+  </p>
+  <div class="cta-glow">
+    <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Get Started on GitHub</a>
+    <a class="btn-ghost"   href="/manifold-memory-systems/">Read the Memory Docs →</a>
+  </div>
+</section>
+
+<footer>
+  <p>
+    &copy; 2026 <a href="/">intelligence.dev</a> &mdash;
+    <a href="https://github.com/intelligencedev/manifold">Manifold on GitHub</a>
+  </p>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  'use strict';
+
+  // ── Three.js blueprint engine (scroll-driven background) ─────
+  // A wireframe "blueprint" of an AI-agent engine that morphs as
+  // the reader scrolls through each feature:
+  //   engine core → specialist constellation → memory rings →
+  //   workflow DAG → scheduler gear → playground lattice →
+  //   MCP mesh → converging core.
+  // Three.js renders the 3D blueprint; Anime.js drives the
+  // entrance, the breathing pulse and the per-stage energy bursts.
+  const reduceMotion =
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const TAU = Math.PI * 2;
+
+  (function initEngine() {
+    const canvas = document.getElementById('engine-canvas');
+    if (!canvas || typeof THREE === 'undefined') return;
+
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas, antialias: true, alpha: true,
+        powerPreference: 'high-performance',
+      });
+    } catch (e) { canvas.style.display = 'none'; return; }
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+    const scene  = new THREE.Scene();
+    scene.fog    = new THREE.FogExp2(0x04060d, 0.085);
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 11);
+    camera.lookAt(0, 0, 0);
+
+    const root = new THREE.Group();
+    const gyro = new THREE.Group();
+    root.add(gyro);
+    scene.add(root);
+    function resize() {
+      const w = window.innerWidth, h = window.innerHeight;
+      renderer.setSize(w, h, true);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener('resize', resize, { passive: true });
+
+    // ── helpers ───────────────────────────────────────────────
+    const clamp  = (t) => Math.max(0, Math.min(1, t));
+    const lerp   = (a, b, t) => a + (b - a) * t;
+    const smooth = (t) => t * t * (3 - 2 * t);
+    function rot(x, y, z, rx, ry) {
+      const y1 = y * Math.cos(rx) - z * Math.sin(rx);
+      const z1 = y * Math.sin(rx) + z * Math.cos(rx);
+      const x2 = x * Math.cos(ry) + z1 * Math.sin(ry);
+      const z2 = -x * Math.sin(ry) + z1 * Math.cos(ry);
+      return [x2, y1, z2];
+    }
+
+    // ── Stage palette (linear RGB 0..1) ───────────────────────
+    const STAGE_COLORS = [
+      [0.49, 0.70, 1.00], // hero        blue
+      [0.49, 0.70, 1.00], // specialists blue
+      [0.65, 0.54, 0.98], // memory      purple
+      [0.20, 0.83, 0.60], // dag         green
+      [0.96, 0.62, 0.04], // pulse       orange
+      [0.96, 0.45, 0.71], // playground  pink
+      [0.13, 0.83, 0.93], // mcp         cyan
+      [0.49, 0.70, 1.00], // cta         blue
+    ];
+    const STAGES = STAGE_COLORS.length;
+
+    const N = 340;
+    function fib(i) {
+      const off = 2 / N, y = i * off - 1 + off / 2;
+      const r = Math.sqrt(Math.max(0, 1 - y * y)), p = i * 2.399963;
+      return [Math.cos(p) * r, y, Math.sin(p) * r];
+    }
+
+    // ── Formation builders: fill arr (length N*3) in unit space ─
+    function fCore(a, t) {
+      for (let i = 0; i < N; i++) {
+        const f = fib(i), rr = 1.35 + 0.06 * Math.sin(i * 0.7 + t * 1.6);
+        a[i * 3] = f[0] * rr; a[i * 3 + 1] = f[1] * rr; a[i * 3 + 2] = f[2] * rr;
+      }
+    }
+    function fSpec(a, t) {
+      const ring = [{ r: 0.55, rx: 0.2, ry: 0.0 },
+                    { r: 1.05, rx: -0.5, ry: 0.8 },
+                    { r: 1.5,  rx: 0.9, ry: 1.7 }];
+      for (let i = 0; i < N; i++) {
+        if (i < 10) { const f = fib(i); a[i*3]=f[0]*0.2; a[i*3+1]=f[1]*0.2; a[i*3+2]=f[2]*0.2; continue; }
+        const k = i - 10, ri = k % 3, idx = (k - ri) / 3, per = Math.ceil((N - 10) / 3);
+        const R = ring[ri], ang = (idx / per) * TAU + t * (ri % 2 ? -0.5 : 0.5) + ri;
+        const p = rot(Math.cos(ang) * R.r, Math.sin(ang) * R.r, 0, R.rx, R.ry);
+        a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
+      }
+    }
+    function fMemory(a, t) {
+      const radii = [0.6, 0.95, 1.3, 1.6], rx = [0.35, 1.2, -0.5, 1.9], ry = [0, 0.8, 1.6, 2.4];
+      for (let i = 0; i < N; i++) {
+        const ri = i % 4, idx = (i - ri) / 4, per = Math.ceil(N / 4);
+        const ang = (idx / per) * TAU + t * (ri % 2 ? -0.4 : 0.4);
+        const p = rot(Math.cos(ang) * radii[ri], Math.sin(ang) * radii[ri], 0, rx[ri], ry[ri]);
+        a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
+      }
+    }
+    function fDag(a, t) {
+      const layers = 6, per = Math.ceil(N / layers), side = Math.ceil(Math.sqrt(per));
+      for (let i = 0; i < N; i++) {
+        const layer = Math.floor(i / per), j = i - layer * per;
+        const row = Math.floor(j / side), col = j % side;
+        const x = -1.7 + layer * (3.4 / (layers - 1));
+        const y = (row / (side - 1) - 0.5) * 2.0 + Math.sin(t + layer) * 0.04;
+        const z = (col / (side - 1) - 0.5) * 2.0;
+        a[i*3]=x; a[i*3+1]=y; a[i*3+2]=z;
+      }
+    }
+    function fGear(a, t) {
+      const ticks = Math.floor(N * 0.6);
+      const hour = Math.floor((N - ticks) / 2);
+      for (let i = 0; i < N; i++) {
+        if (i < ticks) {
+          const ang = (i / ticks) * TAU, tooth = (i % 4 < 2) ? 1.0 : 0.84, r = 1.4 * tooth;
+          const p = rot(Math.cos(ang) * r, Math.sin(ang) * r, 0, 0.5, 0.2);
+          a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
+        } else if (i < ticks + hour) {
+          const f = (i - ticks) / hour, ang = t * 0.6 - Math.PI / 2;
+          const p = rot(Math.cos(ang) * f * 0.8, Math.sin(ang) * f * 0.8, 0, 0.5, 0.2);
+          a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
+        } else {
+          const f = (i - ticks - hour) / (N - ticks - hour), ang = t * 1.8 - Math.PI / 2;
+          const p = rot(Math.cos(ang) * f * 1.2, Math.sin(ang) * f * 1.2, 0, 0.5, 0.2);
+          a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
+        }
+      }
+    }
+    function fLattice(a, t) {
+      const side = 7, sp = 2.6;
+      for (let i = 0; i < N; i++) {
+        const ix = i % side, iy = Math.floor(i / side) % side, iz = Math.floor(i / (side * side)) % side;
+        a[i*3]   = (ix / (side - 1) - 0.5) * sp;
+        a[i*3+1] = (iy / (side - 1) - 0.5) * sp + Math.sin(t + ix) * 0.03;
+        a[i*3+2] = (iz / (side - 1) - 0.5) * sp;
+      }
+    }
+    function fMcp(a, t) {
+      for (let i = 0; i < N; i++) {
+        if (i % 7 === 0) { const f = fib(i); a[i*3]=f[0]*0.45; a[i*3+1]=f[1]*0.45; a[i*3+2]=f[2]*0.45; continue; }
+        const f = fib(i), rr = 1.3 + 0.05 * Math.sin(i + t * 1.4);
+        a[i*3]=f[0]*rr; a[i*3+1]=f[1]*rr; a[i*3+2]=f[2]*rr;
+      }
+    }
+    function fConverge(a, t) {
+      for (let i = 0; i < N; i++) {
+        const ang = i * 2.399963 + t * 0.5, r = 1.65 * Math.sqrt(i / N);
+        a[i*3]   = Math.cos(ang) * r;
+        a[i*3+1] = Math.sin(ang) * r;
+        a[i*3+2] = Math.sin(r * 3 - t) * 0.28;
+      }
+    }
+    const BUILDERS = [fCore, fSpec, fMemory, fDag, fGear, fLattice, fMcp, fConverge];
+
+    // ── Point sprite (soft round glow) ────────────────────────
+    function makeSprite() {
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const g = c.getContext('2d');
+      const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grd.addColorStop(0,   'rgba(255,255,255,1)');
+      grd.addColorStop(0.3, 'rgba(255,255,255,0.7)');
+      grd.addColorStop(1,   'rgba(255,255,255,0)');
+      g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(c); tex.needsUpdate = true; return tex;
+    }
+
+    // ── Buffers + meshes ──────────────────────────────────────
+    const A = new Float32Array(N * 3);
+    const B = new Float32Array(N * 3);
+    const live = new Float32Array(N * 3);
+    let seeded = false;
+
+    const ptsGeo = new THREE.BufferGeometry();
+    ptsGeo.setAttribute('position', new THREE.BufferAttribute(live, 3));
+    const ptsMat = new THREE.PointsMaterial({
+      size: 0.13, map: makeSprite(), transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending,
+      color: new THREE.Color(0.49, 0.70, 1.0), sizeAttenuation: true,
+    });
+    const points = new THREE.Points(ptsGeo, ptsMat);
+    root.add(points);
+
+    const SEG = N - 1;
+    const linePos = new Float32Array(SEG * 2 * 3);
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
+    const lineMat = new THREE.LineBasicMaterial({
+      transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending, color: new THREE.Color(0.3, 0.45, 0.7),
+    });
+    const lines = new THREE.LineSegments(lineGeo, lineMat);
+    root.add(lines);
+
+    // Structural housing: 3 gyroscope rings
+    const ringMats = [];
+    for (let r = 0; r < 3; r++) {
+      const g = new THREE.BufferGeometry();
+      const segs = 96, arr = new Float32Array((segs + 1) * 3);
+      for (let s = 0; s <= segs; s++) {
+        const a2 = (s / segs) * TAU, rad = 2.25 + r * 0.18;
+        arr[s*3] = Math.cos(a2) * rad; arr[s*3+1] = Math.sin(a2) * rad; arr[s*3+2] = 0;
+      }
+      g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+      const m = new THREE.LineBasicMaterial({ transparent: true, opacity: 0, color: new THREE.Color(0.3, 0.45, 0.7) });
+      const loop = new THREE.Line(g, m);
+      loop.rotation.x = r * 1.05; loop.rotation.y = r * 0.6;
+      ringMats.push(m); gyro.add(loop);
+    }
+
+    // Blueprint floor grid
+    const grid = new THREE.GridHelper(26, 26, 0x2a4170, 0x16233f);
+    grid.material.transparent = true; grid.material.opacity = 0.0;
+    grid.position.y = -2.7;
+    root.add(grid);
+
+    // ── Anime.js: entrance + breathing pulse ──────────────────
+    const engineAnimate = window.anime && typeof window.anime.animate === 'function'
+      ? window.anime.animate.bind(window.anime)
+      : null;
+    const state = { intro: 1, pulse: 1, burst: 0, pSmooth: 0 };
+    camera.position.z = reduceMotion ? 7.4 : 11;
+    if (!reduceMotion && engineAnimate) {
+      try {
+        engineAnimate(state, { pulse: [1, 1.05], duration: 3400, loop: true, alternate: true, ease: 'inOutSine' });
+        engineAnimate(camera.position, { z: 7.4, duration: 1900, ease: 'outExpo' });
+      } catch (e) {
+        camera.position.z = 7.4;
+      }
+    } else {
+      camera.position.z = 7.4;
+    }
+
+    // ── Scroll → continuous stage (anchored to section tops) ──
+    // Each <section> maps 1:1 to a builder stage. We interpolate
+    // the stage from the SAME anchor points the keyboard nav snaps
+    // to (section top − nav offset), so landing on a section means
+    // its particle "final shape" is fully formed (integer stage).
+    function navOffsetPx() {
+      const nav = document.querySelector('.nav');
+      return nav ? Math.ceil(nav.getBoundingClientRect().height + 10) : 0;
+    }
+    function sectionAnchors() {
+      const secs = document.querySelectorAll('section');
+      const max  = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const nav  = navOffsetPx();
+      const tops = [];
+      for (let i = 0; i < secs.length; i++) {
+        const raw = secs[i].getBoundingClientRect().top + window.scrollY;
+        tops.push(Math.min(max, Math.max(0, Math.round(raw - nav))));
+      }
+      return tops;
+    }
+    function stagePos() {
+      const tops = sectionAnchors();
+      const n = Math.min(tops.length, STAGES);
+      if (n < 2) return 0;
+      const y = window.scrollY;
+      if (y <= tops[0]) return 0;
+      if (y >= tops[n - 1]) return n - 1;
+      for (let i = 0; i < n - 1; i++) {
+        if (y >= tops[i] && y <= tops[i + 1]) {
+          const span = (tops[i + 1] - tops[i]) || 1;
+          return i + (y - tops[i]) / span;
+        }
+      }
+      return n - 1;
+    }
+
+    // Pointer parallax
+    let mx = 0, my = 0;
+    window.addEventListener('pointermove', (e) => {
+      mx = (e.clientX / window.innerWidth - 0.5);
+      my = (e.clientY / window.innerHeight - 0.5);
+    }, { passive: true });
+
+    // ── Render loop ───────────────────────────────────────────
+    const clock = new THREE.Clock();
+    let lastStage = -1;
+    const cur = new THREE.Color(), nxt = new THREE.Color(), mix = new THREE.Color();
+
+    function frame() {
+      const t = reduceMotion ? 0 : clock.getElapsedTime() * 0.6;
+      state.pSmooth += (stagePos() - state.pSmooth) * (reduceMotion ? 1 : 0.06);
+
+      let idx = Math.floor(state.pSmooth);
+      if (idx >= STAGES - 1) idx = STAGES - 2;
+      if (idx < 0) idx = 0;
+      const f = smooth(clamp(state.pSmooth - idx));
+
+      if (idx !== lastStage) {
+        lastStage = idx;
+        if (!reduceMotion && engineAnimate) {
+          try { engineAnimate(state, { burst: [1, 0], duration: 900, ease: 'outExpo' }); }
+          catch (e) { state.burst = 0; }
+        }
+      }
+
+      BUILDERS[idx](A, t);
+      BUILDERS[idx + 1](B, t);
+
+      // colour interpolation
+      cur.setRGB(STAGE_COLORS[idx][0], STAGE_COLORS[idx][1], STAGE_COLORS[idx][2]);
+      nxt.setRGB(STAGE_COLORS[idx + 1][0], STAGE_COLORS[idx + 1][1], STAGE_COLORS[idx + 1][2]);
+      mix.copy(cur).lerp(nxt, f);
+      ptsMat.color.copy(mix);
+      lineMat.color.copy(mix).multiplyScalar(0.55);
+      for (const m of ringMats) m.color.copy(mix).multiplyScalar(0.5);
+
+      // morph + organic settle
+      const follow = reduceMotion ? 1 : 0.16;
+      for (let i = 0; i < N; i++) {
+        const k = i * 3;
+        const tx = lerp(A[k],   B[k],   f);
+        const ty = lerp(A[k+1], B[k+1], f);
+        const tz = lerp(A[k+2], B[k+2], f);
+        if (!seeded) { live[k] = tx; live[k+1] = ty; live[k+2] = tz; }
+        else {
+          live[k]   += (tx - live[k])   * follow;
+          live[k+1] += (ty - live[k+1]) * follow;
+          live[k+2] += (tz - live[k+2]) * follow;
+        }
+      }
+      seeded = true;
+      ptsGeo.attributes.position.needsUpdate = true;
+
+      // rewire connective tissue (collapse long jumps)
+      for (let s = 0; s < SEG; s++) {
+        const i = s, j = s + 1, ki = i * 3, kj = j * 3, o = s * 6;
+        const dx = live[ki] - live[kj], dy = live[ki+1] - live[kj+1], dz = live[ki+2] - live[kj+2];
+        if (dx*dx + dy*dy + dz*dz < 0.34) {
+          linePos[o]=live[ki]; linePos[o+1]=live[ki+1]; linePos[o+2]=live[ki+2];
+          linePos[o+3]=live[kj]; linePos[o+4]=live[kj+1]; linePos[o+5]=live[kj+2];
+        } else {
+          linePos[o]=live[ki]; linePos[o+1]=live[ki+1]; linePos[o+2]=live[ki+2];
+          linePos[o+3]=live[ki]; linePos[o+4]=live[ki+1]; linePos[o+5]=live[ki+2];
+        }
+      }
+      lineGeo.attributes.position.needsUpdate = true;
+
+      // presentation
+      const sc = (0.72 + 0.28 * state.intro) * state.pulse;
+      root.scale.setScalar(sc);
+      ptsMat.size    = 0.12 * (1 + state.burst * 0.9);
+      ptsMat.opacity = 0.95 * state.intro;
+      lineMat.opacity = 0.4 * state.intro;
+      for (const m of ringMats) m.opacity = 0.22 * state.intro;
+      grid.material.opacity = 0.12 * state.intro;
+
+      if (!reduceMotion) {
+        root.rotation.y += 0.0016;
+        root.rotation.x += (my * 0.35 - root.rotation.x) * 0.04;
+        root.rotation.y += (mx * 0.0008);
+        gyro.rotation.y += 0.0022;
+        gyro.rotation.x += 0.0011;
+      }
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+
+
+  // ── Keyboard section snapping ────────────────────────────────
+  (function initKeyboardSectionNav() {
+    const snapSections = Array.from(document.querySelectorAll('section'));
+    if (snapSections.length < 2) return;
+
+    let locked = false;
+    let unlockTimer = 0;
+
+    function navOffset() {
+      const nav = document.querySelector('.nav');
+      return nav ? Math.ceil(nav.getBoundingClientRect().height + 10) : 0;
+    }
+
+    function rawTop(section) {
+      return section.getBoundingClientRect().top + window.scrollY;
+    }
+
+    function targetTop(section) {
+      return Math.max(0, Math.round(rawTop(section) - navOffset()));
+    }
+
+    function currentIndex() {
+      const y = window.scrollY + navOffset() + 8;
+      let index = 0;
+      for (let i = 0; i < snapSections.length; i++) {
+        if (rawTop(snapSections[i]) <= y) index = i;
+      }
+      return index;
+    }
+
+    function unlockSoon() {
+      window.clearTimeout(unlockTimer);
+      unlockTimer = window.setTimeout(() => { locked = false; }, reduceMotion ? 120 : 860);
+    }
+
+    function scrollToAdjacent(direction) {
+      const current = currentIndex();
+      const next = Math.max(0, Math.min(snapSections.length - 1, current + direction));
+      const top = targetTop(snapSections[next]);
+
+      if (next === current) {
+        const alreadyAligned = Math.abs(window.scrollY - top) < 4;
+        if (direction > 0 && current === snapSections.length - 1) return;
+        if (direction < 0 && current === 0 && alreadyAligned) return;
+      }
+
+      locked = true;
+      window.scrollTo({ top, behavior: reduceMotion ? 'auto' : 'smooth' });
+      unlockSoon();
+    }
+
+    window.addEventListener('keydown', (event) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+      const active = document.activeElement;
+      if (active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(active.tagName))) return;
+
+      event.preventDefault();
+      if (locked) return;
+      scrollToAdjacent(event.key === 'ArrowDown' ? 1 : -1);
+    }, { passive: false });
+
+    window.addEventListener('scrollend', () => {
+      locked = false;
+      window.clearTimeout(unlockTimer);
+    });
+  })();
+
+  // ── Hero machine canvas ──────────────────────────────────────
+  const mCanvas = document.getElementById('machine-canvas');
+  const mCtx    = mCanvas.getContext('2d');
+  const DPR     = window.devicePixelRatio || 1;
+  const SIZE    = 520;
+  mCanvas.width  = SIZE * DPR;
+  mCanvas.height = SIZE * DPR;
+  mCanvas.style.width  = SIZE + 'px';
+  mCanvas.style.height = SIZE + 'px';
+  mCtx.scale(DPR, DPR);
+
+  const CX = SIZE / 2, CY = SIZE / 2;
+  let tick = 0;
+
+  // Node definitions (hub + 8 orbital nodes)
+  const orbitRadius = [105, 165, 215];
+  const nodeCount   = [6, 8, 10];
+  const allNodes = [];
+
+  // Hub
+  allNodes.push({ x: CX, y: CY, r: 14, orbit: -1, angle: 0, speed: 0, color: '#7eb3ff', label: 'MANIFOLD' });
+
+  // Generate orbital nodes
+  for (let oi = 0; oi < orbitRadius.length; oi++) {
+    const n = nodeCount[oi];
+    const rad = orbitRadius[oi];
+    const speed = (oi === 0 ? 0.004 : oi === 1 ? -0.003 : 0.0025) * (oi % 2 === 0 ? 1 : -1);
+    const colors = ['#7eb3ff', '#a78bfa', '#34d399', '#f59e0b', '#f472b6', '#22d3ee'];
+    for (let i = 0; i < n; i++) {
+      allNodes.push({
+        x: 0, y: 0,
+        r: oi === 0 ? 6 : oi === 1 ? 4.5 : 3.5,
+        orbit: oi,
+        rad: rad,
+        angle: (i / n) * Math.PI * 2,
+        speed: speed,
+        color: colors[(oi * 2 + i) % colors.length],
+        label: '',
+      });
+    }
+  }
+
+  function drawMachine() {
+    mCtx.clearRect(0, 0, SIZE, SIZE);
+
+    // Orbit rings
+    for (let oi = 0; oi < orbitRadius.length; oi++) {
+      mCtx.beginPath();
+      mCtx.arc(CX, CY, orbitRadius[oi], 0, Math.PI * 2);
+      mCtx.strokeStyle = `rgba(126,179,255,${0.06 - oi * 0.01})`;
+      mCtx.lineWidth = 1;
+      mCtx.stroke();
+    }
+
+    // Update & draw orbital nodes
+    const nodePosMap = [];
+    for (const nd of allNodes) {
+      if (nd.orbit >= 0) {
+        nd.angle += nd.speed;
+        nd.x = CX + Math.cos(nd.angle) * nd.rad;
+        nd.y = CY + Math.sin(nd.angle) * nd.rad;
+      }
+      nodePosMap.push({ x: nd.x, y: nd.y });
+    }
+
+    // Connection lines: hub to all orbit-0 nodes
+    const hub = allNodes[0];
+    for (const nd of allNodes) {
+      if (nd.orbit === 0) {
+        const grad = mCtx.createLinearGradient(hub.x, hub.y, nd.x, nd.y);
+        grad.addColorStop(0, 'rgba(126,179,255,0.35)');
+        grad.addColorStop(1, 'rgba(126,179,255,0.05)');
+        mCtx.beginPath();
+        mCtx.moveTo(hub.x, hub.y);
+        mCtx.lineTo(nd.x, nd.y);
+        mCtx.strokeStyle = grad;
+        mCtx.lineWidth = 0.8;
+        mCtx.stroke();
+      }
+    }
+
+    // Connections between nearby orbit-1 and orbit-2 nodes
+    const o1Nodes = allNodes.filter(n => n.orbit === 1);
+    const o2Nodes = allNodes.filter(n => n.orbit === 2);
+    for (const a of o1Nodes) {
+      for (const b of o2Nodes) {
+        const dx = a.x - b.x, dy = a.y - b.y;
+        if (Math.sqrt(dx*dx + dy*dy) < 70) {
+          mCtx.beginPath();
+          mCtx.moveTo(a.x, a.y);
+          mCtx.lineTo(b.x, b.y);
+          mCtx.strokeStyle = 'rgba(167,139,250,0.08)';
+          mCtx.lineWidth = 0.5;
+          mCtx.stroke();
+        }
+      }
+    }
+
+    // Draw nodes
+    for (const nd of allNodes) {
+      // Glow
+      const grd = mCtx.createRadialGradient(nd.x, nd.y, 0, nd.x, nd.y, nd.r * 3.5);
+      const col = nd.color;
+      grd.addColorStop(0, col.replace('#', 'rgba(').replace(/(.{2})(.{2})(.{2})/, (_, r, g, b) =>
+        `${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)}`) + ',0.3)');
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      mCtx.beginPath();
+      mCtx.arc(nd.x, nd.y, nd.r * 3.5, 0, Math.PI * 2);
+      mCtx.fillStyle = grd;
+      mCtx.fill();
+
+      // Node circle
+      mCtx.beginPath();
+      mCtx.arc(nd.x, nd.y, nd.r, 0, Math.PI * 2);
+      mCtx.fillStyle = nd.color;
+      mCtx.globalAlpha = nd.orbit === 0 ? 0.9 : nd.orbit === 1 ? 0.75 : 0.55;
+      mCtx.fill();
+      mCtx.globalAlpha = 1;
+    }
+
+    // Hub ring
+    mCtx.beginPath();
+    mCtx.arc(hub.x, hub.y, 22, 0, Math.PI * 2);
+    mCtx.strokeStyle = 'rgba(126,179,255,0.55)';
+    mCtx.lineWidth = 1.5;
+    mCtx.stroke();
+
+    // Hub label
+    mCtx.font = `700 9px "Inter Tight", sans-serif`;
+    mCtx.fillStyle = 'rgba(126,179,255,0.85)';
+    mCtx.textAlign = 'center';
+    mCtx.fillText('MANIFOLD', CX, CY + 3);
+
+    // Pulsing outer ring
+    const pulseAlpha = (Math.sin(tick * 0.04) + 1) / 2 * 0.25;
+    mCtx.beginPath();
+    mCtx.arc(CX, CY, 235 + Math.sin(tick * 0.02) * 8, 0, Math.PI * 2);
+    mCtx.strokeStyle = `rgba(126,179,255,${pulseAlpha})`;
+    mCtx.lineWidth = 1;
+    mCtx.stroke();
+
+    tick++;
+    requestAnimationFrame(drawMachine);
+  }
+  drawMachine();
+
+  // ── Entrance animations (anime.js v4) ───────────────────────
+  const { animate, stagger, createTimeline } = anime;
+
+  const tl = createTimeline({ defaults: { ease: 'outExpo' } });
+
+  tl.add('#hero-eyebrow', {
+    opacity:    [0, 1],
+    translateY: [20, 0],
+    duration:   700,
+  }, 300)
+  .add('#hero-heading', {
+    opacity:    [0, 1],
+    translateY: [30, 0],
+    duration:   800,
+  }, '-=500')
+  .add('#hero-sub', {
+    opacity:    [0, 1],
+    translateY: [20, 0],
+    duration:   700,
+  }, '-=600')
+  .add('#hero-cta', {
+    opacity:    [0, 1],
+    translateY: [16, 0],
+    duration:   600,
+  }, '-=550')
+  .add('#hero-extra', {
+    opacity:    [0, 1],
+    translateY: [14, 0],
+    duration:   600,
+  }, '-=500')
+  .add('#hero-right', {
+    opacity:  [0, 1],
+    duration: 900,
+  }, '-=700')
+  .add('#scroll-hint', {
+    opacity:  [0, 0.6],
+    duration: 600,
+  }, '-=200');
+
+  // Features intro fade
+  function revealOnScroll(selector, delay) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setTimeout(() => {
+            animate(entry.target, {
+              opacity:    [0, 1],
+              translateY: [30, 0],
+              duration:   700,
+              ease:       'outExpo',
+            });
+          }, delay || 0);
+          obs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    obs.observe(el);
+  }
+  revealOnScroll('#features-label',   0);
+  revealOnScroll('#features-heading', 100);
+
+  // Feature sections
+  const featureSections = document.querySelectorAll('.feature-section');
+  const sectionObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        sectionObs.unobserve(entry.target);
+        startFeatureAnimation(entry.target);
+      }
+    });
+  }, { threshold: 0.18 });
+  featureSections.forEach(s => sectionObs.observe(s));
+
+  // CTA
+  const ctaEl = document.querySelector('.cta-section');
+  if (ctaEl) {
+    new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.2 }).observe(ctaEl);
+  }
+
+  // ── Per-feature SVG animations ───────────────────────────────
+  function startFeatureAnimation(section) {
+    const feat = section.dataset.feature;
+
+    if (feat === 'specialists') {
+      // Pulse rings on hub
+      animate('.spec-pulse', {
+        r:       [38, 72],
+        opacity: [0.5, 0],
+        duration: 2400,
+        loop:    true,
+        ease:    'linear',
+      });
+      animate('.spec-pulse2', {
+        r:       [52, 90],
+        opacity: [0.35, 0],
+        duration: 2400,
+        delay:    800,
+        loop:    true,
+        ease:    'linear',
+      });
+      // Rotate hub
+      animate('.spec-hub', {
+        rotate:   360,
+        duration: 18000,
+        loop:     true,
+        ease:     'linear',
+        transformOrigin: '50% 50%',
+      });
+      // Stagger satellite nodes in
+      animate('.spec-node', {
+        scale:    [0, 1],
+        opacity:  [0, 1],
+        duration: 600,
+        delay:    stagger(120),
+        ease:     'outBack',
+      });
+      animate('.spec-line', {
+        strokeDashoffset: [100, 0],
+        opacity:  [0, 0.5],
+        duration: 800,
+        delay:    stagger(100),
+        ease:     'outExpo',
+      });
+    }
+
+    if (feat === 'memory') {
+      animate('.mem-ring', {
+        rotate:   360,
+        duration: 14000,
+        loop:     true,
+        ease:     'linear',
+        transformOrigin: '220px 180px',
+      });
+      animate('.mem-ring2', {
+        rotate:   -360,
+        duration: 20000,
+        loop:     true,
+        ease:     'linear',
+        transformOrigin: '220px 180px',
+      });
+      animate('.mem-ring3', {
+        rotate:   360,
+        duration: 28000,
+        loop:     true,
+        ease:     'linear',
+        transformOrigin: '220px 180px',
+      });
+      animate('.mem-node', {
+        scale:    [0, 1],
+        opacity:  [0, 1],
+        duration: 500,
+        delay:    stagger(150),
+        ease:     'outBack',
+        transformOrigin: '50% 50%',
+      });
+    }
+
+    if (feat === 'dag') {
+      animate('.dag-node', {
+        opacity:  [0, 1],
+        scaleX:   [0.6, 1],
+        duration: 500,
+        delay:    stagger(80),
+        ease:     'outExpo',
+        transformOrigin: '50% 50%',
+      });
+      animate('.dag-edge', {
+        strokeDashoffset: [40, 0],
+        opacity:  [0, 0.5],
+        duration: 600,
+        delay:    stagger(60, { start: 400 }),
+        ease:     'outExpo',
+      });
+      // Flow dots
+      animateDagDot();
+    }
+
+    if (feat === 'pulse') {
+      // Clock hands rotation
+      animate('#pulse-hour', {
+        rotate:   [0, 360],
+        duration: 12000,
+        loop:     true,
+        ease:     'linear',
+        transformOrigin: '220px 180px',
+      });
+      animate('#pulse-minute', {
+        rotate:   [0, 360],
+        duration: 3000,
+        loop:     true,
+        ease:     'linear',
+        transformOrigin: '220px 180px',
+      });
+    }
+
+    if (feat === 'playground') {
+      // Blinking cursor
+      animate('.pg-cursor', {
+        opacity:  [1, 0, 1],
+        duration: 900,
+        loop:     true,
+        ease:     'steps(1)',
+      });
+      // Code line shimmer stagger
+      const lines = section.querySelectorAll('rect[fill]');
+      if (lines.length) {
+        animate(lines, {
+          opacity: [0, 1],
+          translateX: [-8, 0],
+          duration: 500,
+          delay: stagger(50),
+          ease: 'outExpo',
+        });
+      }
+    }
+
+    if (feat === 'mcp') {
+      animate('.mcp-hex', {
+        rotate:   [0, 360],
+        duration: 20000,
+        loop:     true,
+        ease:     'linear',
+        transformOrigin: '220px 176px',
+      });
+      animateMcpDot();
+    }
+  }
+
+  // DAG animated flow dot
+  function animateDagDot() {
+    const dot = document.querySelector('.dag-dot');
+    if (!dot) return;
+    const path = [
+      { x: 220, y: 38 },
+      { x: 115, y: 118 },
+      { x: 115, y: 208 },
+      { x: 220, y: 296 },
+    ];
+    let i = 0;
+    function next() {
+      if (!dot) return;
+      const from = path[i % path.length];
+      const to   = path[(i + 1) % path.length];
+      animate(dot, {
+        cx: [from.x, to.x],
+        cy: [from.y, to.y],
+        opacity: [0.9, 0.9],
+        duration: 900,
+        ease: 'inOutQuad',
+        onComplete: () => { i++; next(); }
+      });
+    }
+    next();
+  }
+
+  // MCP animated dot traversal
+  function animateMcpDot() {
+    const dot = document.querySelector('.mcp-dot');
+    if (!dot) return;
+    const paths = [
+      [{ x: 220, y: 176 }, { x: 110, y: 80 }],
+      [{ x: 220, y: 176 }, { x: 338, y: 80 }],
+      [{ x: 220, y: 176 }, { x: 338, y: 181 }],
+      [{ x: 220, y: 176 }, { x: 338, y: 272 }],
+      [{ x: 220, y: 176 }, { x: 102, y: 272 }],
+      [{ x: 220, y: 176 }, { x: 64, y: 181 }],
+    ];
+    let pi = 0;
+    function nextPath() {
+      if (!dot) return;
+      const pts = paths[pi % paths.length];
+      animate(dot, {
+        cx: [pts[0].x, pts[1].x],
+        cy: [pts[0].y, pts[1].y],
+        opacity: [0.9, 0],
+        duration: 1100,
+        ease: 'inOutQuad',
+        onComplete: () => { pi++; nextPath(); }
+      });
+    }
+    nextPath();
+  }
+
+})();
+</script>
+</body>
+</html>
