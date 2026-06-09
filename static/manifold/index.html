@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
 
@@ -486,35 +487,60 @@
       background: linear-gradient(90deg, transparent 0%, var(--border) 30%, var(--border) 70%, transparent 100%);
     }
 
-    /* ─── CTA footer ──────────────────────────────────────────── */
+    /* ─── CTA section (last) ──────────────────────────────────── */
     .cta-section {
-      text-align: center;
-      padding: 120px clamp(24px,6vw,96px) 100px;
+      min-height: 100svh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 64px;
+      padding: 80px clamp(24px, 6vw, 96px);
       opacity: 0;
       transform: translateY(32px);
       transition: opacity 0.7s ease, transform 0.7s ease;
     }
     .cta-section.visible { opacity: 1; transform: translateY(0); }
+    /* Glass card — same treatment as .feature-section .feature-content */
+    .cta-content {
+      grid-column: 2;
+      justify-self: start;
+      position: relative;
+      z-index: 4;
+      max-width: 580px;
+      padding: clamp(28px, 3.5vw, 44px);
+      border: 1px solid rgba(126, 179, 255, 0.14);
+      border-radius: 28px;
+      background:
+        linear-gradient(135deg, rgba(8, 12, 24, 0.88), rgba(4, 6, 13, 0.62)),
+        radial-gradient(circle at 12% 8%, rgba(126,179,255,0.13), transparent 42%);
+      box-shadow:
+        0 24px 90px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(20px) saturate(1.25);
+    }
+    /* Desktop: rocket/particles occupy left column */
+    .cta-visual-placeholder {
+      grid-column: 1;
+      grid-row: 1;
+    }
     .cta-section h2 {
-      font-size: clamp(30px, 5vw, 60px);
       font-weight: 800;
       letter-spacing: -0.04em;
       line-height: 1.05;
       margin-bottom: 20px;
     }
+    .cta-section .section-subhead { color: var(--accent); }
     .cta-section p {
       font-size: 17px;
       color: var(--muted);
-      margin-bottom: 40px;
-      max-width: 500px;
-      margin-left: auto;
-      margin-right: auto;
+      margin-bottom: 36px;
+      max-width: 460px;
     }
+    .cta-section p.dummy-copy { margin-bottom: 40px; }
     .cta-glow {
-      display: inline-flex;
-      gap: 14px;
+      display: flex;
+      gap: 12px;
       flex-wrap: wrap;
-      justify-content: center;
     }
 
     /* ─── Footer ──────────────────────────────────────────────── */
@@ -560,6 +586,18 @@
       .dummy-copy { margin-left: auto; margin-right: auto; }
       .feature-tags { justify-content: center; }
       .feature-section .feature-content { grid-column: 1 !important; justify-self: center; }
+      /* CTA section: collapse to single column on mobile */
+      .cta-section {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        padding: 80px clamp(24px, 6vw, 96px);
+        text-align: center;
+      }
+      .cta-section .cta-content { max-width: 100%; grid-column: 1; justify-self: center; }
+      .cta-section p { max-width: 100%; }
+      .cta-glow { justify-content: center; }
+      /* Hide the empty visual placeholder column on mobile */
+      .cta-visual-placeholder { display: none; }
     }
 
     @media (max-width: 900px) and (orientation: portrait) {
@@ -604,6 +642,136 @@
         font-size: 9px;
         padding: 5px 8px;
       }
+      /* CTA portrait: card in upper half, rocket in lower half */
+      .cta-section {
+        grid-template-columns: 1fr;
+        grid-template-rows:
+          minmax(0, calc(50svh - 68px - env(safe-area-inset-top)))
+          minmax(0, calc(50svh - env(safe-area-inset-bottom)));
+        align-items: stretch;
+        gap: 0;
+        padding: calc(68px + env(safe-area-inset-top)) clamp(14px, 5vw, 24px) env(safe-area-inset-bottom);
+        text-align: center;
+      }
+      .cta-section .cta-content {
+        grid-row: 1;
+        grid-column: 1;
+        justify-self: center;
+        align-self: center;
+        max-width: 100%;
+        max-height: calc(50svh - 92px - env(safe-area-inset-top));
+        overflow: hidden;
+        padding: clamp(16px, 4.6vw, 22px);
+        border-radius: 22px;
+      }
+      .cta-section p { max-width: 100%; }
+      .cta-glow { justify-content: center; }
+      .cta-visual-placeholder { grid-row: 2; display: block; }
+    }
+
+    /* ─── Future-polish layer ─────────────────────────────────── */
+    /* Aurora atmosphere drifting behind the particle engine */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: -20%;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(40% 34% at 18% 22%, rgba(74, 125, 255, 0.10), transparent 70%),
+        radial-gradient(36% 30% at 84% 12%, rgba(167, 139, 250, 0.09), transparent 70%),
+        radial-gradient(42% 36% at 70% 86%, rgba(52, 211, 153, 0.06), transparent 70%);
+      animation: auroraDrift 26s ease-in-out infinite alternate;
+    }
+    @keyframes auroraDrift {
+      0%   { transform: translate3d(-2%, -1%, 0) scale(1); }
+      100% { transform: translate3d(2%, 2%, 0) scale(1.06); }
+    }
+    /* Fine film grain for tactile depth */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      pointer-events: none;
+      opacity: 0.22;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px 180px;
+    }
+
+    /* Per-section accent theming — cards inherit the color of the
+       live blueprint they sit beside */
+    .feature-section { --fa: var(--accent); }
+    .feature-section[data-feature="memory"]     { --fa: #34d399; }
+    .feature-section[data-feature="dag"]        { --fa: #a78bfa; }
+    .feature-section[data-feature="pulse"]      { --fa: #f5a623; }
+    .feature-section[data-feature="playground"] { --fa: #f472b6; }
+    .feature-section[data-feature="mcp"]        { --fa: #22d3ee; }
+    .feature-section .section-subhead,
+    .feature-section .feature-number { color: var(--fa); }
+    .feature-section .section-subhead::before { background: var(--fa); }
+    .feature-section .tag:hover { border-color: var(--fa); color: var(--fa); }
+    .feature-section .feature-content {
+      transition:
+        transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.45s ease,
+        box-shadow 0.45s ease;
+    }
+    .feature-section .feature-content:hover {
+      transform: translateY(-3px);
+      border-color: color-mix(in srgb, var(--fa) 38%, transparent);
+      box-shadow:
+        0 28px 110px rgba(0, 0, 0, 0.45),
+        0 0 64px color-mix(in srgb, var(--fa) 12%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    /* Living gradient on hero + CTA headlines */
+    .hero-title .grad,
+    .cta-section .grad {
+      background-size: 220% 220%;
+      animation: gradShift 9s ease-in-out infinite alternate;
+    }
+    @keyframes gradShift {
+      0%   { background-position: 0% 30%; }
+      100% { background-position: 100% 70%; }
+    }
+
+    /* Primary button sheen sweep */
+    .btn-primary { position: relative; overflow: hidden; }
+    .btn-primary::after {
+      content: "";
+      position: absolute;
+      top: 0; bottom: 0;
+      left: -80%;
+      width: 60%;
+      background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+      transform: skewX(-18deg);
+      transition: left 0.6s ease;
+      pointer-events: none;
+    }
+    .btn-primary:hover::after { left: 130%; }
+
+    /* Unified monospace voice for technical chrome */
+    .section-subhead,
+    #section-hud-label,
+    .nav-badge,
+    .feature-number,
+    .feature-section .feature-content::before {
+      font-family: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace;
+    }
+
+    /* Scroll progress hairline above the nav */
+    #scroll-progress {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      z-index: 120;
+      background: linear-gradient(90deg, #4a7dff, #a78bfa 55%, #34d399);
+      transform-origin: left center;
+      transform: scaleX(0);
+      pointer-events: none;
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -639,6 +807,9 @@
     <span class="nav-badge">Dev Preview</span>
   </div>
 </nav>
+
+<!-- Scroll progress hairline -->
+<div id="scroll-progress" aria-hidden="true"></div>
 
 <!-- ── Section HUD ─────────────────────────────────────────────── -->
 <div id="section-hud" aria-hidden="true">
@@ -679,8 +850,8 @@
     <div class="hero-extra" id="hero-extra">
       <h2 class="section-subhead">Section 00 — Command Center</h2>
       <p class="dummy-copy">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer agents converge,
-        route context, and hand off work through a calm, luminous control plane.
+        Every model, memory, and tool answers to one control plane. As you
+        move through each capability, the engine physically reassembles itself.
       </p>
     </div>
   </div>
@@ -713,8 +884,8 @@
       delegates subtasks, and synthesises results across specialists.
     </p>
     <p class="dummy-copy">
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent nodes exchange intent,
-      negotiate capability, and resolve the next action with graceful precision.
+      Specialists exchange intent, negotiate capability, and hand off work
+      with full context — a team of models behaving like one sharper mind.
     </p>
     <div class="feature-tags">
       <span class="tag">Agent Routing</span>
@@ -742,8 +913,8 @@
       with semantic, temporal, causal, and entity edges — all composing before every LLM call.
     </p>
     <p class="dummy-copy">
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur traces settle into layers,
-      preserving signal while old context folds into durable, searchable memory.
+      Every interaction settles into layers — fast context on top, durable
+      graph and vector recall beneath — so agents remember what mattered.
     </p>
     <div class="feature-tags">
       <span class="tag">Summarization</span>
@@ -771,8 +942,8 @@
       sequential where required — with real-time flow visualisation.
     </p>
     <p class="dummy-copy">
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam branches align, split, and merge
-      as each dependency resolves into a readable, inspectable execution path.
+      Branches align, split, and merge as each dependency resolves —
+      every run leaves a readable, inspectable execution path behind.
     </p>
     <div class="feature-tags">
       <span class="tag">Node-based editor</span>
@@ -799,8 +970,8 @@
       intervention required. Fully integrated with the room and project system.
     </p>
     <p class="dummy-copy">
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed temporal triggers pulse quietly,
-      waking the right specialist at the right moment and then fading back into standby.
+      Temporal triggers wake the right specialist at exactly the right moment,
+      write their results to shared memory, and fade back into standby.
     </p>
     <div class="feature-tags">
       <span class="tag">Cron-like scheduling</span>
@@ -828,8 +999,8 @@
       session into a reusable workflow in one click.
     </p>
     <p class="dummy-copy">
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla prompt variants shimmer through
-      controlled runs, turning rough ideas into measured, repeatable agent behavior.
+      Prompt variants flow through controlled, side-by-side runs — turning
+      rough ideas into measured, repeatable agent behavior you can ship.
     </p>
     <div class="feature-tags">
       <span class="tag">Live prompt editor</span>
@@ -857,8 +1028,8 @@
       agents discover and invoke them automatically with zero boilerplate.
     </p>
     <p class="dummy-copy">
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi connectors fan outward,
-      binding external systems into a single mesh that agents can discover and operate.
+      Connectors fan outward from the core, binding file systems, APIs, and
+      databases into a single mesh that agents discover and operate on their own.
     </p>
     <div class="feature-tags">
       <span class="tag">MCP client</span>
@@ -875,21 +1046,25 @@
      CTA
 ═══════════════════════════════════════════════════════════════ -->
 <section class="cta-section" aria-labelledby="cta-heading">
-  <h2 id="cta-heading">
-    Ready to orchestrate<br/>
-    <span class="grad" style="background:linear-gradient(135deg,#a5c8ff,#b49dff,#67e8c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-      something brilliant?
-    </span>
-  </h2>
-  <h3 class="section-subhead">Section 07 — Launch sequence</h3>
-  <p>Manifold is open source and free. Bring your own models.</p>
-  <p class="dummy-copy">
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse orchestration lights up,
-    inviting every model, memory, and tool to move as one coordinated system.
-  </p>
-  <div class="cta-glow">
-    <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Get Started on GitHub</a>
-    <a class="btn-ghost"   href="/manifold-memory-systems/">Read the Memory Docs →</a>
+  <!-- Empty left column: the fixed particle/rocket canvas shows through here on desktop -->
+  <div class="cta-visual-placeholder" aria-hidden="true"></div>
+  <div class="cta-content">
+    <h3 class="section-subhead">Section 07 — Launch sequence</h3>
+    <h2 id="cta-heading">
+      Ready to orchestrate<br/>
+      <span class="grad" style="background:linear-gradient(135deg,#a5c8ff,#b49dff,#67e8c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+        something brilliant?
+      </span>
+    </h2>
+    <p>Manifold is open source and free. Bring your own models.</p>
+    <p class="dummy-copy">
+      The whole engine lights up at once — every model, memory, and tool
+      moving as one coordinated system. Open source, local-first, and yours to run.
+    </p>
+    <div class="cta-glow">
+      <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Get Started on GitHub</a>
+      <a class="btn-ghost"   href="/manifold-memory-systems/">Read the Memory Docs →</a>
+    </div>
   </div>
 </section>
 
@@ -1398,6 +1573,86 @@
     grid.material.opacity = 0;
     root.add(grid);
 
+    /* ── Morph choreography buffers ────────────────────────────
+       Each particle gets its own departure beat and a personal curl
+       axis so blueprint transitions read as a living swarm rather
+       than a uniform crossfade. */
+    const morphPhase = new Float32Array(VOXELS);
+    const swirl = new Float32Array(VOXELS * 3);
+    {
+      const rnd = seeded(4242);
+      for (let i = 0; i < VOXELS; i++) {
+        morphPhase[i] = rnd();
+        const a = rnd() * TAU;
+        const b = Math.acos(2 * rnd() - 1);
+        const r = 0.55 + rnd() * 0.85;
+        swirl[i * 3]     = Math.sin(b) * Math.cos(a) * r;
+        swirl[i * 3 + 1] = Math.sin(b) * Math.sin(a) * r;
+        swirl[i * 3 + 2] = Math.cos(b) * r;
+      }
+    }
+
+    /* ── Data packets: signals racing across the lattice ─────── */
+    const PACKETS = 56;
+    const packetPos = new Float32Array(PACKETS * 3);
+    const packets = [];
+    {
+      const rnd = seeded(7321);
+      for (let i = 0; i < PACKETS; i++) {
+        packets.push({
+          a: (rnd() * VOXELS) | 0,
+          b: (rnd() * VOXELS) | 0,
+          t: rnd(),
+          speed: 0.35 + rnd() * 0.85,
+        });
+      }
+    }
+    const packetGeo = new THREE.BufferGeometry();
+    packetGeo.setAttribute('position', new THREE.BufferAttribute(packetPos, 3));
+    const packetMat = new THREE.PointsMaterial({
+      size: 0.15,
+      map: makeSprite(),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      color: 0xdcebff,
+      sizeAttenuation: true,
+    });
+    const packetCloud = new THREE.Points(packetGeo, packetMat);
+    model.add(packetCloud);
+
+    /* ── Ambient dust field: deep parallax backdrop ──────────── */
+    const DUST = 420;
+    const dustPos = new Float32Array(DUST * 3);
+    {
+      const rnd = seeded(9151);
+      for (let i = 0; i < DUST; i++) {
+        const a = rnd() * TAU;
+        const b = Math.acos(2 * rnd() - 1);
+        const r = 7 + rnd() * 9;
+        dustPos[i * 3]     = Math.sin(b) * Math.cos(a) * r;
+        dustPos[i * 3 + 1] = Math.sin(b) * Math.sin(a) * r * 0.6;
+        dustPos[i * 3 + 2] = Math.cos(b) * r - 4;
+      }
+    }
+    const dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+    const dustMat = new THREE.PointsMaterial({
+      size: 0.05,
+      map: makeSprite(),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      color: 0x6f9ddf,
+      sizeAttenuation: true,
+    });
+    const dust = new THREE.Points(dustGeo, dustMat);
+    scene.add(dust);
+
+    const instCol = new THREE.Color();
+
     const dummy = new THREE.Object3D();
     const currentColor = new THREE.Color();
     const nextColor = new THREE.Color();
@@ -1471,15 +1726,25 @@
 
     const clock = new THREE.Clock();
     let lastNearest = -1;
+    let lastT = 0;
 
     function frame() {
       const t = reduceMotion ? 0 : clock.getElapsedTime();
-      state.pSmooth += (stagePos() - state.pSmooth) * (reduceMotion ? 1 : 0.065);
+      const dt = Math.min(0.05, Math.max(0.0008, t - lastT));
+      lastT = t;
+      state.pSmooth += (stagePos() - state.pSmooth) * (reduceMotion ? 1 : 0.085);
 
       let idx = Math.floor(state.pSmooth);
       if (idx >= STAGES - 1) idx = STAGES - 2;
       if (idx < 0) idx = 0;
-      const f = smooth(clamp(state.pSmooth - idx));
+      /* Remap inter-section progress so the morph drives 0→1 over the
+         first 65% of the scroll gap between sections. This ensures all
+         particles complete their transition well before the next section
+         card reaches the viewport boundary. */
+      const f = smooth(clamp((state.pSmooth - idx) / 0.65));
+      /* morphE: 0 when a blueprint is settled, 1 mid-flight between
+         blueprints. Drives transition glow, line energy and packets. */
+      const morphE = reduceMotion ? 0 : Math.sin(clamp((state.pSmooth - idx) / 0.65) * Math.PI);
       const nearest = Math.round(state.pSmooth);
 
       if (nearest !== lastNearest) {
@@ -1504,9 +1769,25 @@
       const follow = reduceMotion ? 1 : 0.17;
       for (let i = 0; i < VOXELS; i++) {
         const k = i * 3;
-        const tx = lerp(targetA[k], targetB[k], f);
-        const ty = lerp(targetA[k + 1], targetB[k + 1], f);
-        const tz = lerp(targetA[k + 2], targetB[k + 2], f);
+        /* Staggered departure: each particle leaves on its own beat so
+           blueprints dissolve and reassemble as a travelling wave
+           instead of a uniform crossfade.
+           Window tightened to 0.28 (was 0.42) so the last particle
+           finishes at f=1.0 (≈65% through the scroll gap) — well
+           before the incoming section card crosses its boundary. */
+        const fi = reduceMotion ? f : smooth(clamp((f - morphPhase[i] * 0.28) / 0.72));
+        const flight = reduceMotion ? 0 : Math.sin(fi * Math.PI);
+        let tx = lerp(targetA[k], targetB[k], fi);
+        let ty = lerp(targetA[k + 1], targetB[k + 1], fi);
+        let tz = lerp(targetA[k + 2], targetB[k + 2], fi);
+        if (flight > 0.001) {
+          /* Curl detour: in-flight particles arc outward along a
+             personal axis, wobbling slightly, like a swarm in transit. */
+          const wob = t * 3.1 + i * 1.7;
+          tx += swirl[k]     * flight * (0.55 + 0.20 * Math.sin(wob));
+          ty += swirl[k + 1] * flight * (0.55 + 0.20 * Math.cos(wob * 0.9));
+          tz += swirl[k + 2] * flight * 0.55;
+        }
         if (!seededLive) {
           live[k] = tx; live[k + 1] = ty; live[k + 2] = tz;
         } else {
@@ -1516,14 +1797,21 @@
         }
 
         dummy.position.set(live[k], live[k + 1], live[k + 2]);
-        const s = 0.72 + Math.sin(t * 2.4 + i * 0.37) * 0.10 + state.burst * 0.42;
+        const s = 0.72 + Math.sin(t * 2.4 + i * 0.37) * 0.10 + state.burst * 0.42 + flight * 0.30;
         dummy.scale.setScalar(reduceMotion ? 0.82 : s);
         dummy.rotation.set(t * 0.08 + i * 0.013, t * 0.06 + i * 0.021, t * 0.04);
         dummy.updateMatrix();
         voxels.setMatrixAt(i, dummy.matrix);
+
+        /* Per-particle luminance: a slow sparkle plus "transit heat" —
+           particles burn brighter while flying between blueprints. */
+        const sparkle = 0.80 + 0.28 * Math.sin(t * 2.1 + i * 0.61);
+        instCol.setScalar(reduceMotion ? 1 : sparkle + flight * 0.95);
+        voxels.setColorAt(i, instCol);
       }
       seededLive = true;
       voxels.instanceMatrix.needsUpdate = true;
+      if (voxels.instanceColor) voxels.instanceColor.needsUpdate = true;
       glowGeo.attributes.position.needsUpdate = true;
 
       for (let s = 0; s < SEGMENTS; s++) {
@@ -1538,6 +1826,33 @@
       }
       lineGeo.attributes.position.needsUpdate = true;
 
+      /* Data packets: luminous signals racing along the live lattice.
+         They speed up while the machine is morphing — the engine is
+         "busy" re-routing itself. */
+      for (let i = 0; i < PACKETS; i++) {
+        const pk = packets[i];
+        pk.t += dt * pk.speed * (1 + morphE * 1.8);
+        if (pk.t >= 1) {
+          pk.t = 0;
+          pk.a = pk.b;
+          pk.b = (Math.random() * VOXELS) | 0;
+          pk.speed = 0.35 + Math.random() * 0.85;
+        }
+        const ea = smooth(pk.t);
+        const a3 = pk.a * 3, b3 = pk.b * 3, o = i * 3;
+        packetPos[o]     = lerp(live[a3],     live[b3],     ea);
+        packetPos[o + 1] = lerp(live[a3 + 1], live[b3 + 1], ea);
+        packetPos[o + 2] = lerp(live[a3 + 2], live[b3 + 2], ea);
+      }
+      packetGeo.attributes.position.needsUpdate = true;
+      packetMat.opacity = reduceMotion ? 0 : (0.55 + morphE * 0.40) * state.intro;
+      packetMat.size = 0.15 + state.burst * 0.08 + morphE * 0.05;
+
+      /* Ambient dust: deep parallax backdrop, barely-there. */
+      dust.rotation.y = t * 0.012 + mouseX * 0.05;
+      dust.rotation.x = mouseY * 0.03;
+      dustMat.opacity = 0.16 * state.intro;
+
       const desktop = window.innerWidth > 900;
       const portraitMobile = !desktop && window.innerHeight > window.innerWidth;
       const targetX = desktop ? lerp(BLUEPRINTS[idx].x, BLUEPRINTS[idx + 1].x, f) : 0;
@@ -1547,17 +1862,17 @@
       root.position.x += (targetX - root.position.x) * (reduceMotion ? 1 : 0.045);
       root.position.y += (targetY - root.position.y) * 0.06;
       root.scale.setScalar(targetScale * state.pulse);
-      model.rotation.y = targetYaw + Math.sin(t * 0.24) * 0.14 + mouseX * 0.32;
+      model.rotation.y = targetYaw + Math.sin(t * 0.24) * 0.14 + mouseX * 0.32 + morphE * 0.22;
       model.rotation.x = -0.08 + Math.sin(t * 0.18) * 0.055 + mouseY * 0.18;
       model.rotation.z = Math.sin(t * 0.13) * 0.035;
       rig.rotation.x = t * 0.045;
       rig.rotation.y = t * 0.06;
 
-      voxelMat.opacity = 0.62 * state.intro;
-      glowMat.opacity = 0.50 * state.intro;
-      glowMat.size = 0.105 + state.burst * 0.055;
-      lineMat.opacity = 0.42 * state.intro;
-      for (const m of ringMats) m.opacity = 0.16 * state.intro;
+      voxelMat.opacity = (0.62 + morphE * 0.10) * state.intro;
+      glowMat.opacity = (0.50 + morphE * 0.18) * state.intro;
+      glowMat.size = 0.105 + state.burst * 0.055 + morphE * 0.035;
+      lineMat.opacity = (0.42 + morphE * 0.26) * state.intro;
+      for (const m of ringMats) m.opacity = (0.16 + morphE * 0.10) * state.intro;
       grid.material.opacity = 0.11 * state.intro;
 
       renderer.render(scene, camera);
@@ -1840,6 +2155,25 @@
         }
       });
     });
+  })();
+
+  // ── Scroll progress hairline ─────────────────────────────────
+  (function initScrollProgress() {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    let raf = 0;
+    function update() {
+      raf = 0;
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const p = Math.min(1, Math.max(0, window.scrollY / max));
+      bar.style.transform = 'scaleX(' + p.toFixed(4) + ')';
+    }
+    function schedule() {
+      if (!raf) raf = window.requestAnimationFrame(update);
+    }
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    update();
   })();
 
 })();
