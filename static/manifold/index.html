@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
 
   <style>
@@ -189,17 +189,30 @@
       transition: border-color 200ms, color 200ms;
     }
     .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
-
-    /* ─── Hero machine canvas ─────────────────────────────────── */
-    .hero-right {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
+    /* ─── Blueprint-backed hero layout ───────────────────────── */
+    .hero-left {
+      position: relative;
+      z-index: 3;
+      padding: clamp(6px, 1.5vw, 18px) 0;
     }
-    #machine-canvas {
-      width: min(520px, 90vw);
-      height: min(520px, 90vw);
+    .hero::after {
+      content: "";
+      position: absolute;
+      top: 16%;
+      right: clamp(24px, 6vw, 96px);
+      bottom: 12%;
+      width: min(46vw, 680px);
+      border: 1px solid rgba(126, 179, 255, 0.08);
+      border-radius: 42px;
+      background:
+        linear-gradient(rgba(126,179,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(126,179,255,0.035) 1px, transparent 1px),
+        radial-gradient(circle at 50% 45%, rgba(126,179,255,0.08), transparent 58%);
+      background-size: 34px 34px, 34px 34px, auto;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 100%);
+      mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 100%);
+      pointer-events: none;
+      opacity: 0.72;
     }
 
     /* ─── Scroll indicator ────────────────────────────────────── */
@@ -265,38 +278,62 @@
       opacity: 1;
       transform: translateY(0);
     }
-    .feature-section:nth-child(even) .feature-visual { order: -1; }
-
-    .feature-visual {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .feature-svg-wrap {
+    .feature-section .feature-content {
       position: relative;
-      width: min(440px, 85vw);
-      height: min(360px, 70vw);
+      z-index: 4;
+      max-width: 580px;
+      padding: clamp(24px, 3vw, 36px);
+      border: 1px solid rgba(126, 179, 255, 0.14);
+      border-radius: 28px;
+      background:
+        linear-gradient(135deg, rgba(8, 12, 24, 0.82), rgba(4, 6, 13, 0.52)),
+        radial-gradient(circle at 12% 8%, rgba(126,179,255,0.12), transparent 42%);
+      box-shadow:
+        0 24px 90px rgba(0, 0, 0, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(20px) saturate(1.25);
+      overflow: hidden;
     }
-    .feature-svg-wrap svg {
-      width: 100%;
-      height: 100%;
+    .feature-section .feature-content > * {
+      position: relative;
+      z-index: 1;
     }
-    /* Glow orb behind each SVG */
-    .feature-svg-wrap::before {
+    .feature-section .feature-content::before {
+      content: "LIVE VOXEL BLUEPRINT";
+      position: absolute;
+      z-index: 2;
+      top: 14px;
+      right: 18px;
+      font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      color: rgba(126,179,255,0.38);
+    }
+    .feature-section .feature-content::after {
       content: "";
       position: absolute;
-      inset: -30%;
-      border-radius: 50%;
-      filter: blur(60px);
-      opacity: 0.18;
+      inset: 0;
       pointer-events: none;
+      background:
+        linear-gradient(rgba(126,179,255,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(126,179,255,0.04) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: linear-gradient(135deg, transparent 0%, #000 18%, transparent 62%);
+      opacity: 0.6;
     }
-    .glow-blue::before  { background: radial-gradient(circle, #7eb3ff 0%, transparent 70%); }
-    .glow-purple::before { background: radial-gradient(circle, #a78bfa 0%, transparent 70%); }
-    .glow-green::before  { background: radial-gradient(circle, #34d399 0%, transparent 70%); }
-    .glow-orange::before { background: radial-gradient(circle, #f59e0b 0%, transparent 70%); }
-    .glow-pink::before   { background: radial-gradient(circle, #f472b6 0%, transparent 70%); }
-    .glow-cyan::before   { background: radial-gradient(circle, #22d3ee 0%, transparent 70%); }
+    .feature-section[data-feature="specialists"] .feature-content,
+    .feature-section[data-feature="dag"] .feature-content,
+    .feature-section[data-feature="playground"] .feature-content {
+      grid-column: 2;
+      justify-self: start;
+    }
+    .feature-section[data-feature="memory"] .feature-content,
+    .feature-section[data-feature="pulse"] .feature-content,
+    .feature-section[data-feature="mcp"] .feature-content {
+      grid-column: 1;
+      justify-self: end;
+    }
 
     .feature-content {}
     .feature-number {
@@ -331,12 +368,24 @@
       margin-bottom: 28px;
     }
     .section-subhead {
-      margin: 0 0 8px;
-      font-size: clamp(15px, 1.4vw, 18px);
-      line-height: 1.35;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 14px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: -0.01em;
-      color: rgba(235, 242, 255, 0.88);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+    }
+    .section-subhead::before {
+      content: "";
+      display: block;
+      width: 20px;
+      height: 1px;
+      background: var(--accent);
+      flex-shrink: 0;
     }
     .dummy-copy {
       max-width: 520px;
@@ -351,8 +400,66 @@
     }
     .hero-extra .section-subhead { margin-top: 0; }
     .hero-extra .dummy-copy { margin-bottom: 0; }
-    .cta-section .section-subhead {
-      color: rgba(235, 242, 255, 0.82);
+    .cta-section .section-subhead { color: var(--accent); }
+
+    /* ─── Section HUD indicator ───────────────────────────────── */
+    #section-hud {
+      position: fixed;
+      bottom: 32px;
+      right: clamp(24px, 4vw, 56px);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      pointer-events: none;
+    }
+    #section-hud-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+      opacity: 0.9;
+      transition: opacity 0.3s ease;
+    }
+    #section-hud-name {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: rgba(235, 242, 255, 0.75);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      text-align: right;
+    }
+    #section-hud-bar {
+      width: 32px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 1px;
+      transform-origin: right center;
+      transition: transform 0.4s ease, background 0.4s ease;
+    }
+    /* Dot trail */
+    #section-hud-dots {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .hud-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      border: 1px solid rgba(126,179,255,0.4);
+      background: transparent;
+      transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+    }
+    .hud-dot.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      transform: scale(1.35);
     }
     .feature-tags {
       display: flex;
@@ -432,7 +539,14 @@
       .hero-eyebrow { justify-content: center; }
       .hero-sub { margin-left: auto; margin-right: auto; }
       .hero-cta-row { justify-content: center; }
-      .hero-right { order: -1; }
+      .hero::after {
+        top: 10%;
+        right: 50%;
+        bottom: 42%;
+        width: min(86vw, 520px);
+        transform: translateX(50%);
+        opacity: 0.34;
+      }
       .feature-section {
         grid-template-columns: 1fr;
         gap: 40px;
@@ -440,12 +554,11 @@
         min-height: auto;
         padding: 64px clamp(24px, 6vw, 96px);
       }
-      .feature-section:nth-child(even) .feature-visual { order: 0; }
       .feature-number { justify-content: center; }
       .feature-desc { margin-left: auto; margin-right: auto; }
       .dummy-copy { margin-left: auto; margin-right: auto; }
       .feature-tags { justify-content: center; }
-      .feature-svg-wrap { width: min(340px, 85vw); height: min(280px, 70vw); }
+      .feature-section .feature-content { grid-column: 1 !important; justify-self: center; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -454,7 +567,7 @@
 </head>
 <body>
 
-<!-- Particle field -->
+<!-- Morphing voxel blueprint field -->
 <canvas id="engine-canvas" aria-hidden="true"></canvas>
 
 <!-- Nav -->
@@ -482,6 +595,24 @@
   </div>
 </nav>
 
+<!-- ── Section HUD ─────────────────────────────────────────────── -->
+<div id="section-hud" aria-hidden="true">
+  <div id="section-hud-label">00</div>
+  <div id="section-hud-name">Command Center</div>
+  <div id="section-hud-bar"></div>
+  <div id="section-hud-dots">
+    <div class="hud-dot active" data-idx="0"></div>
+    <div class="hud-dot" data-idx="1"></div>
+    <div class="hud-dot" data-idx="2"></div>
+    <div class="hud-dot" data-idx="3"></div>
+    <div class="hud-dot" data-idx="4"></div>
+    <div class="hud-dot" data-idx="5"></div>
+    <div class="hud-dot" data-idx="6"></div>
+    <div class="hud-dot" data-idx="7"></div>
+  </div>
+</div>
+
+
 <!-- ═══════════════════════════════════════════════════════════════
      HERO
 ═══════════════════════════════════════════════════════════════ -->
@@ -508,9 +639,6 @@
       </p>
     </div>
   </div>
-  <div class="hero-right" id="hero-right">
-    <canvas id="machine-canvas" aria-label="Animated Manifold machine diagram" role="img"></canvas>
-  </div>
   <div class="scroll-hint" id="scroll-hint" aria-hidden="true">
     <span>Scroll · ↑ / ↓</span>
     <div class="scroll-hint-line"></div>
@@ -530,63 +658,8 @@
      FEATURE 1 — Specialists + Teams
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="specialists" aria-labelledby="f1-title">
-  <div class="feature-visual">
-    <div class="feature-svg-wrap glow-blue">
-      <svg id="svg-specialists" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs>
-          <radialGradient id="gSpecCenter" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stop-color="#7eb3ff" stop-opacity="0.4"/>
-            <stop offset="100%" stop-color="#7eb3ff" stop-opacity="0"/>
-          </radialGradient>
-          <filter id="fBlur"><feGaussianBlur stdDeviation="3"/></filter>
-        </defs>
-        <!-- Hub glow -->
-        <ellipse cx="220" cy="180" rx="60" ry="60" fill="url(#gSpecCenter)" filter="url(#fBlur)"/>
-        <!-- Hub node -->
-        <circle class="spec-hub" cx="220" cy="180" r="28" fill="none" stroke="#7eb3ff" stroke-width="1.5"/>
-        <circle cx="220" cy="180" r="8" fill="#7eb3ff"/>
-        <text x="220" y="185" text-anchor="middle" font-size="9" fill="#7eb3ff" font-family="Inter Tight,sans-serif" font-weight="600">MANIFOLD</text>
-        <!-- Satellite nodes with connector lines -->
-        <!-- Agent 1 -->
-        <line class="spec-line" x1="220" y1="180" x2="100" y2="80"  stroke="#7eb3ff" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
-        <circle class="spec-node" cx="100" cy="80"  r="18" fill="none" stroke="#7eb3ff" stroke-width="1.2"/>
-        <circle cx="100" cy="80"  r="4" fill="#7eb3ff" opacity="0.8"/>
-        <text x="100" y="75" text-anchor="middle" font-size="7.5" fill="#9ab4ff" font-family="Inter Tight,sans-serif">GPT-4o</text>
-        <!-- Agent 2 -->
-        <line class="spec-line" x1="220" y1="180" x2="340" y2="80"  stroke="#a78bfa" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
-        <circle class="spec-node" cx="340" cy="80"  r="18" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
-        <circle cx="340" cy="80"  r="4" fill="#a78bfa" opacity="0.8"/>
-        <text x="340" y="75" text-anchor="middle" font-size="7.5" fill="#b8a3ff" font-family="Inter Tight,sans-serif">Claude</text>
-        <!-- Agent 3 -->
-        <line class="spec-line" x1="220" y1="180" x2="60"  y2="210" stroke="#7eb3ff" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
-        <circle class="spec-node" cx="60"  cy="210" r="18" fill="none" stroke="#7eb3ff" stroke-width="1.2"/>
-        <circle cx="60"  cy="210" r="4" fill="#7eb3ff" opacity="0.8"/>
-        <text x="60"  y="205" text-anchor="middle" font-size="7.5" fill="#9ab4ff" font-family="Inter Tight,sans-serif">Gemini</text>
-        <!-- Agent 4 -->
-        <line class="spec-line" x1="220" y1="180" x2="380" y2="210" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
-        <circle class="spec-node" cx="380" cy="210" r="18" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
-        <circle cx="380" cy="210" r="4" fill="#a78bfa" opacity="0.8"/>
-        <text x="380" y="205" text-anchor="middle" font-size="7.5" fill="#b8a3ff" font-family="Inter Tight,sans-serif">Local LLM</text>
-        <!-- Agent 5 -->
-        <line class="spec-line" x1="220" y1="180" x2="140" y2="300" stroke="#34d399" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
-        <circle class="spec-node" cx="140" cy="300" r="18" fill="none" stroke="#34d399" stroke-width="1.2"/>
-        <circle cx="140" cy="300" r="4" fill="#34d399" opacity="0.8"/>
-        <text x="140" y="295" text-anchor="middle" font-size="7.5" fill="#6ee7b7" font-family="Inter Tight,sans-serif">Researcher</text>
-        <!-- Agent 6 -->
-        <line class="spec-line" x1="220" y1="180" x2="300" y2="300" stroke="#34d399" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
-        <circle class="spec-node" cx="300" cy="300" r="18" fill="none" stroke="#34d399" stroke-width="1.2"/>
-        <circle cx="300" cy="300" r="4" fill="#34d399" opacity="0.8"/>
-        <text x="300" y="295" text-anchor="middle" font-size="7.5" fill="#6ee7b7" font-family="Inter Tight,sans-serif">Coder</text>
-        <!-- Team bracket labels -->
-        <text x="220" y="44"  text-anchor="middle" font-size="8" fill="rgba(180,200,255,0.4)" font-family="Inter Tight,sans-serif" font-style="italic">— Team Alpha —</text>
-        <text x="220" y="326" text-anchor="middle" font-size="8" fill="rgba(52,211,153,0.5)"  font-family="Inter Tight,sans-serif" font-style="italic">— Team Builders —</text>
-        <!-- Pulse rings on hub -->
-        <circle class="spec-pulse" cx="220" cy="180" r="38" fill="none" stroke="#7eb3ff" stroke-width="0.6" opacity="0"/>
-        <circle class="spec-pulse2" cx="220" cy="180" r="52" fill="none" stroke="#7eb3ff" stroke-width="0.4" opacity="0"/>
-      </svg>
-    </div>
-  </div>
   <div class="feature-content">
+    <h4 class="section-subhead">Section 01 — Specialist handoff</h4>
     <p class="feature-number" aria-hidden="true">01</p>
     <h3 class="feature-title" id="f1-title">Specialists Registry<br/><span style="color:var(--accent2);">+ Teams</span></h3>
     <p class="feature-desc">
@@ -594,7 +667,6 @@
       Teams that collaborate on objectives. The orchestrator routes tasks automatically,
       delegates subtasks, and synthesises results across specialists.
     </p>
-    <h4 class="section-subhead">Section 01 — Specialist handoff</h4>
     <p class="dummy-copy">
       Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent nodes exchange intent,
       negotiate capability, and resolve the next action with graceful precision.
@@ -616,6 +688,7 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="memory" aria-labelledby="f2-title">
   <div class="feature-content">
+    <h4 class="section-subhead">Section 02 — Memory substrate</h4>
     <p class="feature-number" aria-hidden="true">02</p>
     <h3 class="feature-title" id="f2-title">Four Memory<br/><span style="color:var(--accent3);">Subsystems</span></h3>
     <p class="feature-desc">
@@ -623,7 +696,6 @@
       Evolving Memory distils lessons across runs. MAGMA builds a multi-dimensional knowledge graph
       with semantic, temporal, causal, and entity edges — all composing before every LLM call.
     </p>
-    <h4 class="section-subhead">Section 02 — Memory substrate</h4>
     <p class="dummy-copy">
       Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur traces settle into layers,
       preserving signal while old context folds into durable, searchable memory.
@@ -636,50 +708,6 @@
       <span class="tag">RAG + Embeddings</span>
     </div>
   </div>
-  <div class="feature-visual">
-    <div class="feature-svg-wrap glow-green">
-      <svg id="svg-memory" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs>
-          <radialGradient id="gMemGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#34d399" stop-opacity="0.25"/>
-            <stop offset="100%" stop-color="#34d399" stop-opacity="0"/>
-          </radialGradient>
-        </defs>
-        <ellipse cx="220" cy="180" rx="70" ry="70" fill="url(#gMemGlow)"/>
-        <!-- Four quadrant memory rings -->
-        <!-- Summarization — top-left -->
-        <circle class="mem-ring" cx="220" cy="180" r="55" fill="none" stroke="#7eb3ff" stroke-width="1" stroke-dasharray="20 6" opacity="0.6"/>
-        <circle class="mem-ring2" cx="220" cy="180" r="80" fill="none" stroke="#a78bfa" stroke-width="0.8" stroke-dasharray="14 8" opacity="0.4"/>
-        <circle class="mem-ring3" cx="220" cy="180" r="108" fill="none" stroke="#34d399" stroke-width="0.6" stroke-dasharray="10 10" opacity="0.3"/>
-        <!-- Center LLM node -->
-        <circle cx="220" cy="180" r="22" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-        <circle cx="220" cy="180" r="7"  fill="rgba(255,255,255,0.7)"/>
-        <text x="220" y="185" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.6)" font-family="Inter Tight,sans-serif">LLM</text>
-        <!-- Four memory node labels -->
-        <!-- Summarization -->
-        <circle class="mem-node" cx="220" cy="112" r="14" fill="#050a18" stroke="#7eb3ff" stroke-width="1.2"/>
-        <text x="220" y="108" text-anchor="middle" font-size="7" fill="#7eb3ff" font-family="Inter Tight,sans-serif" font-weight="600">SUM</text>
-        <text x="220" y="118" text-anchor="middle" font-size="6" fill="rgba(126,179,255,0.5)" font-family="Inter Tight,sans-serif">Context</text>
-        <!-- Transit -->
-        <circle class="mem-node" cx="328" cy="180" r="14" fill="#050a18" stroke="#a78bfa" stroke-width="1.2"/>
-        <text x="328" y="176" text-anchor="middle" font-size="7" fill="#a78bfa" font-family="Inter Tight,sans-serif" font-weight="600">TRANSIT</text>
-        <text x="328" y="186" text-anchor="middle" font-size="6" fill="rgba(167,139,250,0.5)" font-family="Inter Tight,sans-serif">KV Store</text>
-        <!-- Evolving -->
-        <circle class="mem-node" cx="220" cy="248" r="14" fill="#050a18" stroke="#34d399" stroke-width="1.2"/>
-        <text x="220" y="244" text-anchor="middle" font-size="7" fill="#34d399" font-family="Inter Tight,sans-serif" font-weight="600">EVOLVING</text>
-        <text x="220" y="254" text-anchor="middle" font-size="6" fill="rgba(52,211,153,0.5)" font-family="Inter Tight,sans-serif">Experience</text>
-        <!-- MAGMA -->
-        <circle class="mem-node" cx="112" cy="180" r="14" fill="#050a18" stroke="#f59e0b" stroke-width="1.2"/>
-        <text x="112" y="176" text-anchor="middle" font-size="7" fill="#f59e0b" font-family="Inter Tight,sans-serif" font-weight="600">MAGMA</text>
-        <text x="112" y="186" text-anchor="middle" font-size="6" fill="rgba(245,158,11,0.5)" font-family="Inter Tight,sans-serif">Graph</text>
-        <!-- Connector spokes -->
-        <line x1="220" y1="158" x2="220" y2="126" stroke="#7eb3ff" stroke-width="0.8" opacity="0.4"/>
-        <line x1="242" y1="180" x2="314" y2="180" stroke="#a78bfa" stroke-width="0.8" opacity="0.4"/>
-        <line x1="220" y1="202" x2="220" y2="234" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
-        <line x1="198" y1="180" x2="126" y2="180" stroke="#f59e0b" stroke-width="0.8" opacity="0.4"/>
-      </svg>
-    </div>
-  </div>
 </section>
 
 <div class="section-divider"></div>
@@ -688,51 +716,8 @@
      FEATURE 3 — Visual Workflow DAG
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="dag" aria-labelledby="f3-title">
-  <div class="feature-visual">
-    <div class="feature-svg-wrap glow-purple">
-      <svg id="svg-dag" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs>
-          <marker id="arrowBlue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" fill="#7eb3ff" opacity="0.7"/>
-          </marker>
-          <marker id="arrowPurple" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" fill="#a78bfa" opacity="0.7"/>
-          </marker>
-        </defs>
-        <!-- DAG nodes -->
-        <!-- Trigger -->
-        <rect class="dag-node" x="170" y="20" width="100" height="36" rx="8" fill="none" stroke="#34d399" stroke-width="1.2"/>
-        <text x="220" y="42" text-anchor="middle" font-size="10" fill="#34d399" font-family="Inter Tight,sans-serif" font-weight="600">⚡ Trigger</text>
-        <!-- Node A -->
-        <rect class="dag-node" x="60" y="100" width="110" height="36" rx="8" fill="none" stroke="#7eb3ff" stroke-width="1.2"/>
-        <text x="115" y="122" text-anchor="middle" font-size="10" fill="#7eb3ff" font-family="Inter Tight,sans-serif" font-weight="600">Fetch Data</text>
-        <!-- Node B -->
-        <rect class="dag-node" x="270" y="100" width="110" height="36" rx="8" fill="none" stroke="#7eb3ff" stroke-width="1.2"/>
-        <text x="325" y="122" text-anchor="middle" font-size="10" fill="#7eb3ff" font-family="Inter Tight,sans-serif" font-weight="600">Validate</text>
-        <!-- Node C -->
-        <rect class="dag-node" x="60" y="190" width="110" height="36" rx="8" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
-        <text x="115" y="212" text-anchor="middle" font-size="10" fill="#a78bfa" font-family="Inter Tight,sans-serif" font-weight="600">LLM Enrich</text>
-        <!-- Node D -->
-        <rect class="dag-node" x="270" y="190" width="110" height="36" rx="8" fill="none" stroke="#a78bfa" stroke-width="1.2"/>
-        <text x="325" y="212" text-anchor="middle" font-size="10" fill="#a78bfa" font-family="Inter Tight,sans-serif" font-weight="600">Transform</text>
-        <!-- Merge -->
-        <rect class="dag-node" x="155" y="278" width="130" height="36" rx="8" fill="none" stroke="#f59e0b" stroke-width="1.2"/>
-        <text x="220" y="300" text-anchor="middle" font-size="10" fill="#f59e0b" font-family="Inter Tight,sans-serif" font-weight="600">⚙ Merge + Output</text>
-        <!-- Edges -->
-        <line class="dag-edge" x1="190" y1="56" x2="115" y2="100" stroke="#34d399" stroke-width="1" opacity="0.5" marker-end="url(#arrowBlue)"/>
-        <line class="dag-edge" x1="250" y1="56" x2="325" y2="100" stroke="#34d399" stroke-width="1" opacity="0.5" marker-end="url(#arrowBlue)"/>
-        <line class="dag-edge" x1="115" y1="136" x2="115" y2="190" stroke="#7eb3ff" stroke-width="1" opacity="0.5" marker-end="url(#arrowPurple)"/>
-        <line class="dag-edge" x1="325" y1="136" x2="325" y2="190" stroke="#7eb3ff" stroke-width="1" opacity="0.5" marker-end="url(#arrowPurple)"/>
-        <line class="dag-edge" x1="170" y1="226" x2="205" y2="278" stroke="#a78bfa" stroke-width="1" opacity="0.5" marker-end="url(#arrowPurple)"/>
-        <line class="dag-edge" x1="270" y1="226" x2="235" y2="278" stroke="#a78bfa" stroke-width="1" opacity="0.5" marker-end="url(#arrowPurple)"/>
-        <!-- Active flow pulse dots (animated via JS) -->
-        <circle class="dag-dot" r="4" fill="#34d399" opacity="0"/>
-        <circle class="dag-dot2" r="4" fill="#7eb3ff" opacity="0"/>
-        <circle class="dag-dot3" r="4" fill="#a78bfa" opacity="0"/>
-      </svg>
-    </div>
-  </div>
   <div class="feature-content">
+    <h4 class="section-subhead">Section 03 — Workflow topology</h4>
     <p class="feature-number" aria-hidden="true">03</p>
     <h3 class="feature-title" id="f3-title">Visual Workflow<br/><span style="color:var(--accent2);">DAG Editor</span></h3>
     <p class="feature-desc">
@@ -740,7 +725,6 @@
       transformations, and outputs. Chains execute in dependency order — parallel where possible,
       sequential where required — with real-time flow visualisation.
     </p>
-    <h4 class="section-subhead">Section 03 — Workflow topology</h4>
     <p class="dummy-copy">
       Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam branches align, split, and merge
       as each dependency resolves into a readable, inspectable execution path.
@@ -761,6 +745,7 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="pulse" aria-labelledby="f4-title">
   <div class="feature-content">
+    <h4 class="section-subhead">Section 04 — Timed execution</h4>
     <p class="feature-number" aria-hidden="true">04</p>
     <h3 class="feature-title" id="f4-title">Scheduled Tasks<br/><span style="color:var(--accent);">for AI Agents</span></h3>
     <p class="feature-desc">
@@ -768,7 +753,6 @@
       Agents wake up, execute their prompts, write results to Transit, and go quiet — no manual
       intervention required. Fully integrated with the room and project system.
     </p>
-    <h4 class="section-subhead">Section 04 — Timed execution</h4>
     <p class="dummy-copy">
       Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed temporal triggers pulse quietly,
       waking the right specialist at the right moment and then fading back into standby.
@@ -781,49 +765,6 @@
       <span class="tag">Room-scoped</span>
     </div>
   </div>
-  <div class="feature-visual">
-    <div class="feature-svg-wrap glow-orange">
-      <svg id="svg-pulse" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <!-- Clock face -->
-        <circle cx="220" cy="180" r="120" fill="none" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
-        <circle cx="220" cy="180" r="100" fill="none" stroke="rgba(245,158,11,0.2)" stroke-width="1"/>
-        <circle cx="220" cy="180" r="80"  fill="none" stroke="rgba(245,158,11,0.3)" stroke-width="1.2"/>
-        <!-- Tick marks (12 hours) -->
-        <g stroke="#f59e0b" stroke-width="1.5" opacity="0.5">
-          <line x1="220" y1="100" x2="220" y2="110"/>
-          <line x1="260" y1="107" x2="255" y2="116"/>
-          <line x1="293" y1="147" x2="285" y2="152"/>
-          <line x1="300" y1="180" x2="290" y2="180"/>
-          <line x1="293" y1="213" x2="285" y2="208"/>
-          <line x1="260" y1="253" x2="255" y2="244"/>
-          <line x1="220" y1="260" x2="220" y2="250"/>
-          <line x1="180" y1="253" x2="185" y2="244"/>
-          <line x1="147" y1="213" x2="155" y2="208"/>
-          <line x1="140" y1="180" x2="150" y2="180"/>
-          <line x1="147" y1="147" x2="155" y2="152"/>
-          <line x1="180" y1="107" x2="185" y2="116"/>
-        </g>
-        <!-- Hour/minute hands (animated) -->
-        <line id="pulse-hour"   x1="220" y1="180" x2="220" y2="118" stroke="#f59e0b" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
-        <line id="pulse-minute" x1="220" y1="180" x2="259" y2="180" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
-        <circle cx="220" cy="180" r="5" fill="#f59e0b"/>
-        <!-- Scheduled task pills -->
-        <rect x="42" y="60"  width="88" height="24" rx="12" fill="none" stroke="rgba(245,158,11,0.45)" stroke-width="1"/>
-        <text x="86" y="76"  text-anchor="middle" font-size="8.5" fill="#f59e0b" font-family="Inter Tight,sans-serif">Daily 09:00</text>
-        <rect x="310" y="60"  width="88" height="24" rx="12" fill="none" stroke="rgba(126,179,255,0.45)" stroke-width="1"/>
-        <text x="354" y="76"  text-anchor="middle" font-size="8.5" fill="#7eb3ff" font-family="Inter Tight,sans-serif">Every 1h</text>
-        <rect x="42" y="278" width="100" height="24" rx="12" fill="none" stroke="rgba(167,139,250,0.45)" stroke-width="1"/>
-        <text x="92"  y="294" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-family="Inter Tight,sans-serif">Mon 08:30</text>
-        <rect x="298" y="278" width="100" height="24" rx="12" fill="none" stroke="rgba(52,211,153,0.45)" stroke-width="1"/>
-        <text x="348" y="294" text-anchor="middle" font-size="8.5" fill="#34d399" font-family="Inter Tight,sans-serif">On demand</text>
-        <!-- Connector dots -->
-        <line x1="130" y1="72" x2="158" y2="120" stroke="rgba(245,158,11,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
-        <line x1="310" y1="72" x2="282" y2="120" stroke="rgba(126,179,255,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
-        <line x1="142" y1="278" x2="158" y2="240" stroke="rgba(167,139,250,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
-        <line x1="298" y1="278" x2="282" y2="240" stroke="rgba(52,211,153,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
-      </svg>
-    </div>
-  </div>
 </section>
 
 <div class="section-divider"></div>
@@ -832,48 +773,8 @@
      FEATURE 5 — Playground
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="playground" aria-labelledby="f5-title">
-  <div class="feature-visual">
-    <div class="feature-svg-wrap glow-pink">
-      <svg id="svg-playground" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <!-- Terminal / editor window chrome -->
-        <rect x="40" y="30" width="360" height="300" rx="10" fill="rgba(10,12,24,0.9)" stroke="rgba(244,114,182,0.3)" stroke-width="1"/>
-        <!-- Title bar -->
-        <rect x="40" y="30" width="360" height="32" rx="10" fill="rgba(244,114,182,0.08)"/>
-        <rect x="40" y="52" width="360" height="10" rx="0" fill="rgba(244,114,182,0.08)"/>
-        <circle cx="62"  cy="46" r="5" fill="rgba(255,100,100,0.6)"/>
-        <circle cx="80"  cy="46" r="5" fill="rgba(255,200,60,0.6)"/>
-        <circle cx="98"  cy="46" r="5" fill="rgba(80,220,100,0.6)"/>
-        <text x="220" y="51" text-anchor="middle" font-size="9" fill="rgba(244,114,182,0.7)" font-family="Inter Tight,sans-serif" font-weight="600">Manifold Playground</text>
-        <!-- Three tabs -->
-        <rect x="52"  y="72" width="60" height="20" rx="4" fill="rgba(244,114,182,0.15)" stroke="rgba(244,114,182,0.4)" stroke-width="0.8"/>
-        <text x="82" y="86" text-anchor="middle" font-size="8" fill="#f472b6" font-family="Inter Tight,sans-serif">Prompts</text>
-        <rect x="122" y="72" width="60" height="20" rx="4" fill="none" stroke="rgba(180,200,255,0.2)" stroke-width="0.8"/>
-        <text x="152" y="86" text-anchor="middle" font-size="8" fill="rgba(180,200,255,0.5)" font-family="Inter Tight,sans-serif">Datasets</text>
-        <rect x="192" y="72" width="72" height="20" rx="4" fill="none" stroke="rgba(180,200,255,0.2)" stroke-width="0.8"/>
-        <text x="228" y="86" text-anchor="middle" font-size="8" fill="rgba(180,200,255,0.5)" font-family="Inter Tight,sans-serif">Experiments</text>
-        <!-- Code/prompt lines -->
-        <rect x="52" y="106" width="220" height="7" rx="3" fill="rgba(244,114,182,0.25)"/>
-        <rect x="52" y="120" width="180" height="7" rx="3" fill="rgba(126,179,255,0.2)"/>
-        <rect x="52" y="134" width="260" height="7" rx="3" fill="rgba(126,179,255,0.15)"/>
-        <rect x="52" y="148" width="140" height="7" rx="3" fill="rgba(244,114,182,0.2)"/>
-        <rect x="52" y="162" width="200" height="7" rx="3" fill="rgba(167,139,250,0.2)"/>
-        <rect x="52" y="176" width="170" height="7" rx="3" fill="rgba(126,179,255,0.12)"/>
-        <!-- Output pane separator -->
-        <line x1="40" y1="200" x2="400" y2="200" stroke="rgba(244,114,182,0.15)" stroke-width="1"/>
-        <text x="52" y="218" font-size="8" fill="rgba(244,114,182,0.5)" font-family="Inter Tight,sans-serif" font-weight="600">OUTPUT</text>
-        <!-- Output result lines -->
-        <rect x="52" y="226" width="300" height="7" rx="3" fill="rgba(52,211,153,0.2)"/>
-        <rect x="52" y="240" width="240" height="7" rx="3" fill="rgba(52,211,153,0.15)"/>
-        <rect x="52" y="254" width="200" height="7" rx="3" fill="rgba(52,211,153,0.12)"/>
-        <!-- Blinking cursor -->
-        <rect class="pg-cursor" x="52" y="268" width="6" height="11" rx="1" fill="#f472b6" opacity="0.9"/>
-        <!-- Run button -->
-        <rect x="320" y="260" width="70" height="28" rx="6" fill="rgba(244,114,182,0.2)" stroke="rgba(244,114,182,0.5)" stroke-width="1"/>
-        <text x="355" y="278" text-anchor="middle" font-size="9.5" fill="#f472b6" font-family="Inter Tight,sans-serif" font-weight="600">▶ Run</text>
-      </svg>
-    </div>
-  </div>
   <div class="feature-content">
+    <h4 class="section-subhead">Section 05 — Experiment bay</h4>
     <p class="feature-number" aria-hidden="true">05</p>
     <h3 class="feature-title" id="f5-title">Prompt, Dataset<br/>&amp; Experiments<br/><span style="color:#f472b6;">Playground</span></h3>
     <p class="feature-desc">
@@ -881,7 +782,6 @@
       experiment runs side-by-side. Everything stays versioned and reproducible — turn any playground
       session into a reusable workflow in one click.
     </p>
-    <h4 class="section-subhead">Section 05 — Experiment bay</h4>
     <p class="dummy-copy">
       Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla prompt variants shimmer through
       controlled runs, turning rough ideas into measured, repeatable agent behavior.
@@ -903,6 +803,7 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="mcp" aria-labelledby="f6-title">
   <div class="feature-content">
+    <h4 class="section-subhead">Section 06 — Tool mesh</h4>
     <p class="feature-number" aria-hidden="true">06</p>
     <h3 class="feature-title" id="f6-title">MCP<br/><span style="color:#22d3ee;">Support</span></h3>
     <p class="feature-desc">
@@ -910,7 +811,6 @@
       plug directly into the agent engine. Expose file systems, APIs, databases, and custom tools —
       agents discover and invoke them automatically with zero boilerplate.
     </p>
-    <h4 class="section-subhead">Section 06 — Tool mesh</h4>
     <p class="dummy-copy">
       Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi connectors fan outward,
       binding external systems into a single mesh that agents can discover and operate.
@@ -920,44 +820,6 @@
       <span class="tag">Tool autodiscovery</span>
       <span class="tag">Stdio + SSE transports</span>
       <span class="tag">Bring-your-own tools</span>
-    </div>
-  </div>
-  <div class="feature-visual">
-    <div class="feature-svg-wrap glow-cyan">
-      <svg id="svg-mcp" viewBox="0 0 440 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <!-- Central MCP hub hexagon -->
-        <polygon class="mcp-hex" points="220,130 260,153 260,200 220,223 180,200 180,153"
-          fill="none" stroke="#22d3ee" stroke-width="1.5"/>
-        <text x="220" y="176" text-anchor="middle" font-size="10" fill="#22d3ee" font-family="Inter Tight,sans-serif" font-weight="700">MCP</text>
-        <text x="220" y="192" text-anchor="middle" font-size="8"  fill="rgba(34,211,238,0.5)" font-family="Inter Tight,sans-serif">Protocol</text>
-        <!-- Tool servers radiating out -->
-        <!-- File system -->
-        <line x1="200" y1="143" x2="110" y2="80" stroke="#22d3ee" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
-        <rect x="58"  y="60" width="88" height="30" rx="6" fill="none" stroke="rgba(34,211,238,0.5)" stroke-width="1"/>
-        <text x="102" y="79" text-anchor="middle" font-size="8.5" fill="#22d3ee" font-family="Inter Tight,sans-serif">📁 Filesystem</text>
-        <!-- Database -->
-        <line x1="240" y1="143" x2="330" y2="80" stroke="#22d3ee" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
-        <rect x="294" y="60" width="88" height="30" rx="6" fill="none" stroke="rgba(34,211,238,0.5)" stroke-width="1"/>
-        <text x="338" y="79" text-anchor="middle" font-size="8.5" fill="#22d3ee" font-family="Inter Tight,sans-serif">🗄 Database</text>
-        <!-- Web/API -->
-        <line x1="260" y1="176" x2="380" y2="176" stroke="#a78bfa" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
-        <rect x="294" y="162" width="88" height="30" rx="6" fill="none" stroke="rgba(167,139,250,0.5)" stroke-width="1"/>
-        <text x="338" y="181" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-family="Inter Tight,sans-serif">🌐 Web API</text>
-        <!-- Custom tools -->
-        <line x1="240" y1="210" x2="330" y2="272" stroke="#34d399" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
-        <rect x="294" y="257" width="88" height="30" rx="6" fill="none" stroke="rgba(52,211,153,0.5)" stroke-width="1"/>
-        <text x="338" y="276" text-anchor="middle" font-size="8.5" fill="#34d399" font-family="Inter Tight,sans-serif">🔧 Custom Tool</text>
-        <!-- Code runner -->
-        <line x1="200" y1="210" x2="110" y2="272" stroke="#f472b6" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
-        <rect x="58" y="257" width="88" height="30" rx="6" fill="none" stroke="rgba(244,114,182,0.5)" stroke-width="1"/>
-        <text x="102" y="276" text-anchor="middle" font-size="8.5" fill="#f472b6" font-family="Inter Tight,sans-serif">⚙ Code Runner</text>
-        <!-- Search -->
-        <line x1="180" y1="176" x2="60"  y2="176" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>
-        <rect x="20"  y="162" width="88" height="30" rx="6" fill="none" stroke="rgba(245,158,11,0.5)" stroke-width="1"/>
-        <text x="64"  y="181" text-anchor="middle" font-size="8.5" fill="#f59e0b" font-family="Inter Tight,sans-serif">🔍 Search</text>
-        <!-- Pulse dots on lines -->
-        <circle class="mcp-dot" r="3.5" fill="#22d3ee" opacity="0"/>
-      </svg>
     </div>
   </div>
 </section>
@@ -1000,14 +862,12 @@
 (function() {
   'use strict';
 
-  // ── Three.js blueprint engine (scroll-driven background) ─────
-  // A wireframe "blueprint" of an AI-agent engine that morphs as
-  // the reader scrolls through each feature:
-  //   engine core → specialist constellation → memory rings →
-  //   workflow DAG → scheduler gear → playground lattice →
-  //   MCP mesh → converging core.
-  // Three.js renders the 3D blueprint; Anime.js drives the
-  // entrance, the breathing pulse and the per-stage energy bursts.
+  // ── Three.js voxel-blueprint engine (scroll-driven background) ──
+  // One canonical visual system: a field of particles/voxels that
+  // physically reassembles into a different machine blueprint for
+  // each section: command core, specialist router, memory vault,
+  // workflow fabric, scheduler chronometer, experiment bay, MCP
+  // coupler and launch engine.
   const reduceMotion =
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const TAU = Math.PI * 2;
@@ -1019,239 +879,503 @@
     let renderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        canvas, antialias: true, alpha: true,
+        canvas,
+        antialias: true,
+        alpha: true,
         powerPreference: 'high-performance',
       });
-    } catch (e) { canvas.style.display = 'none'; return; }
+    } catch (e) {
+      canvas.style.display = 'none';
+      return;
+    }
 
+    renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
-    const scene  = new THREE.Scene();
-    scene.fog    = new THREE.FogExp2(0x04060d, 0.085);
-    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(0, 0, 11);
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x04060d, 0.052);
+
+    const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, reduceMotion ? 7.7 : 9.4);
     camera.lookAt(0, 0, 0);
 
     const root = new THREE.Group();
-    const gyro = new THREE.Group();
-    root.add(gyro);
+    const model = new THREE.Group();
+    const rig = new THREE.Group();
+    root.add(rig);
+    root.add(model);
     scene.add(root);
+
     function resize() {
-      const w = window.innerWidth, h = window.innerHeight;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
       renderer.setSize(w, h, true);
       camera.aspect = w / h;
+      camera.position.z = w < 720 ? 9.4 : 7.55;
       camera.updateProjectionMatrix();
     }
     resize();
     window.addEventListener('resize', resize, { passive: true });
 
-    // ── helpers ───────────────────────────────────────────────
-    const clamp  = (t) => Math.max(0, Math.min(1, t));
-    const lerp   = (a, b, t) => a + (b - a) * t;
+    const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
     const smooth = (t) => t * t * (3 - 2 * t);
-    function rot(x, y, z, rx, ry) {
-      const y1 = y * Math.cos(rx) - z * Math.sin(rx);
-      const z1 = y * Math.sin(rx) + z * Math.cos(rx);
-      const x2 = x * Math.cos(ry) + z1 * Math.sin(ry);
-      const z2 = -x * Math.sin(ry) + z1 * Math.cos(ry);
-      return [x2, y1, z2];
+
+    function seeded(seed) {
+      let s = seed >>> 0;
+      return function rnd() {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return s / 4294967296;
+      };
     }
 
-    // ── Stage palette (linear RGB 0..1) ───────────────────────
-    const STAGE_COLORS = [
-      [0.49, 0.70, 1.00], // hero        blue
-      [0.49, 0.70, 1.00], // specialists blue
-      [0.65, 0.54, 0.98], // memory      purple
-      [0.20, 0.83, 0.60], // dag         green
-      [0.96, 0.62, 0.04], // pulse       orange
-      [0.96, 0.45, 0.71], // playground  pink
-      [0.13, 0.83, 0.93], // mcp         cyan
-      [0.49, 0.70, 1.00], // cta         blue
-    ];
-    const STAGES = STAGE_COLORS.length;
-
-    const N = 340;
-    function fib(i) {
-      const off = 2 / N, y = i * off - 1 + off / 2;
-      const r = Math.sqrt(Math.max(0, 1 - y * y)), p = i * 2.399963;
-      return [Math.cos(p) * r, y, Math.sin(p) * r];
+    function push(points, x, y, z) {
+      if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) points.push(x, y, z);
     }
 
-    // ── Formation builders: fill arr (length N*3) in unit space ─
-    function fCore(a, t) {
-      for (let i = 0; i < N; i++) {
-        const f = fib(i), rr = 1.35 + 0.06 * Math.sin(i * 0.7 + t * 1.6);
-        a[i * 3] = f[0] * rr; a[i * 3 + 1] = f[1] * rr; a[i * 3 + 2] = f[2] * rr;
+    function rotatePoint(x, y, z, rx = 0, ry = 0, rz = 0) {
+      let cy = Math.cos(rx), sy = Math.sin(rx);
+      let y1 = y * cy - z * sy;
+      let z1 = y * sy + z * cy;
+      let x1 = x;
+      cy = Math.cos(ry); sy = Math.sin(ry);
+      let x2 = x1 * cy + z1 * sy;
+      let z2 = -x1 * sy + z1 * cy;
+      let y2 = y1;
+      cy = Math.cos(rz); sy = Math.sin(rz);
+      return [x2 * cy - y2 * sy, x2 * sy + y2 * cy, z2];
+    }
+
+    function addLine(points, ax, ay, az, bx, by, bz, steps = 18) {
+      for (let i = 0; i < steps; i++) {
+        const t = steps === 1 ? 0 : i / (steps - 1);
+        push(points, lerp(ax, bx, t), lerp(ay, by, t), lerp(az, bz, t));
       }
     }
-    function fSpec(a, t) {
-      const ring = [{ r: 0.55, rx: 0.2, ry: 0.0 },
-                    { r: 1.05, rx: -0.5, ry: 0.8 },
-                    { r: 1.5,  rx: 0.9, ry: 1.7 }];
-      for (let i = 0; i < N; i++) {
-        if (i < 10) { const f = fib(i); a[i*3]=f[0]*0.2; a[i*3+1]=f[1]*0.2; a[i*3+2]=f[2]*0.2; continue; }
-        const k = i - 10, ri = k % 3, idx = (k - ri) / 3, per = Math.ceil((N - 10) / 3);
-        const R = ring[ri], ang = (idx / per) * TAU + t * (ri % 2 ? -0.5 : 0.5) + ri;
-        const p = rot(Math.cos(ang) * R.r, Math.sin(ang) * R.r, 0, R.rx, R.ry);
-        a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
+
+    function addCurve(points, ax, ay, az, cx, cy, cz, bx, by, bz, steps = 28) {
+      for (let i = 0; i < steps; i++) {
+        const t = steps === 1 ? 0 : i / (steps - 1);
+        const u = 1 - t;
+        push(
+          points,
+          u * u * ax + 2 * u * t * cx + t * t * bx,
+          u * u * ay + 2 * u * t * cy + t * t * by,
+          u * u * az + 2 * u * t * cz + t * t * bz,
+        );
       }
     }
-    function fMemory(a, t) {
-      const radii = [0.6, 0.95, 1.3, 1.6], rx = [0.35, 1.2, -0.5, 1.9], ry = [0, 0.8, 1.6, 2.4];
-      for (let i = 0; i < N; i++) {
-        const ri = i % 4, idx = (i - ri) / 4, per = Math.ceil(N / 4);
-        const ang = (idx / per) * TAU + t * (ri % 2 ? -0.4 : 0.4);
-        const p = rot(Math.cos(ang) * radii[ri], Math.sin(ang) * radii[ri], 0, rx[ri], ry[ri]);
-        a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
+
+    function addRing(points, radX, radY, steps = 96, opt = {}) {
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * TAU;
+        const p = rotatePoint(
+          Math.cos(a) * radX,
+          Math.sin(a) * radY,
+          opt.z || 0,
+          opt.rotX || 0,
+          opt.rotY || 0,
+          opt.rotZ || 0,
+        );
+        push(points, p[0] + (opt.cx || 0), p[1] + (opt.cy || 0), p[2] + (opt.cz || 0));
       }
     }
-    function fDag(a, t) {
-      const layers = 6, per = Math.ceil(N / layers), side = Math.ceil(Math.sqrt(per));
-      for (let i = 0; i < N; i++) {
-        const layer = Math.floor(i / per), j = i - layer * per;
-        const row = Math.floor(j / side), col = j % side;
-        const x = -1.7 + layer * (3.4 / (layers - 1));
-        const y = (row / (side - 1) - 0.5) * 2.0 + Math.sin(t + layer) * 0.04;
-        const z = (col / (side - 1) - 0.5) * 2.0;
-        a[i*3]=x; a[i*3+1]=y; a[i*3+2]=z;
+
+    function addSphereShell(points, cx, cy, cz, r, count = 100, squash = {}) {
+      const sy = squash.y || 1;
+      const sz = squash.z || 1;
+      for (let i = 0; i < count; i++) {
+        const y = 1 - (i / Math.max(1, count - 1)) * 2;
+        const rr = Math.sqrt(Math.max(0, 1 - y * y));
+        const a = i * 2.399963229728653;
+        push(points, cx + Math.cos(a) * rr * r, cy + y * r * sy, cz + Math.sin(a) * rr * r * sz);
       }
     }
-    function fGear(a, t) {
-      const ticks = Math.floor(N * 0.6);
-      const hour = Math.floor((N - ticks) / 2);
-      for (let i = 0; i < N; i++) {
-        if (i < ticks) {
-          const ang = (i / ticks) * TAU, tooth = (i % 4 < 2) ? 1.0 : 0.84, r = 1.4 * tooth;
-          const p = rot(Math.cos(ang) * r, Math.sin(ang) * r, 0, 0.5, 0.2);
-          a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
-        } else if (i < ticks + hour) {
-          const f = (i - ticks) / hour, ang = t * 0.6 - Math.PI / 2;
-          const p = rot(Math.cos(ang) * f * 0.8, Math.sin(ang) * f * 0.8, 0, 0.5, 0.2);
-          a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
-        } else {
-          const f = (i - ticks - hour) / (N - ticks - hour), ang = t * 1.8 - Math.PI / 2;
-          const p = rot(Math.cos(ang) * f * 1.2, Math.sin(ang) * f * 1.2, 0, 0.5, 0.2);
-          a[i*3]=p[0]; a[i*3+1]=p[1]; a[i*3+2]=p[2];
+
+    function addBoxFrame(points, cx, cy, cz, sx, sy, sz, steps = 9) {
+      const x = sx / 2, y = sy / 2, z = sz / 2;
+      const c = [
+        [-x, -y, -z], [ x, -y, -z], [ x,  y, -z], [-x,  y, -z],
+        [-x, -y,  z], [ x, -y,  z], [ x,  y,  z], [-x,  y,  z],
+      ];
+      const e = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+      for (const [a, b] of e) addLine(points, cx + c[a][0], cy + c[a][1], cz + c[a][2], cx + c[b][0], cy + c[b][1], cz + c[b][2], steps);
+    }
+
+    function addBoxShell(points, cx, cy, cz, sx, sy, sz, nx = 4, ny = 4, nz = 4) {
+      nx = Math.max(2, nx); ny = Math.max(2, ny); nz = Math.max(2, nz);
+      for (let ix = 0; ix < nx; ix++) {
+        for (let iy = 0; iy < ny; iy++) {
+          for (let iz = 0; iz < nz; iz++) {
+            if (ix !== 0 && ix !== nx - 1 && iy !== 0 && iy !== ny - 1 && iz !== 0 && iz !== nz - 1) continue;
+            push(
+              points,
+              cx + (ix / (nx - 1) - 0.5) * sx,
+              cy + (iy / (ny - 1) - 0.5) * sy,
+              cz + (iz / (nz - 1) - 0.5) * sz,
+            );
+          }
         }
       }
     }
-    function fLattice(a, t) {
-      const side = 7, sp = 2.6;
-      for (let i = 0; i < N; i++) {
-        const ix = i % side, iy = Math.floor(i / side) % side, iz = Math.floor(i / (side * side)) % side;
-        a[i*3]   = (ix / (side - 1) - 0.5) * sp;
-        a[i*3+1] = (iy / (side - 1) - 0.5) * sp + Math.sin(t + ix) * 0.03;
-        a[i*3+2] = (iz / (side - 1) - 0.5) * sp;
-      }
-    }
-    function fMcp(a, t) {
-      for (let i = 0; i < N; i++) {
-        if (i % 7 === 0) { const f = fib(i); a[i*3]=f[0]*0.45; a[i*3+1]=f[1]*0.45; a[i*3+2]=f[2]*0.45; continue; }
-        const f = fib(i), rr = 1.3 + 0.05 * Math.sin(i + t * 1.4);
-        a[i*3]=f[0]*rr; a[i*3+1]=f[1]*rr; a[i*3+2]=f[2]*rr;
-      }
-    }
-    function fConverge(a, t) {
-      for (let i = 0; i < N; i++) {
-        const ang = i * 2.399963 + t * 0.5, r = 1.65 * Math.sqrt(i / N);
-        a[i*3]   = Math.cos(ang) * r;
-        a[i*3+1] = Math.sin(ang) * r;
-        a[i*3+2] = Math.sin(r * 3 - t) * 0.28;
-      }
-    }
-    const BUILDERS = [fCore, fSpec, fMemory, fDag, fGear, fLattice, fMcp, fConverge];
 
-    // ── Point sprite (soft round glow) ────────────────────────
+    function addHelix(points, cx, cy, cz, r, height, turns, steps, phase = 0) {
+      for (let i = 0; i < steps; i++) {
+        const t = i / Math.max(1, steps - 1);
+        const a = phase + t * turns * TAU;
+        push(points, cx + Math.cos(a) * r, cy + (t - 0.5) * height, cz + Math.sin(a) * r);
+      }
+    }
+
+    function addGear(points, cx, cy, cz, inner, outer, teeth, steps = 216, opt = {}) {
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * TAU;
+        const tooth = Math.floor((i / steps) * teeth * 2) % 2;
+        const r = tooth ? outer : inner;
+        const p = rotatePoint(Math.cos(a) * r, Math.sin(a) * r, 0, opt.rotX || 0, opt.rotY || 0, opt.rotZ || 0);
+        push(points, cx + p[0], cy + p[1], cz + p[2]);
+      }
+    }
+
+    function commandCore() {
+      const p = [];
+      addSphereShell(p, 0, 0, 0, 0.43, 132);
+      addRing(p, 1.05, 1.05, 144, { rotX: 0.62, rotY: 0.18 });
+      addRing(p, 1.34, 0.54, 144, { rotX: -0.28, rotY: 0.92 });
+      addRing(p, 0.78, 1.48, 144, { rotX: 1.14, rotZ: 0.12 });
+      addBoxFrame(p, 0, 0, 0, 2.95, 2.12, 2.12, 8);
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * TAU;
+        const bx = Math.cos(a) * 1.72;
+        const by = Math.sin(a) * 1.06;
+        const bz = Math.sin(a * 2) * 0.5;
+        addLine(p, Math.cos(a) * 0.42, Math.sin(a) * 0.28, 0, bx, by, bz, 18);
+        addBoxShell(p, bx, by, bz, 0.25, 0.18, 0.18, 3, 3, 3);
+      }
+      return p;
+    }
+
+    function specialistRouter() {
+      const p = [];
+      addSphereShell(p, 0, 0, 0, 0.36, 118, { y: 0.8 });
+      addRing(p, 0.55, 0.55, 84, { rotX: 0.8 });
+      addRing(p, 0.78, 0.78, 96, { rotY: 1.15 });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + TAU / 12;
+        const ex = Math.cos(a) * 1.9;
+        const ey = Math.sin(a) * 1.18;
+        const ez = (i % 2 ? 0.56 : -0.56);
+        const mx = Math.cos(a) * 0.92;
+        const my = Math.sin(a) * 0.58;
+        addCurve(p, 0, 0, 0, mx, my, ez * 0.58, ex, ey, ez, 34);
+        addBoxShell(p, ex, ey, ez, 0.48, 0.34, 0.32, 4, 4, 3);
+        addRing(p, 0.25, 0.25, 40, { cx: ex, cy: ey, cz: ez, rotX: 0.9, rotY: a });
+        addLine(p, ex, ey, ez, ex + Math.cos(a) * 0.38, ey + Math.sin(a) * 0.22, ez, 8);
+      }
+      addBoxFrame(p, 0, 0, 0, 3.9, 2.55, 1.45, 7);
+      return p;
+    }
+
+    function memoryVault() {
+      const p = [];
+      for (let y = -1.18; y <= 1.2; y += 0.22) addRing(p, 0.62, 0.62, 72, { cy: y, rotX: Math.PI / 2 });
+      addBoxFrame(p, 0, 0, 0, 1.44, 2.72, 1.44, 9);
+      for (let i = 0; i < 4; i++) {
+        addHelix(p, 0, 0, 0, 0.78 + i * 0.17, 2.85, 2.45, 132, i * TAU / 4);
+      }
+      for (let i = 0; i < 9; i++) {
+        const y = -1.05 + i * 0.26;
+        const side = i % 2 ? -1 : 1;
+        addBoxShell(p, side * 1.2, y, 0, 0.5, 0.1, 0.42, 4, 2, 3);
+        addLine(p, side * 0.72, y, 0, side * 0.94, y, 0, 6);
+      }
+      addSphereShell(p, 0, 0, 0, 0.24, 56, { y: 1.25, z: 0.9 });
+      return p;
+    }
+
+    function workflowFabric() {
+      const p = [];
+      const layers = [
+        [[0, 0, 0]],
+        [[0.35, 0.62, -0.34], [0.35, -0.62, 0.34]],
+        [[0.7, 0.86, 0.24], [0.7, 0, -0.42], [0.7, -0.86, 0.24]],
+        [[1.05, 0.62, -0.3], [1.05, -0.62, 0.3]],
+        [[1.4, 0, 0]],
+      ];
+      const nodes = [];
+      for (let li = 0; li < layers.length; li++) {
+        for (const n of layers[li]) {
+          const x = n[0] * 2.45 - 1.7;
+          const y = n[1];
+          const z = n[2];
+          nodes.push({ li, x, y, z });
+          addBoxShell(p, x, y, z, 0.34, 0.24, 0.24, 3, 3, 3);
+          addRing(p, 0.22, 0.22, 30, { cx: x, cy: y, cz: z, rotX: 0.9 });
+        }
+      }
+      for (const a of nodes) {
+        for (const b of nodes) {
+          if (b.li === a.li + 1) addCurve(p, a.x, a.y, a.z, (a.x + b.x) / 2, (a.y + b.y) / 2, 0.72, b.x, b.y, b.z, 24);
+        }
+      }
+      addLine(p, -1.95, 1.12, -0.58, 1.95, 1.12, -0.58, 60);
+      addLine(p, -1.95, -1.12, 0.58, 1.95, -1.12, 0.58, 60);
+      addBoxFrame(p, 0, 0, 0, 4.12, 2.68, 1.62, 8);
+      return p;
+    }
+
+    function schedulerChronometer() {
+      const p = [];
+      addGear(p, 0, 0, 0, 1.18, 1.42, 28, 260, { rotX: 0.22, rotY: -0.25 });
+      addRing(p, 0.84, 0.84, 144, { rotX: 0.22, rotY: -0.25 });
+      addSphereShell(p, 0, 0, 0, 0.18, 36);
+      addLine(p, 0, 0, 0, 0.42, 0.72, 0.05, 22);
+      addLine(p, 0, 0, 0, -0.72, 0.24, -0.04, 28);
+      addLine(p, 0, -1.43, 0, 0, -2.05, 0.16, 28);
+      addSphereShell(p, 0, -2.18, 0.18, 0.18, 28, { y: 1.25 });
+      for (let i = 0; i < 12; i++) {
+        const a = i / 12 * TAU;
+        const x = Math.cos(a) * 1.0;
+        const y = Math.sin(a) * 1.0;
+        addBoxShell(p, x, y, Math.sin(a * 2) * 0.15, 0.12, 0.12, 0.12, 2, 2, 2);
+      }
+      addBoxFrame(p, 0, -0.15, 0, 3.1, 3.25, 1.35, 7);
+      return p;
+    }
+
+    function experimentBay() {
+      const p = [];
+      addBoxFrame(p, 0, -0.78, 0, 3.35, 0.26, 1.55, 12);
+      for (let x = -1.45; x <= 1.46; x += 0.42) addLine(p, x, -0.64, -0.72, x, -0.64, 0.72, 18);
+      for (let z = -0.62; z <= 0.63; z += 0.32) addLine(p, -1.55, -0.63, z, 1.55, -0.63, z, 28);
+      addBoxFrame(p, -0.55, 0.34, -0.34, 1.25, 0.95, 0.2, 8);
+      addBoxFrame(p, 0.94, 0.18, -0.18, 0.64, 1.18, 0.24, 8);
+      for (let i = 0; i < 54; i++) {
+        const t = i / 53;
+        const x = -1.05 + t * 1.05;
+        const y = 0.36 + Math.sin(t * TAU * 2.2) * 0.24;
+        addLine(p, x, y, -0.18, x + 0.012, y, -0.18, 1);
+      }
+      for (let i = 0; i < 4; i++) {
+        const x = 0.52 + i * 0.26;
+        addRing(p, 0.08, 0.08, 24, { cx: x, cy: 0.78, cz: 0.38, rotX: Math.PI / 2 });
+        addLine(p, x - 0.08, 0.78, 0.38, x - 0.08, -0.36, 0.38, 16);
+        addLine(p, x + 0.08, 0.78, 0.38, x + 0.08, -0.36, 0.38, 16);
+        addRing(p, 0.08, 0.08, 24, { cx: x, cy: -0.36, cz: 0.38, rotX: Math.PI / 2 });
+      }
+      addBoxShell(p, -1.28, -0.1, 0.34, 0.34, 0.34, 0.34, 4, 4, 4);
+      addBoxShell(p, -1.02, 0.2, 0.34, 0.28, 0.28, 0.28, 3, 3, 3);
+      return p;
+    }
+
+    function mcpCoupler() {
+      const p = [];
+      const hex = [];
+      for (let i = 0; i < 6; i++) hex.push([Math.cos(i / 6 * TAU + TAU / 12) * 0.72, Math.sin(i / 6 * TAU + TAU / 12) * 0.72, 0]);
+      for (let i = 0; i < 6; i++) {
+        const a = hex[i], b = hex[(i + 1) % 6];
+        addLine(p, a[0], a[1], a[2], b[0], b[1], b[2], 20);
+      }
+      addSphereShell(p, 0, 0, 0, 0.28, 70, { y: 0.7 });
+      for (let i = 0; i < 6; i++) {
+        const a = i / 6 * TAU + TAU / 12;
+        const sx = Math.cos(a) * 0.72;
+        const sy = Math.sin(a) * 0.72;
+        const ex = Math.cos(a) * 1.92;
+        const ey = Math.sin(a) * 1.22;
+        const ez = Math.sin(i * 1.7) * 0.52;
+        addCurve(p, sx, sy, 0, Math.cos(a) * 1.25, Math.sin(a) * 0.95, ez * 0.75, ex, ey, ez, 34);
+        addBoxShell(p, ex, ey, ez, 0.46, 0.28, 0.32, 4, 3, 3);
+        addBoxFrame(p, ex, ey, ez, 0.72, 0.46, 0.48, 5);
+      }
+      addRing(p, 1.18, 1.18, 120, { rotX: 0.82, rotY: 0.2 });
+      addRing(p, 1.18, 1.18, 120, { rotX: -0.82, rotY: -0.2 });
+      return p;
+    }
+
+    function launchEngine() {
+      const p = [];
+      for (let y = -1.05; y <= 1.0; y += 0.18) addRing(p, 0.34, 0.34, 48, { cy: y, rotX: Math.PI / 2 });
+      addLine(p, -0.34, 1.0, 0, 0, 1.58, 0, 20);
+      addLine(p, 0.34, 1.0, 0, 0, 1.58, 0, 20);
+      addLine(p, 0, 1.0, -0.34, 0, 1.58, 0, 20);
+      addLine(p, 0, 1.0, 0.34, 0, 1.58, 0, 20);
+      addBoxFrame(p, -0.88, 0.1, -0.42, 0.34, 2.95, 0.34, 10);
+      for (let y = -1.1; y <= 1.12; y += 0.32) addLine(p, -1.05, y, -0.55, -0.68, y + 0.2, -0.29, 10);
+      addLine(p, -0.34, -0.9, 0, -0.86, -1.34, 0.24, 16);
+      addLine(p, 0.34, -0.9, 0, 0.86, -1.34, 0.24, 16);
+      for (let i = 0; i < 5; i++) addRing(p, 0.18 + i * 0.18, 0.08 + i * 0.08, 52, { cy: -1.3 - i * 0.16, rotX: Math.PI / 2 });
+      for (let i = 0; i < 54; i++) {
+        const t = i / 53;
+        const a = i * 2.399963;
+        push(p, Math.cos(a) * t * 0.78, -1.34 - t * 0.94, Math.sin(a) * t * 0.78);
+      }
+      addBoxFrame(p, 0, -1.55, 0, 2.55, 0.32, 1.7, 8);
+      return p;
+    }
+
+    const VOXELS = 720;
+    function fitAndSample(src, seed) {
+      const count = Math.max(1, Math.floor(src.length / 3));
+      let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+      for (let i = 0; i < count; i++) {
+        const k = i * 3;
+        minX = Math.min(minX, src[k]); maxX = Math.max(maxX, src[k]);
+        minY = Math.min(minY, src[k + 1]); maxY = Math.max(maxY, src[k + 1]);
+        minZ = Math.min(minZ, src[k + 2]); maxZ = Math.max(maxZ, src[k + 2]);
+      }
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
+      const maxSpan = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 0.001);
+      const scale = 3.35 / maxSpan;
+      const out = new Float32Array(VOXELS * 3);
+      const rnd = seeded(seed);
+      for (let i = 0; i < VOXELS; i++) {
+        const idx = count >= VOXELS ? Math.floor(i * count / VOXELS) : i % count;
+        const k = idx * 3;
+        const repeat = count >= VOXELS ? 0 : Math.floor(i / count);
+        const jitter = repeat ? 0.018 : 0.004;
+        out[i * 3] = (src[k] - cx) * scale + (rnd() - 0.5) * jitter;
+        out[i * 3 + 1] = (src[k + 1] - cy) * scale + (rnd() - 0.5) * jitter;
+        out[i * 3 + 2] = (src[k + 2] - cz) * scale + (rnd() - 0.5) * jitter;
+      }
+      return out;
+    }
+
+    const BLUEPRINTS = [
+      { name: 'Command core',       color: [0.49, 0.70, 1.00], x:  1.20, yaw: -0.34, points: fitAndSample(commandCore(), 11) },
+      { name: 'Specialist router',  color: [0.49, 0.70, 1.00], x: -1.18, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
+      { name: 'Memory vault',       color: [0.20, 0.83, 0.60], x:  1.18, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
+      { name: 'Workflow fabric',    color: [0.65, 0.54, 0.98], x: -1.18, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
+      { name: 'Chronometer',        color: [0.96, 0.62, 0.04], x:  1.15, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
+      { name: 'Experiment bay',     color: [0.96, 0.45, 0.71], x: -1.15, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
+      { name: 'MCP coupler',        color: [0.13, 0.83, 0.93], x:  1.18, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
+      { name: 'Launch engine',      color: [0.49, 0.70, 1.00], x:  0.00, yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
+    ];
+    const STAGES = BLUEPRINTS.length;
+
     function makeSprite() {
-      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
       const g = c.getContext('2d');
       const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-      grd.addColorStop(0,   'rgba(255,255,255,1)');
-      grd.addColorStop(0.3, 'rgba(255,255,255,0.7)');
-      grd.addColorStop(1,   'rgba(255,255,255,0)');
-      g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
-      const tex = new THREE.CanvasTexture(c); tex.needsUpdate = true; return tex;
+      grd.addColorStop(0, 'rgba(255,255,255,0.95)');
+      grd.addColorStop(0.28, 'rgba(255,255,255,0.55)');
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grd;
+      g.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
     }
 
-    // ── Buffers + meshes ──────────────────────────────────────
-    const A = new Float32Array(N * 3);
-    const B = new Float32Array(N * 3);
-    const live = new Float32Array(N * 3);
-    let seeded = false;
+    const live = new Float32Array(VOXELS * 3);
+    const targetA = new Float32Array(VOXELS * 3);
+    const targetB = new Float32Array(VOXELS * 3);
+    let seededLive = false;
 
-    const ptsGeo = new THREE.BufferGeometry();
-    ptsGeo.setAttribute('position', new THREE.BufferAttribute(live, 3));
-    const ptsMat = new THREE.PointsMaterial({
-      size: 0.13, map: makeSprite(), transparent: true, opacity: 0,
-      depthWrite: false, blending: THREE.AdditiveBlending,
-      color: new THREE.Color(0.49, 0.70, 1.0), sizeAttenuation: true,
+    const voxelGeom = new THREE.BoxGeometry(0.075, 0.075, 0.075);
+    const voxelMat = new THREE.MeshBasicMaterial({
+      color: 0x7eb3ff,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
-    const points = new THREE.Points(ptsGeo, ptsMat);
-    root.add(points);
+    const voxels = new THREE.InstancedMesh(voxelGeom, voxelMat, VOXELS);
+    voxels.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    model.add(voxels);
 
-    const SEG = N - 1;
-    const linePos = new Float32Array(SEG * 2 * 3);
+    const glowGeo = new THREE.BufferGeometry();
+    glowGeo.setAttribute('position', new THREE.BufferAttribute(live, 3));
+    const glowMat = new THREE.PointsMaterial({
+      size: 0.115,
+      map: makeSprite(),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      color: 0x7eb3ff,
+      sizeAttenuation: true,
+    });
+    const glow = new THREE.Points(glowGeo, glowMat);
+    model.add(glow);
+
+    const SEGMENTS = VOXELS - 1;
+    const linePos = new Float32Array(SEGMENTS * 2 * 3);
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
     const lineMat = new THREE.LineBasicMaterial({
-      transparent: true, opacity: 0, depthWrite: false,
-      blending: THREE.AdditiveBlending, color: new THREE.Color(0.3, 0.45, 0.7),
+      color: 0x7eb3ff,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
     const lines = new THREE.LineSegments(lineGeo, lineMat);
-    root.add(lines);
+    model.add(lines);
 
-    // Structural housing: 3 gyroscope rings
     const ringMats = [];
-    for (let r = 0; r < 3; r++) {
+    for (let i = 0; i < 3; i++) {
       const g = new THREE.BufferGeometry();
-      const segs = 96, arr = new Float32Array((segs + 1) * 3);
+      const segs = 128;
+      const arr = new Float32Array((segs + 1) * 3);
       for (let s = 0; s <= segs; s++) {
-        const a2 = (s / segs) * TAU, rad = 2.25 + r * 0.18;
-        arr[s*3] = Math.cos(a2) * rad; arr[s*3+1] = Math.sin(a2) * rad; arr[s*3+2] = 0;
+        const a = s / segs * TAU;
+        const r = 2.55 + i * 0.22;
+        arr[s * 3] = Math.cos(a) * r;
+        arr[s * 3 + 1] = Math.sin(a) * r;
+        arr[s * 3 + 2] = 0;
       }
       g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-      const m = new THREE.LineBasicMaterial({ transparent: true, opacity: 0, color: new THREE.Color(0.3, 0.45, 0.7) });
-      const loop = new THREE.Line(g, m);
-      loop.rotation.x = r * 1.05; loop.rotation.y = r * 0.6;
-      ringMats.push(m); gyro.add(loop);
+      const m = new THREE.LineBasicMaterial({
+        color: 0x7eb3ff,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const ring = new THREE.Line(g, m);
+      ring.rotation.x = i * 0.88 + 0.22;
+      ring.rotation.y = i * 0.54 - 0.18;
+      ringMats.push(m);
+      rig.add(ring);
     }
 
-    // Blueprint floor grid
-    const grid = new THREE.GridHelper(26, 26, 0x2a4170, 0x16233f);
-    grid.material.transparent = true; grid.material.opacity = 0.0;
-    grid.position.y = -2.7;
+    const grid = new THREE.GridHelper(28, 28, 0x355f9b, 0x17243f);
+    grid.position.y = -2.32;
+    grid.material.transparent = true;
+    grid.material.opacity = 0;
     root.add(grid);
 
-    // ── Anime.js: entrance + breathing pulse ──────────────────
+    const dummy = new THREE.Object3D();
+    const currentColor = new THREE.Color();
+    const nextColor = new THREE.Color();
+    const mixedColor = new THREE.Color();
+
     const engineAnimate = window.anime && typeof window.anime.animate === 'function'
       ? window.anime.animate.bind(window.anime)
       : null;
-    const state = { intro: 1, pulse: 1, burst: 0, pSmooth: 0 };
-    camera.position.z = reduceMotion ? 7.4 : 11;
+    const state = { intro: reduceMotion ? 1 : 0, pulse: 1, burst: 0, pSmooth: 0 };
     if (!reduceMotion && engineAnimate) {
       try {
-        engineAnimate(state, { pulse: [1, 1.05], duration: 3400, loop: true, alternate: true, ease: 'inOutSine' });
-        engineAnimate(camera.position, { z: 7.4, duration: 1900, ease: 'outExpo' });
+        engineAnimate(state, { intro: [0, 1], duration: 1700, ease: 'outExpo' });
+        engineAnimate(state, { pulse: [0.97, 1.035], duration: 3200, loop: true, alternate: true, ease: 'inOutSine' });
+        engineAnimate(camera.position, { z: 7.55, duration: 1800, ease: 'outExpo' });
       } catch (e) {
-        camera.position.z = 7.4;
+        state.intro = 1;
+        camera.position.z = 7.55;
       }
-    } else {
-      camera.position.z = 7.4;
     }
 
-    // ── Scroll → continuous stage (anchored to section tops) ──
-    // Each <section> maps 1:1 to a builder stage. We interpolate
-    // the stage from the SAME anchor points the keyboard nav snaps
-    // to (section top − nav offset), so landing on a section means
-    // its particle "final shape" is fully formed (integer stage).
     function navOffsetPx() {
       const nav = document.querySelector('.nav');
       return nav ? Math.ceil(nav.getBoundingClientRect().height + 10) : 0;
     }
+
     function sectionAnchors() {
       const secs = document.querySelectorAll('section');
-      const max  = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-      const nav  = navOffsetPx();
+      const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const nav = navOffsetPx();
       const tops = [];
       for (let i = 0; i < secs.length; i++) {
         const raw = secs[i].getBoundingClientRect().top + window.scrollY;
@@ -1259,6 +1383,7 @@
       }
       return tops;
     }
+
     function stagePos() {
       const tops = sectionAnchors();
       const n = Math.min(tops.length, STAGES);
@@ -1268,104 +1393,123 @@
       if (y >= tops[n - 1]) return n - 1;
       for (let i = 0; i < n - 1; i++) {
         if (y >= tops[i] && y <= tops[i + 1]) {
-          const span = (tops[i + 1] - tops[i]) || 1;
-          return i + (y - tops[i]) / span;
+          return i + (y - tops[i]) / Math.max(1, tops[i + 1] - tops[i]);
         }
       }
       return n - 1;
     }
 
-    // Pointer parallax
-    let mx = 0, my = 0;
-    window.addEventListener('pointermove', (e) => {
-      mx = (e.clientX / window.innerWidth - 0.5);
-      my = (e.clientY / window.innerHeight - 0.5);
+    function fillStage(out, stageIndex, t) {
+      const base = BLUEPRINTS[stageIndex].points;
+      const machineBreath = reduceMotion ? 0 : Math.sin(t * 1.25 + stageIndex) * 0.018;
+      for (let i = 0; i < VOXELS; i++) {
+        const k = i * 3;
+        const phase = i * 12.9898 + stageIndex * 7.31;
+        const shimmer = reduceMotion ? 0 : Math.sin(t * 2.0 + phase) * 0.009;
+        out[k] = base[k] + shimmer;
+        out[k + 1] = base[k + 1] + Math.cos(t * 1.7 + phase) * 0.007 + machineBreath;
+        out[k + 2] = base[k + 2] + Math.sin(t * 1.35 + phase * 0.7) * 0.008;
+      }
+    }
+
+    let mouseX = 0, mouseY = 0;
+    window.addEventListener('pointermove', (event) => {
+      mouseX = event.clientX / window.innerWidth - 0.5;
+      mouseY = event.clientY / window.innerHeight - 0.5;
     }, { passive: true });
 
-    // ── Render loop ───────────────────────────────────────────
     const clock = new THREE.Clock();
-    let lastStage = -1;
-    const cur = new THREE.Color(), nxt = new THREE.Color(), mix = new THREE.Color();
+    let lastNearest = -1;
 
     function frame() {
-      const t = reduceMotion ? 0 : clock.getElapsedTime() * 0.6;
-      state.pSmooth += (stagePos() - state.pSmooth) * (reduceMotion ? 1 : 0.06);
+      const t = reduceMotion ? 0 : clock.getElapsedTime();
+      state.pSmooth += (stagePos() - state.pSmooth) * (reduceMotion ? 1 : 0.065);
 
       let idx = Math.floor(state.pSmooth);
       if (idx >= STAGES - 1) idx = STAGES - 2;
       if (idx < 0) idx = 0;
       const f = smooth(clamp(state.pSmooth - idx));
+      const nearest = Math.round(state.pSmooth);
 
-      if (idx !== lastStage) {
-        lastStage = idx;
+      if (nearest !== lastNearest) {
+        lastNearest = nearest;
         if (!reduceMotion && engineAnimate) {
-          try { engineAnimate(state, { burst: [1, 0], duration: 900, ease: 'outExpo' }); }
+          try { engineAnimate(state, { burst: [1, 0], duration: 950, ease: 'outExpo' }); }
           catch (e) { state.burst = 0; }
         }
       }
 
-      BUILDERS[idx](A, t);
-      BUILDERS[idx + 1](B, t);
+      fillStage(targetA, idx, t);
+      fillStage(targetB, idx + 1, t);
 
-      // colour interpolation
-      cur.setRGB(STAGE_COLORS[idx][0], STAGE_COLORS[idx][1], STAGE_COLORS[idx][2]);
-      nxt.setRGB(STAGE_COLORS[idx + 1][0], STAGE_COLORS[idx + 1][1], STAGE_COLORS[idx + 1][2]);
-      mix.copy(cur).lerp(nxt, f);
-      ptsMat.color.copy(mix);
-      lineMat.color.copy(mix).multiplyScalar(0.55);
-      for (const m of ringMats) m.color.copy(mix).multiplyScalar(0.5);
+      currentColor.setRGB(BLUEPRINTS[idx].color[0], BLUEPRINTS[idx].color[1], BLUEPRINTS[idx].color[2]);
+      nextColor.setRGB(BLUEPRINTS[idx + 1].color[0], BLUEPRINTS[idx + 1].color[1], BLUEPRINTS[idx + 1].color[2]);
+      mixedColor.copy(currentColor).lerp(nextColor, f);
+      voxelMat.color.copy(mixedColor);
+      glowMat.color.copy(mixedColor);
+      lineMat.color.copy(mixedColor).multiplyScalar(0.62);
+      for (const m of ringMats) m.color.copy(mixedColor).multiplyScalar(0.55);
 
-      // morph + organic settle
-      const follow = reduceMotion ? 1 : 0.16;
-      for (let i = 0; i < N; i++) {
+      const follow = reduceMotion ? 1 : 0.17;
+      for (let i = 0; i < VOXELS; i++) {
         const k = i * 3;
-        const tx = lerp(A[k],   B[k],   f);
-        const ty = lerp(A[k+1], B[k+1], f);
-        const tz = lerp(A[k+2], B[k+2], f);
-        if (!seeded) { live[k] = tx; live[k+1] = ty; live[k+2] = tz; }
-        else {
-          live[k]   += (tx - live[k])   * follow;
-          live[k+1] += (ty - live[k+1]) * follow;
-          live[k+2] += (tz - live[k+2]) * follow;
-        }
-      }
-      seeded = true;
-      ptsGeo.attributes.position.needsUpdate = true;
-
-      // rewire connective tissue (collapse long jumps)
-      for (let s = 0; s < SEG; s++) {
-        const i = s, j = s + 1, ki = i * 3, kj = j * 3, o = s * 6;
-        const dx = live[ki] - live[kj], dy = live[ki+1] - live[kj+1], dz = live[ki+2] - live[kj+2];
-        if (dx*dx + dy*dy + dz*dz < 0.34) {
-          linePos[o]=live[ki]; linePos[o+1]=live[ki+1]; linePos[o+2]=live[ki+2];
-          linePos[o+3]=live[kj]; linePos[o+4]=live[kj+1]; linePos[o+5]=live[kj+2];
+        const tx = lerp(targetA[k], targetB[k], f);
+        const ty = lerp(targetA[k + 1], targetB[k + 1], f);
+        const tz = lerp(targetA[k + 2], targetB[k + 2], f);
+        if (!seededLive) {
+          live[k] = tx; live[k + 1] = ty; live[k + 2] = tz;
         } else {
-          linePos[o]=live[ki]; linePos[o+1]=live[ki+1]; linePos[o+2]=live[ki+2];
-          linePos[o+3]=live[ki]; linePos[o+4]=live[ki+1]; linePos[o+5]=live[ki+2];
+          live[k] += (tx - live[k]) * follow;
+          live[k + 1] += (ty - live[k + 1]) * follow;
+          live[k + 2] += (tz - live[k + 2]) * follow;
         }
+
+        dummy.position.set(live[k], live[k + 1], live[k + 2]);
+        const s = 0.72 + Math.sin(t * 2.4 + i * 0.37) * 0.10 + state.burst * 0.42;
+        dummy.scale.setScalar(reduceMotion ? 0.82 : s);
+        dummy.rotation.set(t * 0.08 + i * 0.013, t * 0.06 + i * 0.021, t * 0.04);
+        dummy.updateMatrix();
+        voxels.setMatrixAt(i, dummy.matrix);
+      }
+      seededLive = true;
+      voxels.instanceMatrix.needsUpdate = true;
+      glowGeo.attributes.position.needsUpdate = true;
+
+      for (let s = 0; s < SEGMENTS; s++) {
+        const i = s, j = s + 1;
+        const a = i * 3, b = j * 3, o = s * 6;
+        const dx = live[a] - live[b], dy = live[a + 1] - live[b + 1], dz = live[a + 2] - live[b + 2];
+        const near = dx * dx + dy * dy + dz * dz < 0.18;
+        linePos[o] = live[a]; linePos[o + 1] = live[a + 1]; linePos[o + 2] = live[a + 2];
+        linePos[o + 3] = near ? live[b] : live[a];
+        linePos[o + 4] = near ? live[b + 1] : live[a + 1];
+        linePos[o + 5] = near ? live[b + 2] : live[a + 2];
       }
       lineGeo.attributes.position.needsUpdate = true;
 
-      // presentation
-      const sc = (0.72 + 0.28 * state.intro) * state.pulse;
-      root.scale.setScalar(sc);
-      ptsMat.size    = 0.12 * (1 + state.burst * 0.9);
-      ptsMat.opacity = 0.95 * state.intro;
-      lineMat.opacity = 0.4 * state.intro;
-      for (const m of ringMats) m.opacity = 0.22 * state.intro;
-      grid.material.opacity = 0.12 * state.intro;
+      const desktop = window.innerWidth > 900;
+      const targetX = desktop ? lerp(BLUEPRINTS[idx].x, BLUEPRINTS[idx + 1].x, f) : 0;
+      const targetYaw = lerp(BLUEPRINTS[idx].yaw, BLUEPRINTS[idx + 1].yaw, f);
+      root.position.x += (targetX - root.position.x) * (reduceMotion ? 1 : 0.045);
+      root.position.y += ((desktop ? -0.02 : -0.48) - root.position.y) * 0.06;
+      root.scale.setScalar((desktop ? 1.02 : 0.78) * state.pulse);
+      model.rotation.y = targetYaw + Math.sin(t * 0.24) * 0.14 + mouseX * 0.32;
+      model.rotation.x = -0.08 + Math.sin(t * 0.18) * 0.055 + mouseY * 0.18;
+      model.rotation.z = Math.sin(t * 0.13) * 0.035;
+      rig.rotation.x = t * 0.045;
+      rig.rotation.y = t * 0.06;
 
-      if (!reduceMotion) {
-        root.rotation.y += 0.0016;
-        root.rotation.x += (my * 0.35 - root.rotation.x) * 0.04;
-        root.rotation.y += (mx * 0.0008);
-        gyro.rotation.y += 0.0022;
-        gyro.rotation.x += 0.0011;
-      }
+      voxelMat.opacity = 0.62 * state.intro;
+      glowMat.opacity = 0.50 * state.intro;
+      glowMat.size = 0.105 + state.burst * 0.055;
+      lineMat.opacity = 0.42 * state.intro;
+      for (const m of ringMats) m.opacity = 0.16 * state.intro;
+      grid.material.opacity = 0.11 * state.intro;
 
       renderer.render(scene, camera);
       requestAnimationFrame(frame);
     }
+
     requestAnimationFrame(frame);
   })();
 
@@ -1439,152 +1583,6 @@
     });
   })();
 
-  // ── Hero machine canvas ──────────────────────────────────────
-  const mCanvas = document.getElementById('machine-canvas');
-  const mCtx    = mCanvas.getContext('2d');
-  const DPR     = window.devicePixelRatio || 1;
-  const SIZE    = 520;
-  mCanvas.width  = SIZE * DPR;
-  mCanvas.height = SIZE * DPR;
-  mCanvas.style.width  = SIZE + 'px';
-  mCanvas.style.height = SIZE + 'px';
-  mCtx.scale(DPR, DPR);
-
-  const CX = SIZE / 2, CY = SIZE / 2;
-  let tick = 0;
-
-  // Node definitions (hub + 8 orbital nodes)
-  const orbitRadius = [105, 165, 215];
-  const nodeCount   = [6, 8, 10];
-  const allNodes = [];
-
-  // Hub
-  allNodes.push({ x: CX, y: CY, r: 14, orbit: -1, angle: 0, speed: 0, color: '#7eb3ff', label: 'MANIFOLD' });
-
-  // Generate orbital nodes
-  for (let oi = 0; oi < orbitRadius.length; oi++) {
-    const n = nodeCount[oi];
-    const rad = orbitRadius[oi];
-    const speed = (oi === 0 ? 0.004 : oi === 1 ? -0.003 : 0.0025) * (oi % 2 === 0 ? 1 : -1);
-    const colors = ['#7eb3ff', '#a78bfa', '#34d399', '#f59e0b', '#f472b6', '#22d3ee'];
-    for (let i = 0; i < n; i++) {
-      allNodes.push({
-        x: 0, y: 0,
-        r: oi === 0 ? 6 : oi === 1 ? 4.5 : 3.5,
-        orbit: oi,
-        rad: rad,
-        angle: (i / n) * Math.PI * 2,
-        speed: speed,
-        color: colors[(oi * 2 + i) % colors.length],
-        label: '',
-      });
-    }
-  }
-
-  function drawMachine() {
-    mCtx.clearRect(0, 0, SIZE, SIZE);
-
-    // Orbit rings
-    for (let oi = 0; oi < orbitRadius.length; oi++) {
-      mCtx.beginPath();
-      mCtx.arc(CX, CY, orbitRadius[oi], 0, Math.PI * 2);
-      mCtx.strokeStyle = `rgba(126,179,255,${0.06 - oi * 0.01})`;
-      mCtx.lineWidth = 1;
-      mCtx.stroke();
-    }
-
-    // Update & draw orbital nodes
-    const nodePosMap = [];
-    for (const nd of allNodes) {
-      if (nd.orbit >= 0) {
-        nd.angle += nd.speed;
-        nd.x = CX + Math.cos(nd.angle) * nd.rad;
-        nd.y = CY + Math.sin(nd.angle) * nd.rad;
-      }
-      nodePosMap.push({ x: nd.x, y: nd.y });
-    }
-
-    // Connection lines: hub to all orbit-0 nodes
-    const hub = allNodes[0];
-    for (const nd of allNodes) {
-      if (nd.orbit === 0) {
-        const grad = mCtx.createLinearGradient(hub.x, hub.y, nd.x, nd.y);
-        grad.addColorStop(0, 'rgba(126,179,255,0.35)');
-        grad.addColorStop(1, 'rgba(126,179,255,0.05)');
-        mCtx.beginPath();
-        mCtx.moveTo(hub.x, hub.y);
-        mCtx.lineTo(nd.x, nd.y);
-        mCtx.strokeStyle = grad;
-        mCtx.lineWidth = 0.8;
-        mCtx.stroke();
-      }
-    }
-
-    // Connections between nearby orbit-1 and orbit-2 nodes
-    const o1Nodes = allNodes.filter(n => n.orbit === 1);
-    const o2Nodes = allNodes.filter(n => n.orbit === 2);
-    for (const a of o1Nodes) {
-      for (const b of o2Nodes) {
-        const dx = a.x - b.x, dy = a.y - b.y;
-        if (Math.sqrt(dx*dx + dy*dy) < 70) {
-          mCtx.beginPath();
-          mCtx.moveTo(a.x, a.y);
-          mCtx.lineTo(b.x, b.y);
-          mCtx.strokeStyle = 'rgba(167,139,250,0.08)';
-          mCtx.lineWidth = 0.5;
-          mCtx.stroke();
-        }
-      }
-    }
-
-    // Draw nodes
-    for (const nd of allNodes) {
-      // Glow
-      const grd = mCtx.createRadialGradient(nd.x, nd.y, 0, nd.x, nd.y, nd.r * 3.5);
-      const col = nd.color;
-      grd.addColorStop(0, col.replace('#', 'rgba(').replace(/(.{2})(.{2})(.{2})/, (_, r, g, b) =>
-        `${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)}`) + ',0.3)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      mCtx.beginPath();
-      mCtx.arc(nd.x, nd.y, nd.r * 3.5, 0, Math.PI * 2);
-      mCtx.fillStyle = grd;
-      mCtx.fill();
-
-      // Node circle
-      mCtx.beginPath();
-      mCtx.arc(nd.x, nd.y, nd.r, 0, Math.PI * 2);
-      mCtx.fillStyle = nd.color;
-      mCtx.globalAlpha = nd.orbit === 0 ? 0.9 : nd.orbit === 1 ? 0.75 : 0.55;
-      mCtx.fill();
-      mCtx.globalAlpha = 1;
-    }
-
-    // Hub ring
-    mCtx.beginPath();
-    mCtx.arc(hub.x, hub.y, 22, 0, Math.PI * 2);
-    mCtx.strokeStyle = 'rgba(126,179,255,0.55)';
-    mCtx.lineWidth = 1.5;
-    mCtx.stroke();
-
-    // Hub label
-    mCtx.font = `700 9px "Inter Tight", sans-serif`;
-    mCtx.fillStyle = 'rgba(126,179,255,0.85)';
-    mCtx.textAlign = 'center';
-    mCtx.fillText('MANIFOLD', CX, CY + 3);
-
-    // Pulsing outer ring
-    const pulseAlpha = (Math.sin(tick * 0.04) + 1) / 2 * 0.25;
-    mCtx.beginPath();
-    mCtx.arc(CX, CY, 235 + Math.sin(tick * 0.02) * 8, 0, Math.PI * 2);
-    mCtx.strokeStyle = `rgba(126,179,255,${pulseAlpha})`;
-    mCtx.lineWidth = 1;
-    mCtx.stroke();
-
-    tick++;
-    requestAnimationFrame(drawMachine);
-  }
-  drawMachine();
-
   // ── Entrance animations (anime.js v4) ───────────────────────
   const { animate, stagger, createTimeline } = anime;
 
@@ -1615,10 +1613,6 @@
     translateY: [14, 0],
     duration:   600,
   }, '-=500')
-  .add('#hero-right', {
-    opacity:  [0, 1],
-    duration: 900,
-  }, '-=700')
   .add('#scroll-hint', {
     opacity:  [0, 0.6],
     duration: 600,
@@ -1673,209 +1667,84 @@
     }, { threshold: 0.2 }).observe(ctaEl);
   }
 
-  // ── Per-feature SVG animations ───────────────────────────────
+  // ── Feature card micro-interactions ──────────────────────
   function startFeatureAnimation(section) {
-    const feat = section.dataset.feature;
-
-    if (feat === 'specialists') {
-      // Pulse rings on hub
-      animate('.spec-pulse', {
-        r:       [38, 72],
-        opacity: [0.5, 0],
-        duration: 2400,
-        loop:    true,
-        ease:    'linear',
-      });
-      animate('.spec-pulse2', {
-        r:       [52, 90],
-        opacity: [0.35, 0],
-        duration: 2400,
-        delay:    800,
-        loop:    true,
-        ease:    'linear',
-      });
-      // Rotate hub
-      animate('.spec-hub', {
-        rotate:   360,
-        duration: 18000,
-        loop:     true,
-        ease:     'linear',
-        transformOrigin: '50% 50%',
-      });
-      // Stagger satellite nodes in
-      animate('.spec-node', {
-        scale:    [0, 1],
-        opacity:  [0, 1],
-        duration: 600,
-        delay:    stagger(120),
-        ease:     'outBack',
-      });
-      animate('.spec-line', {
-        strokeDashoffset: [100, 0],
-        opacity:  [0, 0.5],
-        duration: 800,
-        delay:    stagger(100),
-        ease:     'outExpo',
-      });
-    }
-
-    if (feat === 'memory') {
-      animate('.mem-ring', {
-        rotate:   360,
-        duration: 14000,
-        loop:     true,
-        ease:     'linear',
-        transformOrigin: '220px 180px',
-      });
-      animate('.mem-ring2', {
-        rotate:   -360,
-        duration: 20000,
-        loop:     true,
-        ease:     'linear',
-        transformOrigin: '220px 180px',
-      });
-      animate('.mem-ring3', {
-        rotate:   360,
-        duration: 28000,
-        loop:     true,
-        ease:     'linear',
-        transformOrigin: '220px 180px',
-      });
-      animate('.mem-node', {
-        scale:    [0, 1],
-        opacity:  [0, 1],
-        duration: 500,
-        delay:    stagger(150),
-        ease:     'outBack',
-        transformOrigin: '50% 50%',
-      });
-    }
-
-    if (feat === 'dag') {
-      animate('.dag-node', {
-        opacity:  [0, 1],
-        scaleX:   [0.6, 1],
-        duration: 500,
-        delay:    stagger(80),
-        ease:     'outExpo',
-        transformOrigin: '50% 50%',
-      });
-      animate('.dag-edge', {
-        strokeDashoffset: [40, 0],
-        opacity:  [0, 0.5],
-        duration: 600,
-        delay:    stagger(60, { start: 400 }),
-        ease:     'outExpo',
-      });
-      // Flow dots
-      animateDagDot();
-    }
-
-    if (feat === 'pulse') {
-      // Clock hands rotation
-      animate('#pulse-hour', {
-        rotate:   [0, 360],
-        duration: 12000,
-        loop:     true,
-        ease:     'linear',
-        transformOrigin: '220px 180px',
-      });
-      animate('#pulse-minute', {
-        rotate:   [0, 360],
-        duration: 3000,
-        loop:     true,
-        ease:     'linear',
-        transformOrigin: '220px 180px',
-      });
-    }
-
-    if (feat === 'playground') {
-      // Blinking cursor
-      animate('.pg-cursor', {
-        opacity:  [1, 0, 1],
-        duration: 900,
-        loop:     true,
-        ease:     'steps(1)',
-      });
-      // Code line shimmer stagger
-      const lines = section.querySelectorAll('rect[fill]');
-      if (lines.length) {
-        animate(lines, {
-          opacity: [0, 1],
-          translateX: [-8, 0],
-          duration: 500,
-          delay: stagger(50),
-          ease: 'outExpo',
-        });
-      }
-    }
-
-    if (feat === 'mcp') {
-      animate('.mcp-hex', {
-        rotate:   [0, 360],
-        duration: 20000,
-        loop:     true,
-        ease:     'linear',
-        transformOrigin: '220px 176px',
-      });
-      animateMcpDot();
-    }
+    if (reduceMotion || !section) return;
+    const targets = section.querySelectorAll('.section-subhead, .feature-number, .feature-title, .feature-desc, .dummy-copy, .tag');
+    if (!targets.length) return;
+    animate(targets, {
+      opacity: [0, 1],
+      translateY: [12, 0],
+      duration: 520,
+      delay: stagger(36),
+      ease: 'outExpo',
+    });
   }
 
-  // DAG animated flow dot
-  function animateDagDot() {
-    const dot = document.querySelector('.dag-dot');
-    if (!dot) return;
-    const path = [
-      { x: 220, y: 38 },
-      { x: 115, y: 118 },
-      { x: 115, y: 208 },
-      { x: 220, y: 296 },
-    ];
-    let i = 0;
-    function next() {
-      if (!dot) return;
-      const from = path[i % path.length];
-      const to   = path[(i + 1) % path.length];
-      animate(dot, {
-        cx: [from.x, to.x],
-        cy: [from.y, to.y],
-        opacity: [0.9, 0.9],
-        duration: 900,
-        ease: 'inOutQuad',
-        onComplete: () => { i++; next(); }
-      });
-    }
-    next();
-  }
+  // ── Section HUD ──────────────────────────────────────────────
+  (function initHud() {
+    const sections = [
+      { el: document.querySelector('.hero'),                         num: '00', name: 'Command Center'      },
+      { el: document.querySelector('[data-feature="specialists"]'),  num: '01', name: 'Specialist handoff'  },
+      { el: document.querySelector('[data-feature="memory"]'),       num: '02', name: 'Memory substrate'    },
+      { el: document.querySelector('[data-feature="dag"]'),          num: '03', name: 'Workflow topology'   },
+      { el: document.querySelector('[data-feature="pulse"]'),        num: '04', name: 'Timed execution'     },
+      { el: document.querySelector('[data-feature="playground"]'),   num: '05', name: 'Experiment bay'      },
+      { el: document.querySelector('[data-feature="mcp"]'),          num: '06', name: 'Tool mesh'           },
+      { el: document.querySelector('.cta-section'),                  num: '07', name: 'Launch sequence'     },
+    ].filter(s => s.el);
 
-  // MCP animated dot traversal
-  function animateMcpDot() {
-    const dot = document.querySelector('.mcp-dot');
-    if (!dot) return;
-    const paths = [
-      [{ x: 220, y: 176 }, { x: 110, y: 80 }],
-      [{ x: 220, y: 176 }, { x: 338, y: 80 }],
-      [{ x: 220, y: 176 }, { x: 338, y: 181 }],
-      [{ x: 220, y: 176 }, { x: 338, y: 272 }],
-      [{ x: 220, y: 176 }, { x: 102, y: 272 }],
-      [{ x: 220, y: 176 }, { x: 64, y: 181 }],
-    ];
-    let pi = 0;
-    function nextPath() {
-      if (!dot) return;
-      const pts = paths[pi % paths.length];
-      animate(dot, {
-        cx: [pts[0].x, pts[1].x],
-        cy: [pts[0].y, pts[1].y],
-        opacity: [0.9, 0],
-        duration: 1100,
-        ease: 'inOutQuad',
-        onComplete: () => { pi++; nextPath(); }
-      });
+    const hudLabel = document.getElementById('section-hud-label');
+    const hudName  = document.getElementById('section-hud-name');
+    const hudDots  = document.querySelectorAll('.hud-dot');
+
+    let current = 0;
+
+    function setSection(idx) {
+      if (idx === current) return;
+      current = idx;
+      const s = sections[idx];
+      if (!s) return;
+
+      hudLabel.textContent = s.num;
+      // Fade name out then in
+      hudName.style.opacity = '0';
+      hudName.style.transform = 'translateY(4px)';
+      setTimeout(() => {
+        hudName.textContent = s.name;
+        hudName.style.opacity = '';
+        hudName.style.transform = '';
+      }, 180);
+
+      hudDots.forEach((d, i) => d.classList.toggle('active', i === idx));
     }
-    nextPath();
-  }
+
+    // IntersectionObserver with rootMargin to trigger at mid-viewport
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const idx = sections.findIndex(s => s.el === entry.target);
+          if (idx >= 0) setSection(idx);
+        }
+      });
+    }, { threshold: 0.35 });
+
+    sections.forEach(s => obs.observe(s.el));
+
+    // Dot click → scroll to section
+    hudDots.forEach((dot, i) => {
+      dot.style.pointerEvents = 'auto';
+      dot.style.cursor = 'pointer';
+      dot.addEventListener('click', () => {
+        const s = sections[i];
+        if (s && s.el) {
+          const navH = document.querySelector('.nav')?.offsetHeight || 80;
+          const top  = s.el.getBoundingClientRect().top + window.scrollY - navH;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
+      });
+    });
+  })();
 
 })();
 </script>
