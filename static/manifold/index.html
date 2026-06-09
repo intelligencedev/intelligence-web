@@ -1241,15 +1241,21 @@
       return out;
     }
 
+    /* Horizontal stage offsets control how far the particle blueprint
+       moves away from the active content card. Keep the side-to-side
+       choreography, but give the card more breathing room on desktop. */
+    const FEATURE_VISUAL_X = 1.84;
+    const HERO_VISUAL_X = 1.72;
+
     const BLUEPRINTS = [
-      { name: 'Command core',       color: [0.49, 0.70, 1.00], x:  1.20, yaw: -0.34, points: fitAndSample(commandCore(), 11) },
-      { name: 'Specialist router',  color: [0.49, 0.70, 1.00], x: -1.18, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
-      { name: 'Memory vault',       color: [0.20, 0.83, 0.60], x:  1.18, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
-      { name: 'Workflow fabric',    color: [0.65, 0.54, 0.98], x: -1.18, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
-      { name: 'Chronometer',        color: [0.96, 0.62, 0.04], x:  1.15, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
-      { name: 'Experiment bay',     color: [0.96, 0.45, 0.71], x: -1.15, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
-      { name: 'MCP coupler',        color: [0.13, 0.83, 0.93], x:  1.18, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
-      { name: 'Launch engine',      color: [0.49, 0.70, 1.00], x:  0.00, yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
+      { name: 'Command core',       color: [0.49, 0.70, 1.00], x:  HERO_VISUAL_X,    yaw: -0.34, points: fitAndSample(commandCore(), 11) },
+      { name: 'Specialist router',  color: [0.49, 0.70, 1.00], x: -FEATURE_VISUAL_X, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
+      { name: 'Memory vault',       color: [0.20, 0.83, 0.60], x:  FEATURE_VISUAL_X, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
+      { name: 'Workflow fabric',    color: [0.65, 0.54, 0.98], x: -FEATURE_VISUAL_X, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
+      { name: 'Chronometer',        color: [0.96, 0.62, 0.04], x:  FEATURE_VISUAL_X, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
+      { name: 'Experiment bay',     color: [0.96, 0.45, 0.71], x: -FEATURE_VISUAL_X, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
+      { name: 'MCP coupler',        color: [0.13, 0.83, 0.93], x:  FEATURE_VISUAL_X, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
+      { name: 'Launch engine',      color: [0.49, 0.70, 1.00], x:  0.00,             yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
     ];
     const STAGES = BLUEPRINTS.length;
 
