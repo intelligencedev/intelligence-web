@@ -9,25 +9,35 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
 
   <style>
+    /* ═══════════════════════════════════════════════════════════
+       MANIFOLD — TECHNICAL DOSSIER
+       Visual language: drafting-table engineering document.
+       Instrument Serif display · IBM Plex Mono chrome ·
+       warm ink / bone / international orange.
+       No glass, no gradient text, no pills, no neon.
+    ═══════════════════════════════════════════════════════════ */
+
     /* ─── Design tokens ───────────────────────────────────────── */
     :root {
-      --bg:        #04060d;
-      --surface:   #080c18;
-      --border:    rgba(120, 160, 255, 0.12);
-      --text:      rgba(235, 242, 255, 0.93);
-      --muted:     rgba(180, 200, 255, 0.58);
-      --accent:    #7eb3ff;
-      --accent2:   #a78bfa;
-      --accent3:   #34d399;
-      --glow:      rgba(126, 179, 255, 0.25);
-      --glow2:     rgba(167, 139, 250, 0.25);
-      --r:         12px;
+      --ink:         #09090c;
+      --panel:       rgba(12, 12, 16, 0.86);
+      --bone:        #e7e7ec;
+      --bone-dim:    #c2c2cc;
+      --muted:       #8f8f9c;
+      --faint:       #5d5d68;
+      --rule:        rgba(231, 231, 236, 0.16);
+      --rule-soft:   rgba(231, 231, 236, 0.07);
+      --signal:      #9a4dff;  /* cosmic purple (from logo #5e17ac) */
+      --signal-soft: rgba(154, 77, 255, 0.35);
+      --amber:       #3fd966;  /* cosmic green (from logo #2d9e3f) */
+      --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html {
@@ -35,14 +45,16 @@
       scroll-padding-top: 84px;
     }
     body {
-      font-family: "Inter Tight", system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      font-family: var(--mono);
+      background: var(--ink);
+      color: var(--bone);
       line-height: 1.6;
       overflow-x: hidden;
       overscroll-behavior-y: none;
     }
     a { color: inherit; text-decoration: none; }
+    em { font-style: italic; }
+    ::selection { background: var(--signal); color: var(--ink); }
 
     /* ─── Canvas layer ────────────────────────────────────────── */
     #engine-canvas {
@@ -56,9 +68,34 @@
       display: block;
       z-index: 1;
       pointer-events: none;
-      opacity: 0.92;
+      opacity: 0.9;
       transform: translateZ(0);
     }
+
+    /* ─── Drafting-table edge rulers ──────────────────────────── */
+    #page-frame {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      pointer-events: none;
+    }
+    #page-frame::before,
+    #page-frame::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--rule) 0 6px,
+        transparent 6px 72px
+      );
+      opacity: 0.8;
+    }
+    #page-frame::before { left: 12px; }
+    #page-frame::after  { right: 12px; }
+
     /* ─── Nav ─────────────────────────────────────────────────── */
     .nav {
       position: fixed;
@@ -67,44 +104,72 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 18px clamp(24px, 5vw, 72px);
-      background: rgba(4, 6, 13, 0.72);
-      backdrop-filter: blur(18px) saturate(1.4);
-      border-bottom: 1px solid var(--border);
+      padding: 16px clamp(24px, 5vw, 72px);
+      background: rgba(10, 10, 8, 0.92);
+      border-bottom: 1px solid var(--rule);
     }
     .nav-logo {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text);
       display: flex;
-      align-items: center;
+      align-items: baseline;
       gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--bone);
     }
     .nav-logo-icon {
-      width: 28px; height: 28px;
+      width: 24px; height: 24px;
       display: block;
+      align-self: center;
       object-fit: contain;
+    }
+    .nav-logo-sub {
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      color: var(--faint);
     }
     .nav-links {
       display: flex;
-      gap: 28px;
-      font-size: 13px;
+      align-items: center;
+      gap: 26px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
       color: var(--muted);
-      letter-spacing: 0.02em;
     }
-    .nav-links a { transition: color 180ms ease; }
-    .nav-links a:hover { color: var(--text); }
+    .nav-links a {
+      transition: color 160ms ease;
+      border-bottom: 1px solid transparent;
+      padding-bottom: 1px;
+    }
+    .nav-links a:hover {
+      color: var(--bone);
+      border-bottom-color: var(--signal);
+    }
     .nav-badge {
-      font-size: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 9px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      padding: 3px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 180, 0, 0.4);
-      color: rgba(255, 200, 60, 0.85);
-      background: rgba(255, 160, 0, 0.08);
+      letter-spacing: 0.16em;
+      padding: 5px 9px;
+      border: 1px solid var(--signal-soft);
+      color: var(--amber);
+      background: transparent;
+    }
+    .nav-badge::before {
+      content: "";
+      width: 6px; height: 6px;
+      background: var(--signal);
+      animation: badgeBlink 2.4s steps(2, jump-none) infinite;
+    }
+    @keyframes badgeBlink {
+      50% { opacity: 0.25; }
     }
 
     /* ─── Sections ────────────────────────────────────────────── */
@@ -123,76 +188,83 @@
       gap: 48px;
       padding: 120px clamp(24px, 6vw, 96px) 80px;
     }
-    .hero-left { max-width: 560px; }
+    .hero-left { max-width: 620px; }
     .hero-eyebrow {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 500;
       text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--accent);
-      margin-bottom: 20px;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      margin-bottom: 26px;
       opacity: 0;
     }
-    .hero-eyebrow::before {
-      content: "";
-      display: block;
-      width: 24px; height: 1px;
-      background: var(--accent);
+    .hero-eyebrow .idx {
+      padding: 4px 8px;
+      border: 1px solid var(--signal-soft);
+      color: var(--signal);
+      font-weight: 600;
     }
     .hero-title {
-      font-size: clamp(42px, 6vw, 80px);
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      line-height: 1.0;
-      margin-bottom: 24px;
+      font-family: var(--serif);
+      font-size: clamp(48px, 7vw, 96px);
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      line-height: 0.98;
+      margin-bottom: 26px;
       opacity: 0;
     }
     .hero-title .grad {
-      background: linear-gradient(135deg, #a5c8ff 0%, #b49dff 50%, #67e8c8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-style: italic;
+      color: var(--signal);
     }
     .hero-sub {
-      font-size: clamp(15px, 2vw, 18px);
+      font-size: clamp(13px, 1.6vw, 15px);
       color: var(--muted);
-      max-width: 480px;
-      line-height: 1.65;
+      max-width: 52ch;
+      line-height: 1.8;
       margin-bottom: 36px;
       opacity: 0;
     }
     .hero-cta-row {
       display: flex;
-      gap: 12px;
+      gap: 14px;
       flex-wrap: wrap;
       opacity: 0;
     }
     .btn-primary {
-      padding: 12px 24px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, #4a7dff, #7c5cff);
-      color: #fff;
-      font-size: 14px;
+      padding: 14px 22px;
+      border: 1px solid var(--signal);
+      background: var(--signal);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 12px;
       font-weight: 600;
-      letter-spacing: 0.02em;
-      transition: opacity 200ms, transform 200ms;
-      box-shadow: 0 0 32px rgba(100, 130, 255, 0.35);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      transition: background 160ms ease, color 160ms ease;
     }
-    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:hover {
+      background: transparent;
+      color: var(--signal);
+    }
     .btn-ghost {
-      padding: 11px 24px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
+      padding: 14px 22px;
+      border: 1px solid var(--rule);
       color: var(--muted);
-      font-size: 14px;
+      font-family: var(--mono);
+      font-size: 12px;
       font-weight: 500;
-      letter-spacing: 0.02em;
-      transition: border-color 200ms, color 200ms;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      transition: border-color 160ms ease, color 160ms ease;
     }
-    .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+    .btn-ghost:hover {
+      border-color: var(--signal);
+      color: var(--bone);
+    }
     /* ─── Blueprint-backed hero layout ───────────────────────── */
     .hero-left {
       position: relative;
@@ -206,17 +278,15 @@
       right: clamp(24px, 6vw, 96px);
       bottom: 12%;
       width: min(46vw, 680px);
-      border: 1px solid rgba(126, 179, 255, 0.08);
-      border-radius: 42px;
+      border: 1px solid var(--rule-soft);
       background:
-        linear-gradient(rgba(126,179,255,0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(126,179,255,0.035) 1px, transparent 1px),
-        radial-gradient(circle at 50% 45%, rgba(126,179,255,0.08), transparent 58%);
-      background-size: 34px 34px, 34px 34px, auto;
+        linear-gradient(var(--rule-soft) 1px, transparent 1px),
+        linear-gradient(90deg, var(--rule-soft) 1px, transparent 1px);
+      background-size: 34px 34px;
       -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 100%);
       mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 100%);
       pointer-events: none;
-      opacity: 0.72;
+      opacity: 0.85;
     }
 
     /* ─── Scroll indicator ────────────────────────────────────── */
@@ -229,15 +299,15 @@
       flex-direction: column;
       align-items: center;
       gap: 8px;
-      font-size: 11px;
-      letter-spacing: 0.12em;
+      font-size: 10px;
+      letter-spacing: 0.2em;
       text-transform: uppercase;
       color: var(--muted);
       opacity: 0;
     }
     .scroll-hint-line {
-      width: 1px; height: 40px;
-      background: linear-gradient(to bottom, transparent, var(--accent));
+      width: 1px; height: 44px;
+      background: linear-gradient(to bottom, transparent, var(--signal));
       animation: scrollPulse 2s ease-in-out infinite;
     }
     @keyframes scrollPulse {
@@ -245,25 +315,30 @@
       50%       { opacity: 1;   transform: scaleY(1.2); }
     }
 
-    /* ─── Features ────────────────────────────────────────────── */
+    /* ─── Features index ──────────────────────────────────────── */
     .features-label {
       text-align: center;
       padding: 80px clamp(24px,6vw,96px) 0;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--accent);
+      letter-spacing: 0.22em;
+      color: var(--signal);
       opacity: 0;
     }
     .features-heading {
       text-align: center;
       padding: 16px clamp(24px,6vw,96px) 72px;
-      font-size: clamp(28px, 4vw, 48px);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      line-height: 1.1;
+      font-family: var(--serif);
+      font-size: clamp(34px, 4.6vw, 58px);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      line-height: 1.06;
       opacity: 0;
+    }
+    .features-heading .dim {
+      font-style: italic;
+      color: var(--muted);
     }
 
     /* ─── Feature section ─────────────────────────────────────── */
@@ -282,50 +357,60 @@
       opacity: 1;
       transform: translateY(0);
     }
-    .feature-section .feature-content {
+    /* Spec-sheet panel: flat ink, hairline border, register marks */
+    .feature-section .feature-content,
+    .cta-content {
       position: relative;
       z-index: 4;
       max-width: 580px;
-      padding: clamp(24px, 3vw, 36px);
-      border: 1px solid rgba(126, 179, 255, 0.14);
-      border-radius: 28px;
-      background:
-        linear-gradient(135deg, rgba(8, 12, 24, 0.82), rgba(4, 6, 13, 0.52)),
-        radial-gradient(circle at 12% 8%, rgba(126,179,255,0.12), transparent 42%);
-      box-shadow:
-        0 24px 90px rgba(0, 0, 0, 0.38),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      backdrop-filter: blur(20px) saturate(1.25);
-      overflow: hidden;
+      padding: clamp(26px, 3vw, 40px);
+      border: 1px solid var(--rule);
+      background: var(--panel);
     }
-    .feature-section .feature-content > * {
+    .feature-section .feature-content > *,
+    .cta-content > * {
       position: relative;
       z-index: 1;
     }
-    .feature-section .feature-content::before {
-      content: "LIVE VOXEL BLUEPRINT";
-      position: absolute;
-      z-index: 2;
-      top: 14px;
-      right: 18px;
-      font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      color: rgba(126,179,255,0.38);
-    }
-    .feature-section .feature-content::after {
+    /* Corner register marks */
+    .feature-section .feature-content::after,
+    .cta-content::after {
       content: "";
       position: absolute;
-      inset: 0;
+      inset: -1px;
+      z-index: 2;
       pointer-events: none;
+      opacity: 0.55;
       background:
-        linear-gradient(rgba(126,179,255,0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(126,179,255,0.04) 1px, transparent 1px);
-      background-size: 28px 28px;
-      mask-image: linear-gradient(135deg, transparent 0%, #000 18%, transparent 62%);
-      opacity: 0.6;
+        linear-gradient(var(--bone), var(--bone)) left 0 top 0    / 9px 1px,
+        linear-gradient(var(--bone), var(--bone)) left 0 top 0    / 1px 9px,
+        linear-gradient(var(--bone), var(--bone)) right 0 top 0   / 9px 1px,
+        linear-gradient(var(--bone), var(--bone)) right 0 top 0   / 1px 9px,
+        linear-gradient(var(--bone), var(--bone)) left 0 bottom 0 / 9px 1px,
+        linear-gradient(var(--bone), var(--bone)) left 0 bottom 0 / 1px 9px,
+        linear-gradient(var(--bone), var(--bone)) right 0 bottom 0 / 9px 1px,
+        linear-gradient(var(--bone), var(--bone)) right 0 bottom 0 / 1px 9px;
+      background-repeat: no-repeat;
     }
+    /* Figure watermark, bottom-right of each spec panel */
+    .feature-section .feature-content::before {
+      content: "FIG. — LIVE BLUEPRINT";
+      position: absolute;
+      z-index: 2;
+      bottom: 12px;
+      right: 16px;
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      color: var(--faint);
+      pointer-events: none;
+    }
+    .feature-section[data-feature="specialists"] .feature-content::before { content: "FIG. 01 — LIVE BLUEPRINT"; }
+    .feature-section[data-feature="memory"]      .feature-content::before { content: "FIG. 02 — LIVE BLUEPRINT"; }
+    .feature-section[data-feature="dag"]         .feature-content::before { content: "FIG. 03 — LIVE BLUEPRINT"; }
+    .feature-section[data-feature="pulse"]       .feature-content::before { content: "FIG. 04 — LIVE BLUEPRINT"; }
+    .feature-section[data-feature="playground"]  .feature-content::before { content: "FIG. 05 — LIVE BLUEPRINT"; }
+    .feature-section[data-feature="mcp"]         .feature-content::before { content: "FIG. 06 — LIVE BLUEPRINT"; }
     .feature-section[data-feature="specialists"] .feature-content,
     .feature-section[data-feature="dag"] .feature-content,
     .feature-section[data-feature="playground"] .feature-content {
@@ -339,72 +424,67 @@
       justify-self: end;
     }
 
-    .feature-content {}
+    /* Giant ghost index numeral */
     .feature-number {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--accent);
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .feature-number::before {
-      content: "";
-      display: block;
-      width: 28px; height: 1px;
-      background: currentColor;
+      position: absolute;
+      top: 2px;
+      right: 18px;
+      z-index: 0;
+      font-family: var(--serif);
+      font-size: clamp(72px, 8vw, 112px);
+      font-weight: 400;
+      line-height: 1;
+      color: rgba(231, 231, 236, 0.07);
+      pointer-events: none;
     }
     .feature-title {
-      font-size: clamp(24px, 3.5vw, 42px);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      line-height: 1.1;
-      margin-bottom: 20px;
+      font-family: var(--serif);
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      line-height: 1.02;
+      margin-bottom: 18px;
+    }
+    .feature-title em {
+      font-style: italic;
+      color: var(--bone-dim);
     }
     .feature-desc {
-      font-size: clamp(15px, 1.8vw, 17px);
+      font-size: 13.5px;
       color: var(--muted);
-      line-height: 1.7;
-      max-width: 480px;
-      margin-bottom: 28px;
+      line-height: 1.8;
+      max-width: 52ch;
+      margin-bottom: 24px;
     }
     .section-subhead {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      margin: 0 0 14px;
-      font-size: 11px;
-      font-weight: 700;
+      margin: 0 0 16px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--accent);
-      font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
-    }
-    .section-subhead::before {
-      content: "";
-      display: block;
-      width: 20px;
-      height: 1px;
-      background: var(--accent);
-      flex-shrink: 0;
+      letter-spacing: 0.2em;
+      color: var(--signal);
     }
     .dummy-copy {
-      max-width: 520px;
-      margin-bottom: 28px;
-      color: rgba(180, 200, 255, 0.5);
-      font-size: 14px;
-      line-height: 1.75;
+      max-width: 52ch;
+      margin-bottom: 26px;
+      color: var(--faint);
+      font-size: 12px;
+      line-height: 1.7;
+      border-left: 1px solid var(--rule);
+      padding-left: 14px;
     }
     .hero-extra {
-      margin-top: 30px;
+      margin-top: 34px;
+      padding-top: 22px;
+      border-top: 1px solid var(--rule-soft);
       opacity: 0;
     }
     .hero-extra .section-subhead { margin-top: 0; }
     .hero-extra .dummy-copy { margin-bottom: 0; }
-    .cta-section .section-subhead { color: var(--accent); }
+    .cta-section .section-subhead { color: var(--signal); }
 
     /* ─── Section HUD indicator ───────────────────────────────── */
     #section-hud {
@@ -419,32 +499,33 @@
       pointer-events: none;
     }
     #section-hud-label {
+      font-family: var(--mono);
       font-size: 10px;
-      font-weight: 700;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--accent);
-      font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+      letter-spacing: 0.16em;
+      color: var(--signal);
       opacity: 0.9;
       transition: opacity 0.3s ease;
     }
     #section-hud-name {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      color: rgba(235, 242, 255, 0.75);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(231, 231, 236, 0.72);
       transition: opacity 0.3s ease, transform 0.3s ease;
       text-align: right;
     }
     #section-hud-bar {
       width: 32px;
-      height: 2px;
-      background: var(--accent);
-      border-radius: 1px;
+      height: 1px;
+      background: var(--signal);
       transform-origin: right center;
       transition: transform 0.4s ease, background 0.4s ease;
     }
-    /* Dot trail */
+    /* Tick trail */
     #section-hud-dots {
       display: flex;
       flex-direction: column;
@@ -455,15 +536,14 @@
     .hud-dot {
       width: 5px;
       height: 5px;
-      border-radius: 50%;
-      border: 1px solid rgba(126,179,255,0.4);
+      border: 1px solid var(--rule);
       background: transparent;
       transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
     }
     .hud-dot.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      transform: scale(1.35);
+      background: var(--signal);
+      border-color: var(--signal);
+      transform: scale(1.25);
     }
     .feature-tags {
       display: flex;
@@ -471,22 +551,23 @@
       gap: 8px;
     }
     .tag {
-      font-size: 12px;
+      font-size: 10px;
       font-weight: 500;
-      padding: 5px 12px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 6px 10px;
+      border: 1px solid var(--rule);
       color: var(--muted);
-      background: rgba(255,255,255,0.03);
-      transition: border-color 200ms, color 200ms;
+      background: transparent;
+      transition: border-color 160ms, color 160ms;
     }
-    .tag:hover { border-color: var(--accent); color: var(--accent); }
+    .tag:hover { border-color: var(--signal); color: var(--bone); }
 
     /* ─── Divider ─────────────────────────────────────────────── */
     .section-divider {
       margin: 0 clamp(24px,6vw,96px);
       height: 1px;
-      background: linear-gradient(90deg, transparent 0%, var(--border) 30%, var(--border) 70%, transparent 100%);
+      background: var(--rule-soft);
     }
 
     /* ─── CTA section (last) ──────────────────────────────────── */
@@ -502,23 +583,22 @@
       transition: opacity 0.7s ease, transform 0.7s ease;
     }
     .cta-section.visible { opacity: 1; transform: translateY(0); }
-    /* Glass card — same treatment as .feature-section .feature-content */
     .cta-content {
       grid-column: 2;
       justify-self: start;
-      position: relative;
-      z-index: 4;
-      max-width: 580px;
-      padding: clamp(28px, 3.5vw, 44px);
-      border: 1px solid rgba(126, 179, 255, 0.14);
-      border-radius: 28px;
-      background:
-        linear-gradient(135deg, rgba(8, 12, 24, 0.88), rgba(4, 6, 13, 0.62)),
-        radial-gradient(circle at 12% 8%, rgba(126,179,255,0.13), transparent 42%);
-      box-shadow:
-        0 24px 90px rgba(0, 0, 0, 0.42),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      backdrop-filter: blur(20px) saturate(1.25);
+      padding: clamp(30px, 3.5vw, 46px);
+    }
+    .cta-content::before {
+      content: "FIG. 07 — LAUNCH ENGINE";
+      position: absolute;
+      z-index: 2;
+      bottom: 12px;
+      right: 16px;
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      color: var(--faint);
+      pointer-events: none;
     }
     /* Desktop: rocket/particles occupy left column */
     .cta-visual-placeholder {
@@ -526,22 +606,27 @@
       grid-row: 1;
     }
     .cta-section h2 {
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      line-height: 1.05;
+      font-family: var(--serif);
+      font-size: clamp(38px, 4.6vw, 62px);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      line-height: 1.02;
       margin-bottom: 20px;
     }
-    .cta-section .section-subhead { color: var(--accent); }
-    .cta-section p {
-      font-size: 17px;
-      color: var(--muted);
-      margin-bottom: 36px;
-      max-width: 460px;
+    .cta-section h2 .grad {
+      font-style: italic;
+      color: var(--signal);
     }
-    .cta-section p.dummy-copy { margin-bottom: 40px; }
+    .cta-section p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 32px;
+      max-width: 46ch;
+    }
+    .cta-section p.dummy-copy { margin-bottom: 36px; }
     .cta-glow {
       display: flex;
-      gap: 12px;
+      gap: 14px;
       flex-wrap: wrap;
     }
 
@@ -549,16 +634,31 @@
     footer {
       position: relative;
       z-index: 2;
-      text-align: center;
-      padding: 32px;
-      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 26px clamp(24px, 5vw, 72px);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
       color: var(--muted);
-      border-top: 1px solid var(--border);
+      border-top: 1px solid var(--rule);
+      background: rgba(10, 10, 8, 0.85);
     }
-    footer a { color: var(--accent); }
+    footer a {
+      color: var(--bone);
+      border-bottom: 1px solid var(--rule);
+      transition: border-color 160ms ease, color 160ms ease;
+    }
+    footer a:hover { color: var(--signal); border-bottom-color: var(--signal); }
+    .footer-meta { color: var(--faint); }
 
     /* ─── Responsive ──────────────────────────────────────────── */
     @media (max-width: 900px) {
+      #page-frame { display: none; }
+      .nav-logo-sub { display: none; }
       .hero {
         grid-template-columns: 1fr;
         text-align: center;
@@ -583,9 +683,14 @@
         min-height: 100svh;
         padding: 64px clamp(24px, 6vw, 96px);
       }
-      .feature-number { justify-content: center; }
+      .feature-number { right: 12px; top: 4px; }
       .feature-desc { margin-left: auto; margin-right: auto; }
-      .dummy-copy { margin-left: auto; margin-right: auto; }
+      .dummy-copy {
+        margin-left: auto;
+        margin-right: auto;
+        border-left: 0;
+        padding-left: 0;
+      }
       .feature-tags { justify-content: center; }
       .feature-section .feature-content { grid-column: 1 !important; justify-self: center; }
       /* CTA section: collapse to single column on mobile */
@@ -596,10 +701,11 @@
         text-align: center;
       }
       .cta-section .cta-content { max-width: 100%; grid-column: 1; justify-self: center; }
-      .cta-section p { max-width: 100%; }
+      .cta-section p { max-width: 100%; margin-left: auto; margin-right: auto; }
       .cta-glow { justify-content: center; }
       /* Hide the empty visual placeholder column on mobile */
       .cta-visual-placeholder { display: none; }
+      footer { justify-content: center; text-align: center; }
     }
 
     @media (max-width: 900px) and (orientation: portrait) {
@@ -623,17 +729,16 @@
         max-height: calc(50svh - 92px - env(safe-area-inset-top));
         overflow: hidden;
         padding: clamp(16px, 4.6vw, 22px);
-        border-radius: 22px;
       }
       .feature-section .feature-content::before { display: none; }
-      .feature-title { font-size: clamp(22px, 7vw, 30px); }
+      .feature-title { font-size: clamp(24px, 7vw, 32px); }
       .feature-desc {
-        font-size: clamp(14px, 4vw, 16px);
-        line-height: 1.45;
+        font-size: clamp(12px, 3.6vw, 14px);
+        line-height: 1.5;
       }
       .dummy-copy {
-        font-size: 13px;
-        line-height: 1.4;
+        font-size: 11px;
+        line-height: 1.45;
         margin-top: 12px;
       }
       .feature-tags {
@@ -641,7 +746,7 @@
         margin-top: 14px;
       }
       .tag {
-        font-size: 9px;
+        font-size: 8px;
         padding: 5px 8px;
       }
       /* CTA portrait: card in upper half, rocket in lower half */
@@ -664,104 +769,47 @@
         max-height: calc(50svh - 92px - env(safe-area-inset-top));
         overflow: hidden;
         padding: clamp(16px, 4.6vw, 22px);
-        border-radius: 22px;
       }
+      .cta-content::before { display: none; }
       .cta-section p { max-width: 100%; }
       .cta-glow { justify-content: center; }
       .cta-visual-placeholder { grid-row: 2; display: block; }
     }
 
-    /* ─── Future-polish layer ─────────────────────────────────── */
-    /* Aurora atmosphere drifting behind the particle engine */
+    /* ─── Atmosphere ──────────────────────────────────────────── */
+    /* Static print-room vignette behind the particle engine */
     body::before {
       content: "";
       position: fixed;
-      inset: -20%;
+      inset: 0;
       z-index: 0;
       pointer-events: none;
-      background:
-        radial-gradient(40% 34% at 18% 22%, rgba(74, 125, 255, 0.10), transparent 70%),
-        radial-gradient(36% 30% at 84% 12%, rgba(167, 139, 250, 0.09), transparent 70%),
-        radial-gradient(42% 36% at 70% 86%, rgba(52, 211, 153, 0.06), transparent 70%);
-      animation: auroraDrift 26s ease-in-out infinite alternate;
+      background: radial-gradient(120% 90% at 50% 12%, transparent 42%, rgba(0, 0, 0, 0.55) 100%);
     }
-    @keyframes auroraDrift {
-      0%   { transform: translate3d(-2%, -1%, 0) scale(1); }
-      100% { transform: translate3d(2%, 2%, 0) scale(1.06); }
-    }
-    /* Fine film grain for tactile depth */
+    /* Fine film grain for tactile, printed depth */
     body::after {
       content: "";
       position: fixed;
       inset: 0;
       z-index: 90;
       pointer-events: none;
-      opacity: 0.22;
+      opacity: 0.16;
       mix-blend-mode: overlay;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
       background-size: 180px 180px;
     }
 
-    /* Per-section accent theming — cards inherit the color of the
-       live blueprint they sit beside */
-    .feature-section { --fa: var(--accent); }
-    .feature-section[data-feature="memory"]     { --fa: #34d399; }
-    .feature-section[data-feature="dag"]        { --fa: #a78bfa; }
-    .feature-section[data-feature="pulse"]      { --fa: #f5a623; }
-    .feature-section[data-feature="playground"] { --fa: #f472b6; }
-    .feature-section[data-feature="mcp"]        { --fa: #22d3ee; }
-    .feature-section .section-subhead,
-    .feature-section .feature-number { color: var(--fa); }
-    .feature-section .section-subhead::before { background: var(--fa); }
-    .feature-section .tag:hover { border-color: var(--fa); color: var(--fa); }
-    .feature-section .feature-content {
+    /* Spec-panel hover: a quiet lift, no glow */
+    .feature-section .feature-content,
+    .cta-content {
       transition:
         transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-        border-color 0.45s ease,
-        box-shadow 0.45s ease;
+        border-color 0.45s ease;
     }
-    .feature-section .feature-content:hover {
-      transform: translateY(-3px);
-      border-color: color-mix(in srgb, var(--fa) 38%, transparent);
-      box-shadow:
-        0 28px 110px rgba(0, 0, 0, 0.45),
-        0 0 64px color-mix(in srgb, var(--fa) 12%, transparent),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    }
-
-    /* Living gradient on hero + CTA headlines */
-    .hero-title .grad,
-    .cta-section .grad {
-      background-size: 220% 220%;
-      animation: gradShift 9s ease-in-out infinite alternate;
-    }
-    @keyframes gradShift {
-      0%   { background-position: 0% 30%; }
-      100% { background-position: 100% 70%; }
-    }
-
-    /* Primary button sheen sweep */
-    .btn-primary { position: relative; overflow: hidden; }
-    .btn-primary::after {
-      content: "";
-      position: absolute;
-      top: 0; bottom: 0;
-      left: -80%;
-      width: 60%;
-      background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-      transform: skewX(-18deg);
-      transition: left 0.6s ease;
-      pointer-events: none;
-    }
-    .btn-primary:hover::after { left: 130%; }
-
-    /* Unified monospace voice for technical chrome */
-    .section-subhead,
-    #section-hud-label,
-    .nav-badge,
-    .feature-number,
-    .feature-section .feature-content::before {
-      font-family: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace;
+    .feature-section .feature-content:hover,
+    .cta-content:hover {
+      transform: translateY(-2px);
+      border-color: rgba(231, 231, 236, 0.32);
     }
 
     /* Scroll progress hairline above the nav */
@@ -770,7 +818,7 @@
       top: 0; left: 0; right: 0;
       height: 2px;
       z-index: 120;
-      background: linear-gradient(90deg, #4a7dff, #a78bfa 55%, #34d399);
+      background: var(--signal);
       transform-origin: left center;
       transform: scaleX(0);
       pointer-events: none;
@@ -785,11 +833,15 @@
 <!-- Morphing voxel blueprint field -->
 <canvas id="engine-canvas" aria-hidden="true"></canvas>
 
+<!-- Drafting-table edge rulers -->
+<div id="page-frame" aria-hidden="true"></div>
+
 <!-- Nav -->
 <nav class="nav" aria-label="Main navigation">
   <div class="nav-logo">
     <img class="nav-logo-icon" src="/assets/img/manifold_logo.png" alt="" aria-hidden="true" />
-    Manifold
+    <span class="nav-logo-word">Manifold</span>
+    <span class="nav-logo-sub">/ Orchestration Engine</span>
   </div>
   <div class="nav-links">
     <a href="https://github.com/intelligencedev/manifold">GitHub</a>
@@ -825,7 +877,7 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="hero" aria-labelledby="hero-heading">
   <div class="hero-left">
-    <p class="hero-eyebrow" id="hero-eyebrow">AI Orchestration Engine</p>
+    <p class="hero-eyebrow" id="hero-eyebrow"><span class="idx">Doc. M-001</span>AI Orchestration Engine</p>
     <h1 class="hero-title" id="hero-heading">
       One engine.<br/>
       <span class="grad">Infinite intelligence.</span>
@@ -835,11 +887,11 @@
       and runs your agents on schedules — all through a single, composable engine.
     </p>
     <div class="hero-cta-row" id="hero-cta">
-      <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Explore on GitHub</a>
-      <a class="btn-ghost"    href="/manifold-quickstart/">Quick Start →</a>
+      <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Explore on GitHub&nbsp;↗</a>
+      <a class="btn-ghost"    href="/manifold-quickstart/">Quick Start&nbsp;→</a>
     </div>
     <div class="hero-extra" id="hero-extra">
-      <h2 class="section-subhead">Section 00 — Command Center</h2>
+      <h2 class="section-subhead">Sec. 00 / Command Center</h2>
       <p class="dummy-copy">
         Every model, memory, and tool answers to one control plane. As you
         move through each capability, the engine physically reassembles itself.
@@ -847,7 +899,7 @@
     </div>
   </div>
   <div class="scroll-hint" id="scroll-hint" aria-hidden="true">
-    <span>Scroll · ↑ / ↓</span>
+    <span>Scroll · 001 / 008</span>
     <div class="scroll-hint-line"></div>
   </div>
 </section>
@@ -855,10 +907,10 @@
 <!-- ═══════════════════════════════════════════════════════════════
      FEATURES INTRO
 ═══════════════════════════════════════════════════════════════ -->
-<p class="features-label" id="features-label">What Manifold does</p>
+<p class="features-label" id="features-label">Index — What Manifold Does</p>
 <h2 class="features-heading" id="features-heading">
   Every capability your agents need.<br/>
-  <span style="color:var(--muted); font-weight:500;">Already built in.</span>
+  <span class="dim">Already built in.</span>
 </h2>
 
 <!-- ═══════════════════════════════════════════════════════════════
@@ -866,9 +918,9 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="specialists" aria-labelledby="f1-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Section 01 — Specialist handoff</h4>
+    <h4 class="section-subhead">Sec. 01 / Specialist Handoff</h4>
     <p class="feature-number" aria-hidden="true">01</p>
-    <h3 class="feature-title" id="f1-title">Specialists Registry<br/><span style="color:var(--accent2);">+ Teams</span></h3>
+    <h3 class="feature-title" id="f1-title">Specialists Registry<br/><em>+ Teams</em></h3>
     <p class="feature-desc">
       Register any AI model — cloud or local — as a named specialist. Compose them into
       Teams that collaborate on objectives. The orchestrator routes tasks automatically,
@@ -895,9 +947,9 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="memory" aria-labelledby="f2-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Section 02 — Memory substrate</h4>
+    <h4 class="section-subhead">Sec. 02 / Memory Substrate</h4>
     <p class="feature-number" aria-hidden="true">02</p>
-    <h3 class="feature-title" id="f2-title">Four Memory<br/><span style="color:var(--accent3);">Subsystems</span></h3>
+    <h3 class="feature-title" id="f2-title">Four Memory<br/><em>Subsystems</em></h3>
     <p class="feature-desc">
       Summarization compresses context on the fly. Transit shares state across agents in real time.
       Evolving Memory distils lessons across runs. MAGMA builds a multi-dimensional knowledge graph
@@ -924,9 +976,9 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="dag" aria-labelledby="f3-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Section 03 — Workflow topology</h4>
+    <h4 class="section-subhead">Sec. 03 / Workflow Topology</h4>
     <p class="feature-number" aria-hidden="true">03</p>
-    <h3 class="feature-title" id="f3-title">Visual Workflow<br/><span style="color:var(--accent2);">DAG Editor</span></h3>
+    <h3 class="feature-title" id="f3-title">Visual Workflow<br/><em>DAG Editor</em></h3>
     <p class="feature-desc">
       Build complex agent pipelines visually. Connect nodes for data retrieval, LLM enrichment,
       transformations, and outputs. Chains execute in dependency order — parallel where possible,
@@ -952,9 +1004,9 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="pulse" aria-labelledby="f4-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Section 04 — Timed execution</h4>
+    <h4 class="section-subhead">Sec. 04 / Timed Execution</h4>
     <p class="feature-number" aria-hidden="true">04</p>
-    <h3 class="feature-title" id="f4-title">Scheduled Tasks<br/><span style="color:var(--accent);">for AI Agents</span></h3>
+    <h3 class="feature-title" id="f4-title">Scheduled Tasks<br/><em>for AI Agents</em></h3>
     <p class="feature-desc">
       Pulse lets you schedule agents to run on intervals, daily times, or one-off timestamps.
       Agents wake up, execute their prompts, write results to Transit, and go quiet — no manual
@@ -981,9 +1033,9 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="playground" aria-labelledby="f5-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Section 05 — Experiment bay</h4>
+    <h4 class="section-subhead">Sec. 05 / Experiment Bay</h4>
     <p class="feature-number" aria-hidden="true">05</p>
-    <h3 class="feature-title" id="f5-title">Prompt, Dataset<br/>&amp; Experiments<br/><span style="color:#f472b6;">Playground</span></h3>
+    <h3 class="feature-title" id="f5-title">Prompt, Dataset<br/>&amp; Experiments<br/><em>Playground</em></h3>
     <p class="feature-desc">
       Iterate on prompts with live model output. Load datasets and run batch evaluations. Compare
       experiment runs side-by-side. Everything stays versioned and reproducible — turn any playground
@@ -1010,9 +1062,9 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="mcp" aria-labelledby="f6-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Section 06 — Tool mesh</h4>
+    <h4 class="section-subhead">Sec. 06 / Tool Mesh</h4>
     <p class="feature-number" aria-hidden="true">06</p>
-    <h3 class="feature-title" id="f6-title">MCP<br/><span style="color:#22d3ee;">Support</span></h3>
+    <h3 class="feature-title" id="f6-title">MCP<br/><em>Support</em></h3>
     <p class="feature-desc">
       Manifold implements the Model Context Protocol, letting any MCP-compatible tool or server
       plug directly into the agent engine. Expose file systems, APIs, databases, and custom tools —
@@ -1040,12 +1092,10 @@
   <!-- Empty left column: the fixed particle/rocket canvas shows through here on desktop -->
   <div class="cta-visual-placeholder" aria-hidden="true"></div>
   <div class="cta-content">
-    <h3 class="section-subhead">Section 07 — Launch sequence</h3>
+    <h3 class="section-subhead">Sec. 07 / Launch Sequence</h3>
     <h2 id="cta-heading">
       Ready to orchestrate<br/>
-      <span class="grad" style="background:linear-gradient(135deg,#a5c8ff,#b49dff,#67e8c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-        something brilliant?
-      </span>
+      <span class="grad">something brilliant?</span>
     </h2>
     <p>Manifold is open source and free. Bring your own models.</p>
     <p class="dummy-copy">
@@ -1053,8 +1103,8 @@
       moving as one coordinated system. Open source, local-first, and yours to run.
     </p>
     <div class="cta-glow">
-      <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Get Started on GitHub</a>
-      <a class="btn-ghost"   href="/manifold-memory-systems/">Read the Memory Docs →</a>
+      <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Get Started on GitHub&nbsp;↗</a>
+      <a class="btn-ghost"   href="/manifold-memory-systems/">Read the Memory Docs&nbsp;→</a>
     </div>
   </div>
 </section>
@@ -1064,6 +1114,7 @@
     &copy; 2026 <a href="/">intelligence.dev</a> &mdash;
     <a href="https://github.com/intelligencedev/manifold">Manifold on GitHub</a>
   </p>
+  <p class="footer-meta">Doc. M-001 / Rev. 2026.06</p>
 </footer>
 
 <!-- ═══════════════════════════════════════════════════════════════
@@ -1104,7 +1155,7 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x04060d, 0.052);
+    scene.fog = new THREE.FogExp2(0x09090c, 0.052);
 
     const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.set(0, 0, reduceMotion ? 7.7 : 9.4);
@@ -1460,14 +1511,14 @@
     const CTA_VISUAL_X = 1.84;
 
     const BLUEPRINTS = [
-      { name: 'Command core',       color: [0.49, 0.70, 1.00], x:  HERO_VISUAL_X,    yaw: -0.34, points: fitAndSample(commandCore(), 11) },
-      { name: 'Specialist router',  color: [0.49, 0.70, 1.00], x: -FEATURE_VISUAL_X, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
-      { name: 'Memory vault',       color: [0.20, 0.83, 0.60], x:  FEATURE_VISUAL_X, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
-      { name: 'Workflow fabric',    color: [0.65, 0.54, 0.98], x: -FEATURE_VISUAL_X, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
-      { name: 'Chronometer',        color: [0.96, 0.62, 0.04], x:  FEATURE_VISUAL_X, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
-      { name: 'Experiment bay',     color: [0.96, 0.45, 0.71], x: -FEATURE_VISUAL_X, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
-      { name: 'MCP coupler',        color: [0.13, 0.83, 0.93], x:  FEATURE_VISUAL_X, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
-      { name: 'Launch engine',      color: [0.49, 0.70, 1.00], x: -CTA_VISUAL_X,  yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
+      { name: 'Command core',       color: [0.88, 0.86, 0.96], x:  HERO_VISUAL_X,    yaw: -0.34, points: fitAndSample(commandCore(), 11) },
+      { name: 'Specialist router',  color: [0.62, 0.36, 1.00], x: -FEATURE_VISUAL_X, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
+      { name: 'Memory vault',       color: [0.72, 0.68, 0.88], x:  FEATURE_VISUAL_X, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
+      { name: 'Workflow fabric',    color: [0.30, 0.85, 0.42], x: -FEATURE_VISUAL_X, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
+      { name: 'Chronometer',        color: [0.52, 0.24, 0.95], x:  FEATURE_VISUAL_X, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
+      { name: 'Experiment bay',     color: [0.40, 0.95, 0.55], x: -FEATURE_VISUAL_X, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
+      { name: 'MCP coupler',        color: [0.80, 0.90, 0.82], x:  FEATURE_VISUAL_X, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
+      { name: 'Launch engine',      color: [0.30, 0.94, 0.46], x: -CTA_VISUAL_X,  yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
     ];
     const STAGES = BLUEPRINTS.length;
 
@@ -1493,7 +1544,7 @@
 
     const voxelGeom = new THREE.BoxGeometry(0.075, 0.075, 0.075);
     const voxelMat = new THREE.MeshBasicMaterial({
-      color: 0x7eb3ff,
+      color: 0xd9d4ee,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -1512,7 +1563,7 @@
       opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0x7eb3ff,
+      color: 0xd9d4ee,
       sizeAttenuation: true,
     });
     const glow = new THREE.Points(glowGeo, glowMat);
@@ -1523,7 +1574,7 @@
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
     const lineMat = new THREE.LineBasicMaterial({
-      color: 0x7eb3ff,
+      color: 0xd9d4ee,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -1546,7 +1597,7 @@
       }
       g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
       const m = new THREE.LineBasicMaterial({
-        color: 0x7eb3ff,
+        color: 0xd9d4ee,
         transparent: true,
         opacity: 0,
         depthWrite: false,
@@ -1559,7 +1610,7 @@
       rig.add(ring);
     }
 
-    const grid = new THREE.GridHelper(28, 28, 0x355f9b, 0x17243f);
+    const grid = new THREE.GridHelper(28, 28, 0x3c3554, 0x16141e);
     grid.position.y = -2.32;
     grid.material.transparent = true;
     grid.material.opacity = 0;
@@ -1608,7 +1659,7 @@
       opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0xdcebff,
+      color: 0x5ce87f,
       sizeAttenuation: true,
     });
     const packetCloud = new THREE.Points(packetGeo, packetMat);
@@ -1637,7 +1688,7 @@
       opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0x6f9ddf,
+      color: 0x7a6aa8,
       sizeAttenuation: true,
     });
     const dust = new THREE.Points(dustGeo, dustMat);
