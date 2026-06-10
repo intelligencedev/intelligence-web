@@ -25,17 +25,17 @@
 
     /* ─── Design tokens ───────────────────────────────────────── */
     :root {
-      --ink:         #0a0a08;
-      --panel:       rgba(13, 13, 10, 0.86);
-      --bone:        #e9e4d6;
-      --bone-dim:    #c9c3b2;
-      --muted:       #99937f;
-      --faint:       #6a6453;
-      --rule:        rgba(233, 228, 214, 0.16);
-      --rule-soft:   rgba(233, 228, 214, 0.07);
-      --signal:      #ff4d00;
-      --signal-soft: rgba(255, 77, 0, 0.35);
-      --amber:       #ffb000;
+      --ink:         #09090c;
+      --panel:       rgba(12, 12, 16, 0.86);
+      --bone:        #e7e7ec;
+      --bone-dim:    #c2c2cc;
+      --muted:       #8f8f9c;
+      --faint:       #5d5d68;
+      --rule:        rgba(231, 231, 236, 0.16);
+      --rule-soft:   rgba(231, 231, 236, 0.07);
+      --signal:      #9a4dff;  /* cosmic purple (from logo #5e17ac) */
+      --signal-soft: rgba(154, 77, 255, 0.35);
+      --amber:       #3fd966;  /* cosmic green (from logo #2d9e3f) */
       --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
       --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
     }
@@ -434,7 +434,7 @@
       font-size: clamp(72px, 8vw, 112px);
       font-weight: 400;
       line-height: 1;
-      color: rgba(233, 228, 214, 0.07);
+      color: rgba(231, 231, 236, 0.07);
       pointer-events: none;
     }
     .feature-title {
@@ -514,7 +514,7 @@
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.12em;
-      color: rgba(233, 228, 214, 0.72);
+      color: rgba(231, 231, 236, 0.72);
       transition: opacity 0.3s ease, transform 0.3s ease;
       text-align: right;
     }
@@ -809,7 +809,7 @@
     .feature-section .feature-content:hover,
     .cta-content:hover {
       transform: translateY(-2px);
-      border-color: rgba(233, 228, 214, 0.32);
+      border-color: rgba(231, 231, 236, 0.32);
     }
 
     /* Scroll progress hairline above the nav */
@@ -1155,7 +1155,7 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a0a08, 0.052);
+    scene.fog = new THREE.FogExp2(0x09090c, 0.052);
 
     const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.set(0, 0, reduceMotion ? 7.7 : 9.4);
@@ -1511,14 +1511,14 @@
     const CTA_VISUAL_X = 1.84;
 
     const BLUEPRINTS = [
-      { name: 'Command core',       color: [0.93, 0.89, 0.80], x:  HERO_VISUAL_X,    yaw: -0.34, points: fitAndSample(commandCore(), 11) },
-      { name: 'Specialist router',  color: [1.00, 0.76, 0.18], x: -FEATURE_VISUAL_X, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
-      { name: 'Memory vault',       color: [0.80, 0.76, 0.64], x:  FEATURE_VISUAL_X, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
-      { name: 'Workflow fabric',    color: [1.00, 0.45, 0.10], x: -FEATURE_VISUAL_X, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
-      { name: 'Chronometer',        color: [0.97, 0.62, 0.05], x:  FEATURE_VISUAL_X, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
-      { name: 'Experiment bay',     color: [1.00, 0.36, 0.20], x: -FEATURE_VISUAL_X, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
-      { name: 'MCP coupler',        color: [0.89, 0.85, 0.73], x:  FEATURE_VISUAL_X, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
-      { name: 'Launch engine',      color: [1.00, 0.32, 0.02], x: -CTA_VISUAL_X,  yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
+      { name: 'Command core',       color: [0.88, 0.86, 0.96], x:  HERO_VISUAL_X,    yaw: -0.34, points: fitAndSample(commandCore(), 11) },
+      { name: 'Specialist router',  color: [0.62, 0.36, 1.00], x: -FEATURE_VISUAL_X, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
+      { name: 'Memory vault',       color: [0.72, 0.68, 0.88], x:  FEATURE_VISUAL_X, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
+      { name: 'Workflow fabric',    color: [0.30, 0.85, 0.42], x: -FEATURE_VISUAL_X, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
+      { name: 'Chronometer',        color: [0.52, 0.24, 0.95], x:  FEATURE_VISUAL_X, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
+      { name: 'Experiment bay',     color: [0.40, 0.95, 0.55], x: -FEATURE_VISUAL_X, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
+      { name: 'MCP coupler',        color: [0.80, 0.90, 0.82], x:  FEATURE_VISUAL_X, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
+      { name: 'Launch engine',      color: [0.30, 0.94, 0.46], x: -CTA_VISUAL_X,  yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
     ];
     const STAGES = BLUEPRINTS.length;
 
@@ -1544,7 +1544,7 @@
 
     const voxelGeom = new THREE.BoxGeometry(0.075, 0.075, 0.075);
     const voxelMat = new THREE.MeshBasicMaterial({
-      color: 0xe9e4d6,
+      color: 0xd9d4ee,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -1563,7 +1563,7 @@
       opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0xe9e4d6,
+      color: 0xd9d4ee,
       sizeAttenuation: true,
     });
     const glow = new THREE.Points(glowGeo, glowMat);
@@ -1574,7 +1574,7 @@
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
     const lineMat = new THREE.LineBasicMaterial({
-      color: 0xe9e4d6,
+      color: 0xd9d4ee,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -1597,7 +1597,7 @@
       }
       g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
       const m = new THREE.LineBasicMaterial({
-        color: 0xe9e4d6,
+        color: 0xd9d4ee,
         transparent: true,
         opacity: 0,
         depthWrite: false,
@@ -1610,7 +1610,7 @@
       rig.add(ring);
     }
 
-    const grid = new THREE.GridHelper(28, 28, 0x4a443a, 0x1d1b15);
+    const grid = new THREE.GridHelper(28, 28, 0x3c3554, 0x16141e);
     grid.position.y = -2.32;
     grid.material.transparent = true;
     grid.material.opacity = 0;
@@ -1659,7 +1659,7 @@
       opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0xf3eee0,
+      color: 0x5ce87f,
       sizeAttenuation: true,
     });
     const packetCloud = new THREE.Points(packetGeo, packetMat);
@@ -1688,7 +1688,7 @@
       opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0x8a8270,
+      color: 0x7a6aa8,
       sizeAttenuation: true,
     });
     const dust = new THREE.Points(dustGeo, dustMat);
