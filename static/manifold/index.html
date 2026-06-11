@@ -357,60 +357,28 @@
       opacity: 1;
       transform: translateY(0);
     }
-    /* Spec-sheet panel: flat ink, hairline border, register marks */
+    /* Section copy: text-only, no card chrome */
     .feature-section .feature-content,
     .cta-content {
       position: relative;
       z-index: 4;
       max-width: 580px;
       padding: clamp(26px, 3vw, 40px);
-      border: 1px solid var(--rule);
-      background: var(--panel);
+      border: 0;
+      background: transparent;
     }
     .feature-section .feature-content > *,
     .cta-content > * {
       position: relative;
       z-index: 1;
     }
-    /* Corner register marks */
+    .feature-section .feature-content::before,
     .feature-section .feature-content::after,
+    .cta-content::before,
     .cta-content::after {
-      content: "";
-      position: absolute;
-      inset: -1px;
-      z-index: 2;
-      pointer-events: none;
-      opacity: 0.55;
-      background:
-        linear-gradient(var(--bone), var(--bone)) left 0 top 0    / 9px 1px,
-        linear-gradient(var(--bone), var(--bone)) left 0 top 0    / 1px 9px,
-        linear-gradient(var(--bone), var(--bone)) right 0 top 0   / 9px 1px,
-        linear-gradient(var(--bone), var(--bone)) right 0 top 0   / 1px 9px,
-        linear-gradient(var(--bone), var(--bone)) left 0 bottom 0 / 9px 1px,
-        linear-gradient(var(--bone), var(--bone)) left 0 bottom 0 / 1px 9px,
-        linear-gradient(var(--bone), var(--bone)) right 0 bottom 0 / 9px 1px,
-        linear-gradient(var(--bone), var(--bone)) right 0 bottom 0 / 1px 9px;
-      background-repeat: no-repeat;
+      content: none;
+      display: none;
     }
-    /* Figure watermark, bottom-right of each spec panel */
-    .feature-section .feature-content::before {
-      content: "FIG. — LIVE BLUEPRINT";
-      position: absolute;
-      z-index: 2;
-      bottom: 12px;
-      right: 16px;
-      font-size: 9px;
-      font-weight: 500;
-      letter-spacing: 0.18em;
-      color: var(--faint);
-      pointer-events: none;
-    }
-    .feature-section[data-feature="specialists"] .feature-content::before { content: "FIG. 01 — LIVE BLUEPRINT"; }
-    .feature-section[data-feature="memory"]      .feature-content::before { content: "FIG. 02 — LIVE BLUEPRINT"; }
-    .feature-section[data-feature="dag"]         .feature-content::before { content: "FIG. 03 — LIVE BLUEPRINT"; }
-    .feature-section[data-feature="pulse"]       .feature-content::before { content: "FIG. 04 — LIVE BLUEPRINT"; }
-    .feature-section[data-feature="playground"]  .feature-content::before { content: "FIG. 05 — LIVE BLUEPRINT"; }
-    .feature-section[data-feature="mcp"]         .feature-content::before { content: "FIG. 06 — LIVE BLUEPRINT"; }
     .feature-section[data-feature="specialists"] .feature-content,
     .feature-section[data-feature="dag"] .feature-content,
     .feature-section[data-feature="playground"] .feature-content {
@@ -424,19 +392,6 @@
       justify-self: end;
     }
 
-    /* Giant ghost index numeral */
-    .feature-number {
-      position: absolute;
-      top: 2px;
-      right: 18px;
-      z-index: 0;
-      font-family: var(--serif);
-      font-size: clamp(72px, 8vw, 112px);
-      font-weight: 400;
-      line-height: 1;
-      color: rgba(231, 231, 236, 0.07);
-      pointer-events: none;
-    }
     .feature-title {
       font-family: var(--serif);
       font-size: clamp(32px, 4vw, 52px);
@@ -456,17 +411,6 @@
       max-width: 52ch;
       margin-bottom: 24px;
     }
-    .section-subhead {
-      display: inline-flex;
-      align-items: center;
-      margin: 0 0 16px;
-      font-family: var(--mono);
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-      color: var(--signal);
-    }
     .dummy-copy {
       max-width: 52ch;
       margin-bottom: 26px;
@@ -482,9 +426,7 @@
       border-top: 1px solid var(--rule-soft);
       opacity: 0;
     }
-    .hero-extra .section-subhead { margin-top: 0; }
     .hero-extra .dummy-copy { margin-bottom: 0; }
-    .cta-section .section-subhead { color: var(--signal); }
 
     /* ─── Section HUD indicator ───────────────────────────────── */
     #section-hud {
@@ -588,18 +530,6 @@
       justify-self: start;
       padding: clamp(30px, 3.5vw, 46px);
     }
-    .cta-content::before {
-      content: "FIG. 07 — LAUNCH ENGINE";
-      position: absolute;
-      z-index: 2;
-      bottom: 12px;
-      right: 16px;
-      font-size: 9px;
-      font-weight: 500;
-      letter-spacing: 0.18em;
-      color: var(--faint);
-      pointer-events: none;
-    }
     /* Desktop: rocket/particles occupy left column */
     .cta-visual-placeholder {
       grid-column: 1;
@@ -683,7 +613,6 @@
         min-height: 100svh;
         padding: 64px clamp(24px, 6vw, 96px);
       }
-      .feature-number { right: 12px; top: 4px; }
       .feature-desc { margin-left: auto; margin-right: auto; }
       .dummy-copy {
         margin-left: auto;
@@ -730,7 +659,6 @@
         overflow: hidden;
         padding: clamp(16px, 4.6vw, 22px);
       }
-      .feature-section .feature-content::before { display: none; }
       .feature-title { font-size: clamp(24px, 7vw, 32px); }
       .feature-desc {
         font-size: clamp(12px, 3.6vw, 14px);
@@ -770,7 +698,6 @@
         overflow: hidden;
         padding: clamp(16px, 4.6vw, 22px);
       }
-      .cta-content::before { display: none; }
       .cta-section p { max-width: 100%; }
       .cta-glow { justify-content: center; }
       .cta-visual-placeholder { grid-row: 2; display: block; }
@@ -799,17 +726,10 @@
       background-size: 180px 180px;
     }
 
-    /* Spec-panel hover: a quiet lift, no glow */
+    /* Text-only section copy should not animate like cards. */
     .feature-section .feature-content,
     .cta-content {
-      transition:
-        transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-        border-color 0.45s ease;
-    }
-    .feature-section .feature-content:hover,
-    .cta-content:hover {
-      transform: translateY(-2px);
-      border-color: rgba(231, 231, 236, 0.32);
+      transition: none;
     }
 
     /* Scroll progress hairline above the nav */
@@ -877,7 +797,6 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="hero" aria-labelledby="hero-heading">
   <div class="hero-left">
-    <p class="hero-eyebrow" id="hero-eyebrow"><span class="idx">Doc. M-001</span>AI Orchestration Engine</p>
     <h1 class="hero-title" id="hero-heading">
       One engine.<br/>
       <span class="grad">Infinite intelligence.</span>
@@ -891,10 +810,7 @@
       <a class="btn-ghost"    href="/manifold-quickstart/">Quick Start&nbsp;→</a>
     </div>
     <div class="hero-extra" id="hero-extra">
-      <h2 class="section-subhead">Sec. 00 / Command Center</h2>
       <p class="dummy-copy">
-        Every model, memory, and tool answers to one control plane. As you
-        move through each capability, the engine physically reassembles itself.
       </p>
     </div>
   </div>
@@ -918,8 +834,6 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="specialists" aria-labelledby="f1-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Sec. 01 / Specialist Handoff</h4>
-    <p class="feature-number" aria-hidden="true">01</p>
     <h3 class="feature-title" id="f1-title">Specialists Registry<br/><em>+ Teams</em></h3>
     <p class="feature-desc">
       Register any AI model — cloud or local — as a named specialist. Compose them into
@@ -943,15 +857,13 @@
 <div class="section-divider"></div>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     FEATURE 2 — 4 Memory Subsystems
+     FEATURE 2 — Memory Subsystems
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="memory" aria-labelledby="f2-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Sec. 02 / Memory Substrate</h4>
-    <p class="feature-number" aria-hidden="true">02</p>
-    <h3 class="feature-title" id="f2-title">Four Memory<br/><em>Subsystems</em></h3>
+    <h3 class="feature-title" id="f2-title">Memory<br/><em>Subsystems</em></h3>
     <p class="feature-desc">
-      Summarization compresses context on the fly. Transit shares state across agents in real time.
+      Summarization compresses context on the fly and works across different providers. Transit shares state across agents in real time.
       Evolving Memory distils lessons across runs. MAGMA builds a multi-dimensional knowledge graph
       with semantic, temporal, causal, and entity edges — all composing before every LLM call.
     </p>
@@ -964,7 +876,6 @@
       <span class="tag">Transit KV Store</span>
       <span class="tag">Evolving Memory</span>
       <span class="tag">MAGMA Graph</span>
-      <span class="tag">RAG + Embeddings</span>
     </div>
   </div>
 </section>
@@ -976,8 +887,6 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="dag" aria-labelledby="f3-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Sec. 03 / Workflow Topology</h4>
-    <p class="feature-number" aria-hidden="true">03</p>
     <h3 class="feature-title" id="f3-title">Visual Workflow<br/><em>DAG Editor</em></h3>
     <p class="feature-desc">
       Build complex agent pipelines visually. Connect nodes for data retrieval, LLM enrichment,
@@ -1004,8 +913,6 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="pulse" aria-labelledby="f4-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Sec. 04 / Timed Execution</h4>
-    <p class="feature-number" aria-hidden="true">04</p>
     <h3 class="feature-title" id="f4-title">Scheduled Tasks<br/><em>for AI Agents</em></h3>
     <p class="feature-desc">
       Pulse lets you schedule agents to run on intervals, daily times, or one-off timestamps.
@@ -1033,8 +940,6 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="playground" aria-labelledby="f5-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Sec. 05 / Experiment Bay</h4>
-    <p class="feature-number" aria-hidden="true">05</p>
     <h3 class="feature-title" id="f5-title">Prompt, Dataset<br/>&amp; Experiments<br/><em>Playground</em></h3>
     <p class="feature-desc">
       Iterate on prompts with live model output. Load datasets and run batch evaluations. Compare
@@ -1062,8 +967,6 @@
 ═══════════════════════════════════════════════════════════════ -->
 <section class="feature-section" data-feature="mcp" aria-labelledby="f6-title">
   <div class="feature-content">
-    <h4 class="section-subhead">Sec. 06 / Tool Mesh</h4>
-    <p class="feature-number" aria-hidden="true">06</p>
     <h3 class="feature-title" id="f6-title">MCP<br/><em>Support</em></h3>
     <p class="feature-desc">
       Manifold implements the Model Context Protocol, letting any MCP-compatible tool or server
@@ -1092,7 +995,6 @@
   <!-- Empty left column: the fixed particle/rocket canvas shows through here on desktop -->
   <div class="cta-visual-placeholder" aria-hidden="true"></div>
   <div class="cta-content">
-    <h3 class="section-subhead">Sec. 07 / Launch Sequence</h3>
     <h2 id="cta-heading">
       Ready to orchestrate<br/>
       <span class="grad">something brilliant?</span>
@@ -2124,7 +2026,7 @@
   // ── Feature card micro-interactions ──────────────────────
   function startFeatureAnimation(section) {
     if (reduceMotion || !section) return;
-    const targets = section.querySelectorAll('.section-subhead, .feature-number, .feature-title, .feature-desc, .dummy-copy, .tag');
+    const targets = section.querySelectorAll('.feature-title, .feature-desc, .dummy-copy, .tag');
     if (!targets.length) return;
     animate(targets, {
       opacity: [0, 1],
