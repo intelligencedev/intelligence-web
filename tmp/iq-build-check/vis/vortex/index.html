@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cinematic Spiral Galaxy Shader</title>
+<style>
+  html,body{height:100%;margin:0;overflow:hidden;background:#000}
+  canvas{display:block;width:100vw;height:100vh}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script id="vs" type="x-shader/x-vertex">
+attribute vec2 a_Position;
+uniform vec2  u_resolution;
+uniform float u_time;
+varying vec3  v_rayDir;
+
+void main(){
+  /* slow cork-screw orbit */
+  float a=u_time*0.04, e=u_time*0.01;
+  vec3 cam=vec3(sin(a)*6.5,1.7+sin(e)*0.6,cos(a)*6.5);
+  vec3 tgt=vec3(0.0,0.4,0.0);
+  vec3 up =vec3(0.0,1.0,0.0);
+
+  vec3 f=normalize(tgt-cam);
+  vec3 r=normalize(cross(f,up));
+  vec3 u =      cross(r,f);
+
+  vec2 scr=a_Position*vec2(u_resolution.x/u_resolution.y,1.0);
+  v_rayDir=normalize(scr.x*r + scr.y*u + 1.6*f);
+
+  gl_Position=vec4(a_Position,0.0,1.0);
+}
+</script>
+
+<script id="fs" type="x-shader/x-fragment">
+precision highp float;
+uniform float u_time;
+uniform vec2  u_resolution;
+varying vec3  v_rayDir;
+
+#define STEPS 90
+#define PI 3.14159265359
+#define TAU 6.28318530718
+
+/* ---------- hash & noise ---------- */
+float h31(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.55);}
+float noise(vec3 p){
+  vec3 i=floor(p);vec3 f=fract(p);f=f*f*(3.-2.*f);
+  float n000=h31(i),n100=h31(i+vec3(1,0,0)),n010=h31(i+vec3(0,1,0)),n110=h31(i+vec3(1,1,0));
+  float n001=h31(i+vec3(0,0,1)),n101=h31(i+vec3(1,0,1)),n011=h31(i+vec3(0,1,1)),n111=h31(i+vec3(1,1,1));
+  float nx00=mix(n000,n100,f.x),nx10=mix(n010,n110,f.x),nx01=mix(n001,n101,f.x),nx11=mix(n011,n111,f.x);
+  float nxy0=mix(nx00,nx10,f.y),nxy1=mix(nx01,nx11,f.y);
+  return mix(nxy0,nxy1,f.z);
+}
+float fbm(vec3 p){
+  float a=.55,s=0.;
+  for(int i=0;i<6;i++){s+=a*noise(p);p=p*2.2+vec3(1.3);a*=.55;}
+  return s;
+}
+vec3 curl(vec3 p){
+  const float e=.01;
+  vec3 dx=vec3(e,0,0),dy=vec3(0,e,0),dz=vec3(0,0,e);
+  return normalize(vec3(
+    fbm(p+dy)-fbm(p-dy) - (fbm(p+dz)-fbm(p-dz)),
+    fbm(p+dz)-fbm(p-dz) - (fbm(p+dx)-fbm(p-dx)),
+    fbm(p+dx)-fbm(p-dx) - (fbm(p+dy)-fbm(p-dy))
+  ));
+}
+
+/* ---------- galaxy params ---------- */
+const float R_MIN=0.4, R_MAX=5.2, DISK_H=0.22;
+const int ARMS=4; const float PITCH=0.26; const float ARM_W=0.85;
+const float ROT_SPD=0.025; const float BULGE=1.4; const float DUST_ABS=2.4;
+
+/* rotation curve */
+float rot(float r){return r<0.7 ? r*2.2 : 1.25;}
+
+/* star colour LUT */
+vec3 starCol(float k){
+  k=clamp(k,0.,1.);
+  vec3 O=vec3(.55,.66,1.),B=vec3(.77,.83,1.),A=vec3(.97,.97,.98),
+       F=vec3(1.,.9,.76),   G=vec3(1.,.85,.65),K=vec3(1.,.7,.4),M=vec3(1.,.5,.23);
+  if(k>.85) return mix(B,O,(k-.85)/.15);
+  if(k>.70) return mix(A,B,(k-.70)/.15);
+  if(k>.55) return mix(F,A,(k-.55)/.15);
+  if(k>.40) return mix(G,F,(k-.40)/.15);
+  if(k>.25) return mix(K,G,(k-.25)/.15);
+  return mix(M,K,k/.25);
+}
+
+/* spiral density */
+float spiral(vec3 p,float t){
+  vec2 gc=vec2(length(p.xz),atan(p.z,p.x));
+  float r=gc.x,th=gc.y;if(r<R_MIN||r>R_MAX) return 0.;
+  float dens=0.;float rotAng=rot(r)*ROT_SPD*t;
+  for(int i=0;i<ARMS;i++){
+    float off=float(i)*TAU/float(ARMS);
+    float a=th + log(r/0.5)/PITCH - off - rotAng;
+    dens+=exp(-pow(sin(a),2.)/(ARM_W*ARM_W));
+  }
+  dens*=0.8+0.6*fbm(p*7.);
+  return dens;
+}
+
+/* dust lanes */
+float dust(vec3 p,float t){
+  vec2 gc=vec2(length(p.xz),atan(p.z,p.x));float r=gc.x;if(r<R_MIN||r>R_MAX) return 0.;
+  float d=0.;float rotAng=rot(r)*ROT_SPD*t;
+  for(int i=0;i<ARMS;i++){
+    float off=float(i)*TAU/float(ARMS);
+    float a=gc.y - log(r/0.45)/PITCH - off - rotAng + 0.4;
+    d+=exp(-pow(sin(a),2.)/(ARM_W*.35*ARM_W*.35));
+  }
+  return d*(.7+.5*fbm(p*14.));
+}
+
+/* H-α glow regions */
+float HII(vec3 p,float t){
+  float r=length(p.xz);if(r<0.5||r>R_MAX*.85) return 0.;
+  float s=spiral(p,t)*1.2;
+  return s*smoothstep(.5,.8,fbm(p*18.+t*.02));
+}
+
+/* galaxy density & metadata (x dens, y temp, z dust) */
+vec3 galaxy(vec3 p,float t,out float hii){
+  float r=length(p.xz);
+  float zFall=exp(-abs(p.y)/DISK_H); if(zFall<.02){hii=0.;return vec3(0);}
+  float bul=exp(-r/BULGE)*exp(-abs(p.y)/(DISK_H*.5));
+  float disk=spiral(p,t)*zFall;
+  float halo=exp(-r/6.)*.08;
+  hii=HII(p,t);
+  float dens=bul+disk+halo+hii;
+  float temp=(bul*.25+disk*(.55+.3*fbm(p*3.))+hii*.9)/max(dens,1e-3);
+  float dustL=dust(p,t);
+  return vec3(dens,temp,dustL);
+}
+
+/* phase */
+float phase(float g,float mu){float g2=g*g,d=1.+g2-2.*g*mu;return (1.-g2)/(4.*PI*pow(d,1.5));}
+
+/* background stars */
+vec3 stars(vec3 rd){
+  vec3 col=vec3(0);
+  for(int l=0;l<3;l++){
+    float sc=pow(8.,float(l+1));
+    vec3 p=floor(rd*sc);
+    float h=h31(p);
+    float th=.999-.0005*float(l);
+    if(h>th){
+      float br=(h-th)/(1.-th);
+      col+=starCol(h31(p+325.))*br*(1.7-.4*float(l));
+    }
+  }
+  return col;
+}
+
+/* ACES */
+vec3 tonemap(vec3 x){
+  const float a=2.51,b=.03,c=2.43,d=.59,e=.14;
+  return clamp((x*(a*x+b))/(x*(c*x+d)+e),0.,1.);
+}
+
+void main(){
+  vec3 ro=vec3(sin(u_time*.04)*6.5,1.7+sin(u_time*.01)*.6,cos(u_time*.04)*6.5);
+  vec3 rd=normalize(v_rayDir);
+
+  float maxD=14.,dt=maxD/float(STEPS);
+  float jitter=h31(vec3(gl_FragCoord.xy*.37,u_time))*dt;
+  float t=jitter;
+
+  vec3 col=vec3(0); float trans=1.; float alpha=0.;
+  for(int i=0;i<STEPS;i++){
+    if(trans<.02||t>maxD) break;
+    vec3 p=ro+rd*t;
+    /* galaxy rotation */
+    float ang=u_time*ROT_SPD;mat2 rot=mat2(cos(ang),-sin(ang),sin(ang),cos(ang));
+    p.xz=rot*p.xz;
+
+    float hii; vec3 meta=galaxy(p,u_time,hii);
+    float dens=meta.x,temp=meta.y,dustL=meta.z;
+    if(dens>.002){
+      vec3 sc=starCol(temp);
+      if(hii>.1) sc=mix(sc,vec3(1.,.35,.46),hii*.65);
+      float dustF=exp(-dustL*DUST_ABS*dt);
+      sc*=dustF;
+      if(dustL>.15){sc*=vec3(1.25,.9,.7);} /* reddening */
+      sc*=phase(.4,dot(rd,normalize(-p)));
+      float abs=1.-exp(-dens*dt*1.5);
+      col+=sc*abs*trans*1.3;
+      trans*=dustF*(1.-abs);
+      alpha+=abs*(1.-alpha);
+    }
+    t+=dt;
+  }
+
+  vec3 bg=mix(vec3(.005,.008,.015),vec3(.1,.15,.27),clamp(rd.y*.5+.5,0.,1.));
+  bg+=vec3(.02,.01,.03)*fbm(rd*2.+u_time*.02)*.02;
+  bg+=stars(rd)*(1.-alpha);
+
+  col=mix(bg,col,alpha);
+  col=tonemap(col*1.3);
+  col=pow(col,vec3(.85));
+
+  gl_FragColor=vec4(col,1.);
+}
+</script>
+
+<script>
+/* minimal GL bootstrap */
+const cvs=document.getElementById('c');
+const gl=cvs.getContext('webgl');
+const vsSrc=document.getElementById('vs').textContent;
+const fsSrc=document.getElementById('fs').textContent;
+function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
+if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(o);return o;}
+const prog=gl.createProgram();
+gl.attachShader(prog,sh(gl.VERTEX_SHADER,vsSrc));
+gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fsSrc));
+gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw gl.getProgramInfoLog(prog);
+gl.useProgram(prog);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+const loc=gl.getAttribLocation(prog,'a_Position');
+gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const uTime=gl.getUniformLocation(prog,'u_time');
+const uRes=gl.getUniformLocation(prog,'u_resolution');
+function rs(){const d=window.devicePixelRatio||1;cvs.width=innerWidth*d;cvs.height=innerHeight*d;
+gl.viewport(0,0,cvs.width,cvs.height);}window.onresize=rs;rs();
+requestAnimationFrame(function loop(t){gl.uniform1f(uTime,t*.001);gl.uniform2f(uRes,cvs.width,cvs.height);
+gl.drawArrays(gl.TRIANGLES,0,6);requestAnimationFrame(loop);});
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+{
+  "controlParams": {
+    "rotationSpeed": 0.0001
+  },
+  "galaxyParams": {
+    "numStars": 55000,
+    "starSize": 0.002,
+
+    "backgroundStarCount": 150000,
+    "backgroundStarInnerRadius": 5.0,
+    "backgroundStarOuterRadius": 10.0,
+    "backgroundStarSize": 0.023,
+
+    "galacticRadius": 2.07,
+    "spiralArms": 5,
+    "coreRadius": 2.0,
+    "orbitalTimeScale": 1.7,
+
+    "discScaleLength": 0.31,
+    "bulgeRadius": 0.05,
+    "verticalScaleHeight": 0.02,
+    "spiralPitchAngle": 20,
+    "clusterInfluence": 0.08,
+
+    "baseRadius": 0.1,
+    "armWidth": 0.73,
+    "armDensityMultiplier": 1.0,
+
+    "densityFactor": 1.1,
+    "absorptionCoefficient": 5.0,
+    "scatteringCoefficient": 20.0,
+
+    "nebulaCoolColor": "#1f47f2",
+    "nebulaDustColor": "#8c401f",
+    "nebulaWarmColor": "#ffdbb3",
+
+    "rayMarchSteps": 32,
+
+    "sunPosition": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "centralLightIntensity": 1.2,
+
+    "blackHoleEnabled": 1,
+    "blackHoleMass": 0.0,
+    "blackHoleLensStrength": 0.0,
+    "blackHoleHorizonRadius": 0.005,
+    "blackHolePhotonRingRadius": 0.01,
+    "blackHolePhotonRingWidth": 0.008,
+    "blackHolePhotonRingIntensity": 0.15,
+    "blackHoleAccretionIntensity": 0.05,
+    "blackHoleAccretionRadius": 0.03,
+    "blackHoleAccretionWidth": 0.031,
+    "blackHoleDiskInclination": 0.24,
+    "blackHoleDopplerStrength": 0.72
+  },
+  "camera": {
+    "type": "PerspectiveCamera",
+    "fov": 75,
+    "aspect": "window.innerWidth / window.innerHeight",
+    "near": 0.1,
+    "far": 1000,
+
+    "initialPosition": {
+      "x": -0.31,
+      "y": -1.45,
+      "z": -0.61
+    },
+    "initialRotationDeg": {
+      "x": 112.7,
+      "y": -11.1,
+      "z": 155.4
+    },
+
+    "controls": {
+      "type": "OrbitControls",
+      "enableDamping": true,
+      "dampingFactor": 0.25,
+      "enableZoom": true,
+      "enablePan": false,
+      "target": "derived at startup from camera rotation (forward vector)"
+    }
+  }
+}

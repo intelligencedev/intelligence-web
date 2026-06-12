@@ -1,0 +1,2213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manifold — The AI Orchestration Engine</title>
+  <meta name="description" content="Manifold is a cutting-edge AI orchestration platform with specialist registries, adaptive memory, visual workflows, and more." />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/animejs@4/dist/bundles/anime.umd.min.js"></script>
+
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       MANIFOLD — TECHNICAL DOSSIER
+       Visual language: drafting-table engineering document.
+       Instrument Serif display · IBM Plex Mono chrome ·
+       warm ink / bone / international orange.
+       No glass, no gradient text, no pills, no neon.
+    ═══════════════════════════════════════════════════════════ */
+
+    /* ─── Design tokens ───────────────────────────────────────── */
+    :root {
+      --ink:         #09090c;
+      --panel:       rgba(12, 12, 16, 0.86);
+      --bone:        #e7e7ec;
+      --bone-dim:    #c2c2cc;
+      --muted:       #8f8f9c;
+      --faint:       #5d5d68;
+      --rule:        rgba(231, 231, 236, 0.16);
+      --rule-soft:   rgba(231, 231, 236, 0.07);
+      --signal:      #9a4dff;  /* cosmic purple (from logo #5e17ac) */
+      --signal-soft: rgba(154, 77, 255, 0.35);
+      --amber:       #3fd966;  /* cosmic green (from logo #2d9e3f) */
+      --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      scroll-behavior: auto;
+      scroll-padding-top: 84px;
+    }
+    body {
+      font-family: var(--mono);
+      background: var(--ink);
+      color: var(--bone);
+      line-height: 1.6;
+      overflow-x: hidden;
+      overscroll-behavior-y: none;
+    }
+    a { color: inherit; text-decoration: none; }
+    em { font-style: italic; }
+    ::selection { background: var(--signal); color: var(--ink); }
+
+    /* ─── Canvas layer ────────────────────────────────────────── */
+    #engine-canvas {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.9;
+      transform: translateZ(0);
+    }
+
+    /* ─── Drafting-table edge rulers ──────────────────────────── */
+    #page-frame {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      pointer-events: none;
+    }
+    #page-frame::before,
+    #page-frame::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--rule) 0 6px,
+        transparent 6px 72px
+      );
+      opacity: 0.8;
+    }
+    #page-frame::before { left: 12px; }
+    #page-frame::after  { right: 12px; }
+
+    /* ─── Nav ─────────────────────────────────────────────────── */
+    .nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px clamp(24px, 5vw, 72px);
+      background: rgba(10, 10, 8, 0.92);
+      border-bottom: 1px solid var(--rule);
+    }
+    .nav-logo {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--bone);
+    }
+    .nav-logo-icon {
+      width: 24px; height: 24px;
+      display: block;
+      align-self: center;
+      object-fit: contain;
+    }
+    .nav-logo-sub {
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      color: var(--faint);
+    }
+    .nav-menu {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .nav-menu-toggle {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .nav-toggle {
+      display: none;
+      width: 40px;
+      height: 36px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--rule);
+      background: transparent;
+      color: var(--bone);
+      cursor: pointer;
+      list-style: none;
+    }
+    .nav-toggle span,
+    .nav-toggle::before,
+    .nav-toggle::after {
+      content: "";
+      display: block;
+      width: 17px;
+      height: 1px;
+      background: currentColor;
+      transition: transform 160ms ease, opacity 160ms ease;
+    }
+    .nav-toggle span { position: relative; }
+    .nav-toggle::before { transform: translateY(-6px); }
+    .nav-toggle::after  { transform: translateY(6px); }
+    .nav-menu-toggle:checked + .nav-toggle::before { transform: translateY(1px) rotate(45deg); }
+    .nav-menu-toggle:checked + .nav-toggle span { opacity: 0; }
+    .nav-menu-toggle:checked + .nav-toggle::after { transform: translateY(-1px) rotate(-45deg); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 26px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
+    .nav-links a {
+      transition: color 160ms ease;
+      border-bottom: 1px solid transparent;
+      padding-bottom: 1px;
+    }
+    .nav-links a:hover {
+      color: var(--bone);
+      border-bottom-color: var(--signal);
+    }
+    .nav-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      padding: 5px 9px;
+      border: 1px solid var(--signal-soft);
+      color: var(--amber);
+      background: transparent;
+    }
+    .nav-badge::before {
+      content: "";
+      width: 6px; height: 6px;
+      background: var(--signal);
+      animation: badgeBlink 2.4s steps(2, jump-none) infinite;
+    }
+    @keyframes badgeBlink {
+      50% { opacity: 0.25; }
+    }
+
+    /* ─── Sections ────────────────────────────────────────────── */
+    section {
+      position: relative;
+      z-index: 2;
+      scroll-margin-top: 84px;
+    }
+
+    /* ─── Hero ────────────────────────────────────────────────── */
+    .hero {
+      min-height: 100svh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 48px;
+      padding: 120px clamp(24px, 6vw, 96px) 80px;
+    }
+    .hero-left { max-width: 620px; }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      margin-bottom: 26px;
+      opacity: 0;
+    }
+    .hero-eyebrow .idx {
+      padding: 4px 8px;
+      border: 1px solid var(--signal-soft);
+      color: var(--signal);
+      font-weight: 600;
+    }
+    .hero-title {
+      font-family: var(--serif);
+      font-size: clamp(48px, 7vw, 96px);
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      line-height: 0.98;
+      margin-bottom: 26px;
+      opacity: 0;
+    }
+    .hero-title .grad {
+      font-style: italic;
+      color: var(--signal);
+    }
+    .hero-sub {
+      font-size: clamp(13px, 1.6vw, 15px);
+      color: var(--muted);
+      max-width: 52ch;
+      line-height: 1.8;
+      margin-bottom: 36px;
+      opacity: 0;
+    }
+    .hero-cta-row {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      opacity: 0;
+    }
+    .btn-primary {
+      padding: 14px 22px;
+      border: 1px solid var(--signal);
+      background: var(--signal);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      transition: background 160ms ease, color 160ms ease;
+    }
+    .btn-primary:hover {
+      background: transparent;
+      color: var(--signal);
+    }
+    .btn-ghost {
+      padding: 14px 22px;
+      border: 1px solid var(--rule);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      transition: border-color 160ms ease, color 160ms ease;
+    }
+    .btn-ghost:hover {
+      border-color: var(--signal);
+      color: var(--bone);
+    }
+    /* ─── Blueprint-backed hero layout ───────────────────────── */
+    .hero-left {
+      position: relative;
+      z-index: 3;
+      padding: clamp(6px, 1.5vw, 18px) 0;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      top: 16%;
+      right: clamp(24px, 6vw, 96px);
+      bottom: 12%;
+      width: min(46vw, 680px);
+      border: 1px solid var(--rule-soft);
+      background:
+        linear-gradient(var(--rule-soft) 1px, transparent 1px),
+        linear-gradient(90deg, var(--rule-soft) 1px, transparent 1px);
+      background-size: 34px 34px;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 100%);
+      mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 100%);
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    /* ─── Scroll indicator ────────────────────────────────────── */
+    .scroll-hint {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: 0;
+    }
+    .scroll-hint-line {
+      width: 1px; height: 44px;
+      background: linear-gradient(to bottom, transparent, var(--signal));
+      animation: scrollPulse 2s ease-in-out infinite;
+    }
+    @keyframes scrollPulse {
+      0%, 100% { opacity: 0.3; transform: scaleY(1); }
+      50%       { opacity: 1;   transform: scaleY(1.2); }
+    }
+
+    /* ─── Features index ──────────────────────────────────────── */
+    .features-label {
+      text-align: center;
+      padding: 80px clamp(24px,6vw,96px) 0;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      color: var(--signal);
+      opacity: 0;
+    }
+    .features-heading {
+      text-align: center;
+      padding: 16px clamp(24px,6vw,96px) 72px;
+      font-family: var(--serif);
+      font-size: clamp(34px, 4.6vw, 58px);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      line-height: 1.06;
+      opacity: 0;
+    }
+    .features-heading .dim {
+      font-style: italic;
+      color: var(--muted);
+    }
+
+    /* ─── Feature section ─────────────────────────────────────── */
+    .feature-section {
+      min-height: 100svh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 64px;
+      padding: 80px clamp(24px, 6vw, 96px);
+      opacity: 0;
+      transform: translateY(48px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .feature-section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    /* Section copy: text-only, no card chrome */
+    .feature-section .feature-content,
+    .cta-content {
+      position: relative;
+      z-index: 4;
+      max-width: 580px;
+      padding: clamp(26px, 3vw, 40px);
+      border: 0;
+      background: transparent;
+    }
+    .feature-section .feature-content > *,
+    .cta-content > * {
+      position: relative;
+      z-index: 1;
+    }
+    .feature-section .feature-content::before,
+    .feature-section .feature-content::after,
+    .cta-content::before,
+    .cta-content::after {
+      content: none;
+      display: none;
+    }
+    .feature-section[data-feature="specialists"] .feature-content,
+    .feature-section[data-feature="dag"] .feature-content,
+    .feature-section[data-feature="playground"] .feature-content {
+      grid-column: 2;
+      justify-self: start;
+    }
+    .feature-section[data-feature="memory"] .feature-content,
+    .feature-section[data-feature="pulse"] .feature-content,
+    .feature-section[data-feature="mcp"] .feature-content {
+      grid-column: 1;
+      justify-self: end;
+    }
+
+    .feature-title {
+      font-family: var(--serif);
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      line-height: 1.02;
+      margin-bottom: 18px;
+    }
+    .feature-title em {
+      font-style: italic;
+      color: var(--bone-dim);
+    }
+    .feature-desc {
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.8;
+      max-width: 52ch;
+      margin-bottom: 24px;
+    }
+    .dummy-copy {
+      max-width: 52ch;
+      margin-bottom: 26px;
+      color: var(--faint);
+      font-size: 12px;
+      line-height: 1.7;
+      border-left: 1px solid var(--rule);
+      padding-left: 14px;
+    }
+    .hero-extra {
+      margin-top: 34px;
+      padding-top: 22px;
+      border-top: 1px solid var(--rule-soft);
+      opacity: 0;
+    }
+    .hero-extra .dummy-copy { margin-bottom: 0; }
+
+    /* ─── Section HUD indicator ───────────────────────────────── */
+    #section-hud {
+      position: fixed;
+      bottom: 32px;
+      right: clamp(24px, 4vw, 56px);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      pointer-events: none;
+    }
+    #section-hud-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--signal);
+      opacity: 0.9;
+      transition: opacity 0.3s ease;
+    }
+    #section-hud-name {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(231, 231, 236, 0.72);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      text-align: right;
+    }
+    #section-hud-bar {
+      width: 32px;
+      height: 1px;
+      background: var(--signal);
+      transform-origin: right center;
+      transition: transform 0.4s ease, background 0.4s ease;
+    }
+    /* Tick trail */
+    #section-hud-dots {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .hud-dot {
+      width: 5px;
+      height: 5px;
+      border: 1px solid var(--rule);
+      background: transparent;
+      transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+    }
+    .hud-dot.active {
+      background: var(--signal);
+      border-color: var(--signal);
+      transform: scale(1.25);
+    }
+    .feature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 6px 10px;
+      border: 1px solid var(--rule);
+      color: var(--muted);
+      background: transparent;
+      transition: border-color 160ms, color 160ms;
+    }
+    .tag:hover { border-color: var(--signal); color: var(--bone); }
+
+    /* ─── Divider ─────────────────────────────────────────────── */
+    .section-divider {
+      margin: 0 clamp(24px,6vw,96px);
+      height: 1px;
+      background: var(--rule-soft);
+    }
+
+    /* ─── CTA section (last) ──────────────────────────────────── */
+    .cta-section {
+      min-height: 100svh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 64px;
+      padding: 80px clamp(24px, 6vw, 96px);
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .cta-section.visible { opacity: 1; transform: translateY(0); }
+    .cta-content {
+      grid-column: 2;
+      justify-self: start;
+      padding: clamp(30px, 3.5vw, 46px);
+    }
+    /* Desktop: rocket/particles occupy left column */
+    .cta-visual-placeholder {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .cta-section h2 {
+      font-family: var(--serif);
+      font-size: clamp(38px, 4.6vw, 62px);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      line-height: 1.02;
+      margin-bottom: 20px;
+    }
+    .cta-section h2 .grad {
+      font-style: italic;
+      color: var(--signal);
+    }
+    .cta-section p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 32px;
+      max-width: 46ch;
+    }
+    .cta-section p.dummy-copy { margin-bottom: 36px; }
+    .cta-glow {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    /* ─── Footer ──────────────────────────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 26px clamp(24px, 5vw, 72px);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      border-top: 1px solid var(--rule);
+      background: rgba(10, 10, 8, 0.85);
+    }
+    footer a {
+      color: var(--bone);
+      border-bottom: 1px solid var(--rule);
+      transition: border-color 160ms ease, color 160ms ease;
+    }
+    footer a:hover { color: var(--signal); border-bottom-color: var(--signal); }
+    .footer-meta { color: var(--faint); }
+
+    /* ─── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      #page-frame { display: none; }
+      .nav {
+        padding: 12px clamp(16px, 5vw, 28px);
+      }
+      .nav-logo-sub { display: none; }
+      .nav-menu { margin-left: auto; }
+      .nav-toggle { display: inline-flex; }
+      .nav-links {
+        position: absolute;
+        top: calc(100% + 12px);
+        right: 0;
+        display: none;
+        width: min(78vw, 280px);
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 10px;
+        border: 1px solid var(--rule);
+        background: rgba(10, 10, 8, 0.98);
+      }
+      .nav-menu-toggle:checked ~ .nav-links { display: flex; }
+      .nav-links a,
+      .nav-badge {
+        width: 100%;
+        justify-content: space-between;
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--rule-soft);
+      }
+      .nav-links a:hover { border-bottom-color: var(--rule-soft); }
+      .nav-badge {
+        margin-top: 4px;
+        border: 1px solid var(--signal-soft);
+      }
+      .hero,
+      .feature-section,
+      .cta-section {
+        isolation: isolate;
+      }
+      .hero-left,
+      .feature-section .feature-content,
+      .cta-content {
+        position: relative;
+        z-index: 10;
+      }
+      .hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding-top: 100px;
+      }
+      .hero-left { max-width: 100%; }
+      .hero-eyebrow { justify-content: center; }
+      .hero-sub { margin-left: auto; margin-right: auto; }
+      .hero-cta-row { justify-content: center; }
+      .hero::after {
+        top: 10%;
+        right: 50%;
+        bottom: 42%;
+        width: min(86vw, 520px);
+        transform: translateX(50%);
+        opacity: 0.34;
+      }
+      .feature-section {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        text-align: center;
+        min-height: 100svh;
+        padding: 64px clamp(24px, 6vw, 96px);
+      }
+      .feature-desc { margin-left: auto; margin-right: auto; }
+      .dummy-copy {
+        margin-left: auto;
+        margin-right: auto;
+        border-left: 0;
+        padding-left: 0;
+      }
+      .feature-tags { justify-content: center; }
+      .feature-section .feature-content { grid-column: 1 !important; justify-self: center; }
+      /* CTA section: collapse to single column on mobile */
+      .cta-section {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        padding: 80px clamp(24px, 6vw, 96px);
+        text-align: center;
+      }
+      .cta-section .cta-content { max-width: 100%; grid-column: 1; justify-self: center; }
+      .cta-section p { max-width: 100%; margin-left: auto; margin-right: auto; }
+      .cta-glow { justify-content: center; }
+      /* Hide the empty visual placeholder column on mobile */
+      .cta-visual-placeholder { display: none; }
+      footer { justify-content: center; text-align: center; }
+    }
+
+    @media (max-width: 900px) and (orientation: portrait) {
+      #engine-canvas {
+        /* Reserve the upper half for the active section card and render
+           the voxel/particle choreography in the lower half on phones. */
+        clip-path: inset(50svh 0 0 0);
+        opacity: 0.96;
+      }
+      .feature-section {
+        grid-template-rows:
+          minmax(0, calc(50svh - 68px - env(safe-area-inset-top)))
+          minmax(0, calc(50svh - env(safe-area-inset-bottom)));
+        align-items: stretch;
+        gap: 0;
+        padding: calc(68px + env(safe-area-inset-top)) clamp(14px, 5vw, 24px) env(safe-area-inset-bottom);
+      }
+      .feature-section .feature-content {
+        grid-row: 1;
+        align-self: center;
+        max-height: calc(50svh - 92px - env(safe-area-inset-top));
+        overflow: hidden;
+        padding: clamp(16px, 4.6vw, 22px);
+      }
+      .feature-title { font-size: clamp(24px, 7vw, 32px); }
+      .feature-desc {
+        font-size: clamp(12px, 3.6vw, 14px);
+        line-height: 1.5;
+      }
+      .dummy-copy {
+        font-size: 11px;
+        line-height: 1.45;
+        margin-top: 12px;
+      }
+      .feature-tags {
+        gap: 6px;
+        margin-top: 14px;
+      }
+      .tag {
+        font-size: 8px;
+        padding: 5px 8px;
+      }
+      /* CTA portrait: card in upper half, rocket in lower half */
+      .cta-section {
+        grid-template-columns: 1fr;
+        grid-template-rows:
+          minmax(0, calc(50svh - 68px - env(safe-area-inset-top)))
+          minmax(0, calc(50svh - env(safe-area-inset-bottom)));
+        align-items: stretch;
+        gap: 0;
+        padding: calc(68px + env(safe-area-inset-top)) clamp(14px, 5vw, 24px) env(safe-area-inset-bottom);
+        text-align: center;
+      }
+      .cta-section .cta-content {
+        grid-row: 1;
+        grid-column: 1;
+        justify-self: center;
+        align-self: center;
+        max-width: 100%;
+        max-height: calc(50svh - 92px - env(safe-area-inset-top));
+        overflow: hidden;
+        padding: clamp(16px, 4.6vw, 22px);
+      }
+      .cta-section p { max-width: 100%; }
+      .cta-glow { justify-content: center; }
+      .cta-visual-placeholder { grid-row: 2; display: block; }
+    }
+
+    /* ─── Atmosphere ──────────────────────────────────────────── */
+    /* Static print-room vignette behind the particle engine */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: radial-gradient(120% 90% at 50% 12%, transparent 42%, rgba(0, 0, 0, 0.55) 100%);
+    }
+    /* Fine film grain for tactile, printed depth */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      pointer-events: none;
+      opacity: 0.16;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px 180px;
+    }
+
+    /* Text-only section copy should not animate like cards. */
+    .feature-section .feature-content,
+    .cta-content {
+      transition: none;
+    }
+
+    /* Scroll progress hairline above the nav */
+    #scroll-progress {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      z-index: 120;
+      background: var(--signal);
+      transform-origin: left center;
+      transform: scaleX(0);
+      pointer-events: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Morphing voxel blueprint field -->
+<canvas id="engine-canvas" aria-hidden="true"></canvas>
+
+<!-- Drafting-table edge rulers -->
+<div id="page-frame" aria-hidden="true"></div>
+
+<!-- Nav -->
+<nav class="nav" aria-label="Main navigation">
+  <div class="nav-logo">
+    <img class="nav-logo-icon" src="/assets/img/manifold_logo.png" alt="" aria-hidden="true" />
+    <span class="nav-logo-word">Manifold</span>
+    <span class="nav-logo-sub">/ Orchestration Engine</span>
+  </div>
+  <div class="nav-menu">
+    <input class="nav-menu-toggle" type="checkbox" id="nav-menu-toggle" aria-label="Toggle navigation" />
+    <label class="nav-toggle" for="nav-menu-toggle" aria-hidden="true"><span></span></label>
+    <div class="nav-links">
+      <a href="https://github.com/intelligencedev/manifold">GitHub</a>
+      <a href="/manifold-memory-systems/">Memory Docs</a>
+      <a href="/manifold-quickstart/">Quickstart</a>
+      <span class="nav-badge">Dev Preview</span>
+    </div>
+  </div>
+</nav>
+
+<!-- Scroll progress hairline -->
+<div id="scroll-progress" aria-hidden="true"></div>
+
+<!-- ── Section HUD ─────────────────────────────────────────────── -->
+<div id="section-hud" aria-hidden="true">
+  <div id="section-hud-label">00</div>
+  <div id="section-hud-name">Command Center</div>
+  <div id="section-hud-bar"></div>
+  <div id="section-hud-dots">
+    <div class="hud-dot active" data-idx="0"></div>
+    <div class="hud-dot" data-idx="1"></div>
+    <div class="hud-dot" data-idx="2"></div>
+    <div class="hud-dot" data-idx="3"></div>
+    <div class="hud-dot" data-idx="4"></div>
+    <div class="hud-dot" data-idx="5"></div>
+    <div class="hud-dot" data-idx="6"></div>
+    <div class="hud-dot" data-idx="7"></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════════════════════ -->
+<section class="hero" aria-labelledby="hero-heading">
+  <div class="hero-left">
+    <h1 class="hero-title" id="hero-heading">
+      One engine.<br/>
+      <span class="grad">Infinite intelligence.</span>
+    </h1>
+    <p class="hero-sub" id="hero-sub">
+      Manifold orchestrates AI specialists, stores memory across time,
+      and runs your agents on schedules — all through a single, composable engine.
+    </p>
+    <div class="hero-cta-row" id="hero-cta">
+      <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Explore on GitHub&nbsp;↗</a>
+      <a class="btn-ghost"    href="/manifold-quickstart/">Quick Start&nbsp;→</a>
+    </div>
+    <div class="hero-extra" id="hero-extra">
+      <p class="dummy-copy">
+      </p>
+    </div>
+  </div>
+  <div class="scroll-hint" id="scroll-hint" aria-hidden="true">
+    <span>Scroll · 001 / 008</span>
+    <div class="scroll-hint-line"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURES INTRO
+═══════════════════════════════════════════════════════════════ -->
+<p class="features-label" id="features-label">Index — What Manifold Does</p>
+<h2 class="features-heading" id="features-heading">
+  Every capability your agents need.<br/>
+  <span class="dim">Already built in.</span>
+</h2>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 1 — Specialists + Teams
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="specialists" aria-labelledby="f1-title">
+  <div class="feature-content">
+    <h3 class="feature-title" id="f1-title">Specialists Registry<br/><em>+ Teams</em></h3>
+    <p class="feature-desc">
+      Register any AI model — cloud or local — as a named specialist. Compose them into
+      Teams that collaborate on objectives. The orchestrator routes tasks automatically,
+      delegates subtasks, and synthesises results across specialists.
+    </p>
+    <p class="dummy-copy">
+      Specialists exchange intent, negotiate capability, and hand off work
+      with full context — a team of models behaving like one sharper mind.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Agent Routing</span>
+      <span class="tag">Multi-model</span>
+      <span class="tag">Team Composition</span>
+      <span class="tag">Local + Cloud</span>
+      <span class="tag">Dynamic Delegation</span>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 2 — Memory Subsystems
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="memory" aria-labelledby="f2-title">
+  <div class="feature-content">
+    <h3 class="feature-title" id="f2-title">Memory<br/><em>Subsystems</em></h3>
+    <p class="feature-desc">
+      Summarization compresses context on the fly and works across different providers. Transit shares state across agents in real time.
+      Evolving Memory distils lessons across runs. MAGMA builds a multi-dimensional knowledge graph
+      with semantic, temporal, causal, and entity edges — all composing before every LLM call.
+    </p>
+    <p class="dummy-copy">
+      Every interaction settles into layers — fast context on top, durable
+      graph and vector recall beneath — so agents remember what mattered.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Summarization</span>
+      <span class="tag">Transit KV Store</span>
+      <span class="tag">Evolving Memory</span>
+      <span class="tag">MAGMA Graph</span>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 3 — Visual Workflow DAG
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="dag" aria-labelledby="f3-title">
+  <div class="feature-content">
+    <h3 class="feature-title" id="f3-title">Visual Workflow<br/><em>DAG Editor</em></h3>
+    <p class="feature-desc">
+      Build complex agent pipelines visually. Connect nodes for data retrieval, LLM enrichment,
+      transformations, and outputs. Chains execute in dependency order — parallel where possible,
+      sequential where required — with real-time flow visualisation.
+    </p>
+    <p class="dummy-copy">
+      Branches align, split, and merge as each dependency resolves —
+      every run leaves a readable, inspectable execution path behind.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Node-based editor</span>
+      <span class="tag">Parallel execution</span>
+      <span class="tag">Conditional branches</span>
+      <span class="tag">Live DAG preview</span>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 4 — Scheduled Tasks (Pulse)
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="pulse" aria-labelledby="f4-title">
+  <div class="feature-content">
+    <h3 class="feature-title" id="f4-title">Scheduled Tasks<br/><em>for AI Agents</em></h3>
+    <p class="feature-desc">
+      Pulse lets you schedule agents to run on intervals, daily times, or one-off timestamps.
+      Agents wake up, execute their prompts, write results to Transit, and go quiet — no manual
+      intervention required. Fully integrated with the room and project system.
+    </p>
+    <p class="dummy-copy">
+      Temporal triggers wake the right specialist at exactly the right moment,
+      write their results to shared memory, and fade back into standby.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Cron-like scheduling</span>
+      <span class="tag">Interval tasks</span>
+      <span class="tag">One-shot execution</span>
+      <span class="tag">Agent wake-up</span>
+      <span class="tag">Room-scoped</span>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 5 — Playground
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="playground" aria-labelledby="f5-title">
+  <div class="feature-content">
+    <h3 class="feature-title" id="f5-title">Prompt, Dataset<br/>&amp; Experiments<br/><em>Playground</em></h3>
+    <p class="feature-desc">
+      Iterate on prompts with live model output. Load datasets and run batch evaluations. Compare
+      experiment runs side-by-side. Everything stays versioned and reproducible — turn any playground
+      session into a reusable workflow in one click.
+    </p>
+    <p class="dummy-copy">
+      Prompt variants flow through controlled, side-by-side runs — turning
+      rough ideas into measured, repeatable agent behavior you can ship.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">Live prompt editor</span>
+      <span class="tag">Dataset runner</span>
+      <span class="tag">A/B experiments</span>
+      <span class="tag">Version history</span>
+      <span class="tag">Batch eval</span>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURE 6 — MCP Support
+═══════════════════════════════════════════════════════════════ -->
+<section class="feature-section" data-feature="mcp" aria-labelledby="f6-title">
+  <div class="feature-content">
+    <h3 class="feature-title" id="f6-title">MCP<br/><em>Support</em></h3>
+    <p class="feature-desc">
+      Manifold implements the Model Context Protocol, letting any MCP-compatible tool or server
+      plug directly into the agent engine. Expose file systems, APIs, databases, and custom tools —
+      agents discover and invoke them automatically with zero boilerplate.
+    </p>
+    <p class="dummy-copy">
+      Connectors fan outward from the core, binding file systems, APIs, and
+      databases into a single mesh that agents discover and operate on their own.
+    </p>
+    <div class="feature-tags">
+      <span class="tag">MCP client</span>
+      <span class="tag">Tool autodiscovery</span>
+      <span class="tag">Stdio + SSE transports</span>
+      <span class="tag">Bring-your-own tools</span>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CTA
+═══════════════════════════════════════════════════════════════ -->
+<section class="cta-section" aria-labelledby="cta-heading">
+  <!-- Empty left column: the fixed particle/rocket canvas shows through here on desktop -->
+  <div class="cta-visual-placeholder" aria-hidden="true"></div>
+  <div class="cta-content">
+    <h2 id="cta-heading">
+      Ready to orchestrate<br/>
+      <span class="grad">something brilliant?</span>
+    </h2>
+    <p>Manifold is open source and free. Bring your own models.</p>
+    <p class="dummy-copy">
+      The whole engine lights up at once — every model, memory, and tool
+      moving as one coordinated system. Open source, local-first, and yours to run.
+    </p>
+    <div class="cta-glow">
+      <a class="btn-primary" href="https://github.com/intelligencedev/manifold">Get Started on GitHub&nbsp;↗</a>
+      <a class="btn-ghost"   href="/manifold-memory-systems/">Read the Memory Docs&nbsp;→</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>
+    &copy; 2026 <a href="/">intelligence.dev</a> &mdash;
+    <a href="https://github.com/intelligencedev/manifold">Manifold on GitHub</a>
+  </p>
+  <p class="footer-meta">Doc. M-001 / Rev. 2026.06</p>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  'use strict';
+
+  // ── Three.js voxel-blueprint engine (scroll-driven background) ──
+  // One canonical visual system: a field of particles/voxels that
+  // physically reassembles into a different machine blueprint for
+  // each section: command core, specialist router, memory vault,
+  // workflow fabric, scheduler chronometer, experiment bay, MCP
+  // coupler and launch engine.
+  const reduceMotion =
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const TAU = Math.PI * 2;
+
+  (function initEngine() {
+    const canvas = document.getElementById('engine-canvas');
+    if (!canvas || typeof THREE === 'undefined') return;
+
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance',
+      });
+    } catch (e) {
+      canvas.style.display = 'none';
+      return;
+    }
+
+    renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x09090c, 0.052);
+
+    const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, reduceMotion ? 7.7 : 9.4);
+    camera.lookAt(0, 0, 0);
+
+    const root = new THREE.Group();
+    const model = new THREE.Group();
+    const rig = new THREE.Group();
+    root.add(rig);
+    root.add(model);
+    scene.add(root);
+
+    function resize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setSize(w, h, true);
+      camera.aspect = w / h;
+      camera.position.z = w < 720 ? 9.4 : 7.55;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener('resize', resize, { passive: true });
+
+    const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const smooth = (t) => t * t * (3 - 2 * t);
+
+    function seeded(seed) {
+      let s = seed >>> 0;
+      return function rnd() {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return s / 4294967296;
+      };
+    }
+
+    function push(points, x, y, z) {
+      if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) points.push(x, y, z);
+    }
+
+    function rotatePoint(x, y, z, rx = 0, ry = 0, rz = 0) {
+      let cy = Math.cos(rx), sy = Math.sin(rx);
+      let y1 = y * cy - z * sy;
+      let z1 = y * sy + z * cy;
+      let x1 = x;
+      cy = Math.cos(ry); sy = Math.sin(ry);
+      let x2 = x1 * cy + z1 * sy;
+      let z2 = -x1 * sy + z1 * cy;
+      let y2 = y1;
+      cy = Math.cos(rz); sy = Math.sin(rz);
+      return [x2 * cy - y2 * sy, x2 * sy + y2 * cy, z2];
+    }
+
+    function addLine(points, ax, ay, az, bx, by, bz, steps = 18) {
+      for (let i = 0; i < steps; i++) {
+        const t = steps === 1 ? 0 : i / (steps - 1);
+        push(points, lerp(ax, bx, t), lerp(ay, by, t), lerp(az, bz, t));
+      }
+    }
+
+    function addCurve(points, ax, ay, az, cx, cy, cz, bx, by, bz, steps = 28) {
+      for (let i = 0; i < steps; i++) {
+        const t = steps === 1 ? 0 : i / (steps - 1);
+        const u = 1 - t;
+        push(
+          points,
+          u * u * ax + 2 * u * t * cx + t * t * bx,
+          u * u * ay + 2 * u * t * cy + t * t * by,
+          u * u * az + 2 * u * t * cz + t * t * bz,
+        );
+      }
+    }
+
+    function addRing(points, radX, radY, steps = 96, opt = {}) {
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * TAU;
+        const p = rotatePoint(
+          Math.cos(a) * radX,
+          Math.sin(a) * radY,
+          opt.z || 0,
+          opt.rotX || 0,
+          opt.rotY || 0,
+          opt.rotZ || 0,
+        );
+        push(points, p[0] + (opt.cx || 0), p[1] + (opt.cy || 0), p[2] + (opt.cz || 0));
+      }
+    }
+
+    function addSphereShell(points, cx, cy, cz, r, count = 100, squash = {}) {
+      const sy = squash.y || 1;
+      const sz = squash.z || 1;
+      for (let i = 0; i < count; i++) {
+        const y = 1 - (i / Math.max(1, count - 1)) * 2;
+        const rr = Math.sqrt(Math.max(0, 1 - y * y));
+        const a = i * 2.399963229728653;
+        push(points, cx + Math.cos(a) * rr * r, cy + y * r * sy, cz + Math.sin(a) * rr * r * sz);
+      }
+    }
+
+    function addBoxFrame(points, cx, cy, cz, sx, sy, sz, steps = 9) {
+      const x = sx / 2, y = sy / 2, z = sz / 2;
+      const c = [
+        [-x, -y, -z], [ x, -y, -z], [ x,  y, -z], [-x,  y, -z],
+        [-x, -y,  z], [ x, -y,  z], [ x,  y,  z], [-x,  y,  z],
+      ];
+      const e = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+      for (const [a, b] of e) addLine(points, cx + c[a][0], cy + c[a][1], cz + c[a][2], cx + c[b][0], cy + c[b][1], cz + c[b][2], steps);
+    }
+
+    function addBoxShell(points, cx, cy, cz, sx, sy, sz, nx = 4, ny = 4, nz = 4) {
+      nx = Math.max(2, nx); ny = Math.max(2, ny); nz = Math.max(2, nz);
+      for (let ix = 0; ix < nx; ix++) {
+        for (let iy = 0; iy < ny; iy++) {
+          for (let iz = 0; iz < nz; iz++) {
+            if (ix !== 0 && ix !== nx - 1 && iy !== 0 && iy !== ny - 1 && iz !== 0 && iz !== nz - 1) continue;
+            push(
+              points,
+              cx + (ix / (nx - 1) - 0.5) * sx,
+              cy + (iy / (ny - 1) - 0.5) * sy,
+              cz + (iz / (nz - 1) - 0.5) * sz,
+            );
+          }
+        }
+      }
+    }
+
+    function addHelix(points, cx, cy, cz, r, height, turns, steps, phase = 0) {
+      for (let i = 0; i < steps; i++) {
+        const t = i / Math.max(1, steps - 1);
+        const a = phase + t * turns * TAU;
+        push(points, cx + Math.cos(a) * r, cy + (t - 0.5) * height, cz + Math.sin(a) * r);
+      }
+    }
+
+    function addGear(points, cx, cy, cz, inner, outer, teeth, steps = 216, opt = {}) {
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * TAU;
+        const tooth = Math.floor((i / steps) * teeth * 2) % 2;
+        const r = tooth ? outer : inner;
+        const p = rotatePoint(Math.cos(a) * r, Math.sin(a) * r, 0, opt.rotX || 0, opt.rotY || 0, opt.rotZ || 0);
+        push(points, cx + p[0], cy + p[1], cz + p[2]);
+      }
+    }
+
+    function commandCore() {
+      const p = [];
+      addSphereShell(p, 0, 0, 0, 0.43, 132);
+      addRing(p, 1.05, 1.05, 144, { rotX: 0.62, rotY: 0.18 });
+      addRing(p, 1.34, 0.54, 144, { rotX: -0.28, rotY: 0.92 });
+      addRing(p, 0.78, 1.48, 144, { rotX: 1.14, rotZ: 0.12 });
+      addBoxFrame(p, 0, 0, 0, 2.95, 2.12, 2.12, 8);
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * TAU;
+        const bx = Math.cos(a) * 1.72;
+        const by = Math.sin(a) * 1.06;
+        const bz = Math.sin(a * 2) * 0.5;
+        addLine(p, Math.cos(a) * 0.42, Math.sin(a) * 0.28, 0, bx, by, bz, 18);
+        addBoxShell(p, bx, by, bz, 0.25, 0.18, 0.18, 3, 3, 3);
+      }
+      return p;
+    }
+
+    function specialistRouter() {
+      const p = [];
+      addSphereShell(p, 0, 0, 0, 0.36, 118, { y: 0.8 });
+      addRing(p, 0.55, 0.55, 84, { rotX: 0.8 });
+      addRing(p, 0.78, 0.78, 96, { rotY: 1.15 });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + TAU / 12;
+        const ex = Math.cos(a) * 1.9;
+        const ey = Math.sin(a) * 1.18;
+        const ez = (i % 2 ? 0.56 : -0.56);
+        const mx = Math.cos(a) * 0.92;
+        const my = Math.sin(a) * 0.58;
+        addCurve(p, 0, 0, 0, mx, my, ez * 0.58, ex, ey, ez, 34);
+        addBoxShell(p, ex, ey, ez, 0.48, 0.34, 0.32, 4, 4, 3);
+        addRing(p, 0.25, 0.25, 40, { cx: ex, cy: ey, cz: ez, rotX: 0.9, rotY: a });
+        addLine(p, ex, ey, ez, ex + Math.cos(a) * 0.38, ey + Math.sin(a) * 0.22, ez, 8);
+      }
+      addBoxFrame(p, 0, 0, 0, 3.9, 2.55, 1.45, 7);
+      return p;
+    }
+
+    function memoryVault() {
+      const p = [];
+      for (let y = -1.18; y <= 1.2; y += 0.22) addRing(p, 0.62, 0.62, 72, { cy: y, rotX: Math.PI / 2 });
+      addBoxFrame(p, 0, 0, 0, 1.44, 2.72, 1.44, 9);
+      for (let i = 0; i < 4; i++) {
+        addHelix(p, 0, 0, 0, 0.78 + i * 0.17, 2.85, 2.45, 132, i * TAU / 4);
+      }
+      for (let i = 0; i < 9; i++) {
+        const y = -1.05 + i * 0.26;
+        const side = i % 2 ? -1 : 1;
+        addBoxShell(p, side * 1.2, y, 0, 0.5, 0.1, 0.42, 4, 2, 3);
+        addLine(p, side * 0.72, y, 0, side * 0.94, y, 0, 6);
+      }
+      addSphereShell(p, 0, 0, 0, 0.24, 56, { y: 1.25, z: 0.9 });
+      return p;
+    }
+
+    function workflowFabric() {
+      const p = [];
+      const layers = [
+        [[0, 0, 0]],
+        [[0.35, 0.62, -0.34], [0.35, -0.62, 0.34]],
+        [[0.7, 0.86, 0.24], [0.7, 0, -0.42], [0.7, -0.86, 0.24]],
+        [[1.05, 0.62, -0.3], [1.05, -0.62, 0.3]],
+        [[1.4, 0, 0]],
+      ];
+      const nodes = [];
+      for (let li = 0; li < layers.length; li++) {
+        for (const n of layers[li]) {
+          const x = n[0] * 2.45 - 1.7;
+          const y = n[1];
+          const z = n[2];
+          nodes.push({ li, x, y, z });
+          addBoxShell(p, x, y, z, 0.34, 0.24, 0.24, 3, 3, 3);
+          addRing(p, 0.22, 0.22, 30, { cx: x, cy: y, cz: z, rotX: 0.9 });
+        }
+      }
+      for (const a of nodes) {
+        for (const b of nodes) {
+          if (b.li === a.li + 1) addCurve(p, a.x, a.y, a.z, (a.x + b.x) / 2, (a.y + b.y) / 2, 0.72, b.x, b.y, b.z, 24);
+        }
+      }
+      addLine(p, -1.95, 1.12, -0.58, 1.95, 1.12, -0.58, 60);
+      addLine(p, -1.95, -1.12, 0.58, 1.95, -1.12, 0.58, 60);
+      addBoxFrame(p, 0, 0, 0, 4.12, 2.68, 1.62, 8);
+      return p;
+    }
+
+    function schedulerChronometer() {
+      const p = [];
+      addGear(p, 0, 0, 0, 1.18, 1.42, 28, 260, { rotX: 0.22, rotY: -0.25 });
+      addRing(p, 0.84, 0.84, 144, { rotX: 0.22, rotY: -0.25 });
+      addSphereShell(p, 0, 0, 0, 0.18, 36);
+      addLine(p, 0, 0, 0, 0.42, 0.72, 0.05, 22);
+      addLine(p, 0, 0, 0, -0.72, 0.24, -0.04, 28);
+      addLine(p, 0, -1.43, 0, 0, -2.05, 0.16, 28);
+      addSphereShell(p, 0, -2.18, 0.18, 0.18, 28, { y: 1.25 });
+      for (let i = 0; i < 12; i++) {
+        const a = i / 12 * TAU;
+        const x = Math.cos(a) * 1.0;
+        const y = Math.sin(a) * 1.0;
+        addBoxShell(p, x, y, Math.sin(a * 2) * 0.15, 0.12, 0.12, 0.12, 2, 2, 2);
+      }
+      addBoxFrame(p, 0, -0.15, 0, 3.1, 3.25, 1.35, 7);
+      return p;
+    }
+
+    function experimentBay() {
+      const p = [];
+      addBoxFrame(p, 0, -0.78, 0, 3.35, 0.26, 1.55, 12);
+      for (let x = -1.45; x <= 1.46; x += 0.42) addLine(p, x, -0.64, -0.72, x, -0.64, 0.72, 18);
+      for (let z = -0.62; z <= 0.63; z += 0.32) addLine(p, -1.55, -0.63, z, 1.55, -0.63, z, 28);
+      addBoxFrame(p, -0.55, 0.34, -0.34, 1.25, 0.95, 0.2, 8);
+      addBoxFrame(p, 0.94, 0.18, -0.18, 0.64, 1.18, 0.24, 8);
+      for (let i = 0; i < 54; i++) {
+        const t = i / 53;
+        const x = -1.05 + t * 1.05;
+        const y = 0.36 + Math.sin(t * TAU * 2.2) * 0.24;
+        addLine(p, x, y, -0.18, x + 0.012, y, -0.18, 1);
+      }
+      for (let i = 0; i < 4; i++) {
+        const x = 0.52 + i * 0.26;
+        addRing(p, 0.08, 0.08, 24, { cx: x, cy: 0.78, cz: 0.38, rotX: Math.PI / 2 });
+        addLine(p, x - 0.08, 0.78, 0.38, x - 0.08, -0.36, 0.38, 16);
+        addLine(p, x + 0.08, 0.78, 0.38, x + 0.08, -0.36, 0.38, 16);
+        addRing(p, 0.08, 0.08, 24, { cx: x, cy: -0.36, cz: 0.38, rotX: Math.PI / 2 });
+      }
+      addBoxShell(p, -1.28, -0.1, 0.34, 0.34, 0.34, 0.34, 4, 4, 4);
+      addBoxShell(p, -1.02, 0.2, 0.34, 0.28, 0.28, 0.28, 3, 3, 3);
+      return p;
+    }
+
+    function mcpCoupler() {
+      const p = [];
+      const hex = [];
+      for (let i = 0; i < 6; i++) hex.push([Math.cos(i / 6 * TAU + TAU / 12) * 0.72, Math.sin(i / 6 * TAU + TAU / 12) * 0.72, 0]);
+      for (let i = 0; i < 6; i++) {
+        const a = hex[i], b = hex[(i + 1) % 6];
+        addLine(p, a[0], a[1], a[2], b[0], b[1], b[2], 20);
+      }
+      addSphereShell(p, 0, 0, 0, 0.28, 70, { y: 0.7 });
+      for (let i = 0; i < 6; i++) {
+        const a = i / 6 * TAU + TAU / 12;
+        const sx = Math.cos(a) * 0.72;
+        const sy = Math.sin(a) * 0.72;
+        const ex = Math.cos(a) * 1.92;
+        const ey = Math.sin(a) * 1.22;
+        const ez = Math.sin(i * 1.7) * 0.52;
+        addCurve(p, sx, sy, 0, Math.cos(a) * 1.25, Math.sin(a) * 0.95, ez * 0.75, ex, ey, ez, 34);
+        addBoxShell(p, ex, ey, ez, 0.46, 0.28, 0.32, 4, 3, 3);
+        addBoxFrame(p, ex, ey, ez, 0.72, 0.46, 0.48, 5);
+      }
+      addRing(p, 1.18, 1.18, 120, { rotX: 0.82, rotY: 0.2 });
+      addRing(p, 1.18, 1.18, 120, { rotX: -0.82, rotY: -0.2 });
+      return p;
+    }
+
+    function launchEngine() {
+      const p = [];
+      for (let y = -1.05; y <= 1.0; y += 0.18) addRing(p, 0.34, 0.34, 48, { cy: y, rotX: Math.PI / 2 });
+      addLine(p, -0.34, 1.0, 0, 0, 1.58, 0, 20);
+      addLine(p, 0.34, 1.0, 0, 0, 1.58, 0, 20);
+      addLine(p, 0, 1.0, -0.34, 0, 1.58, 0, 20);
+      addLine(p, 0, 1.0, 0.34, 0, 1.58, 0, 20);
+      addBoxFrame(p, -0.88, 0.1, -0.42, 0.34, 2.95, 0.34, 10);
+      for (let y = -1.1; y <= 1.12; y += 0.32) addLine(p, -1.05, y, -0.55, -0.68, y + 0.2, -0.29, 10);
+      addLine(p, -0.34, -0.9, 0, -0.86, -1.34, 0.24, 16);
+      addLine(p, 0.34, -0.9, 0, 0.86, -1.34, 0.24, 16);
+      for (let i = 0; i < 5; i++) addRing(p, 0.18 + i * 0.18, 0.08 + i * 0.08, 52, { cy: -1.3 - i * 0.16, rotX: Math.PI / 2 });
+      for (let i = 0; i < 54; i++) {
+        const t = i / 53;
+        const a = i * 2.399963;
+        push(p, Math.cos(a) * t * 0.78, -1.34 - t * 0.94, Math.sin(a) * t * 0.78);
+      }
+      addBoxFrame(p, 0, -1.55, 0, 2.55, 0.32, 1.7, 8);
+      return p;
+    }
+
+    const VOXELS = 720;
+    function fitAndSample(src, seed) {
+      const count = Math.max(1, Math.floor(src.length / 3));
+      let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+      for (let i = 0; i < count; i++) {
+        const k = i * 3;
+        minX = Math.min(minX, src[k]); maxX = Math.max(maxX, src[k]);
+        minY = Math.min(minY, src[k + 1]); maxY = Math.max(maxY, src[k + 1]);
+        minZ = Math.min(minZ, src[k + 2]); maxZ = Math.max(maxZ, src[k + 2]);
+      }
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
+      const maxSpan = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 0.001);
+      const scale = 3.35 / maxSpan;
+      const out = new Float32Array(VOXELS * 3);
+      const rnd = seeded(seed);
+      for (let i = 0; i < VOXELS; i++) {
+        const idx = count >= VOXELS ? Math.floor(i * count / VOXELS) : i % count;
+        const k = idx * 3;
+        const repeat = count >= VOXELS ? 0 : Math.floor(i / count);
+        const jitter = repeat ? 0.018 : 0.004;
+        out[i * 3] = (src[k] - cx) * scale + (rnd() - 0.5) * jitter;
+        out[i * 3 + 1] = (src[k + 1] - cy) * scale + (rnd() - 0.5) * jitter;
+        out[i * 3 + 2] = (src[k + 2] - cz) * scale + (rnd() - 0.5) * jitter;
+      }
+      return out;
+    }
+
+    /* Horizontal stage offsets control how far the particle blueprint
+       moves away from the active content card. Keep the side-to-side
+       choreography, but give the card more breathing room on desktop. */
+    const FEATURE_VISUAL_X = 1.84;
+    const HERO_VISUAL_X = 1.72;
+    const CTA_VISUAL_X = 1.84;
+
+    const BLUEPRINTS = [
+      { name: 'Command core',       color: [0.88, 0.86, 0.96], x:  HERO_VISUAL_X,    yaw: -0.34, points: fitAndSample(commandCore(), 11) },
+      { name: 'Specialist router',  color: [0.62, 0.36, 1.00], x: -FEATURE_VISUAL_X, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
+      { name: 'Memory vault',       color: [0.72, 0.68, 0.88], x:  FEATURE_VISUAL_X, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
+      { name: 'Workflow fabric',    color: [0.30, 0.85, 0.42], x: -FEATURE_VISUAL_X, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
+      { name: 'Chronometer',        color: [0.52, 0.24, 0.95], x:  FEATURE_VISUAL_X, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
+      { name: 'Experiment bay',     color: [0.40, 0.95, 0.55], x: -FEATURE_VISUAL_X, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
+      { name: 'MCP coupler',        color: [0.80, 0.90, 0.82], x:  FEATURE_VISUAL_X, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
+      { name: 'Launch engine',      color: [0.30, 0.94, 0.46], x: -CTA_VISUAL_X,  yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
+    ];
+    const STAGES = BLUEPRINTS.length;
+
+    function makeSprite() {
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const g = c.getContext('2d');
+      const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grd.addColorStop(0, 'rgba(255,255,255,0.95)');
+      grd.addColorStop(0.28, 'rgba(255,255,255,0.55)');
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grd;
+      g.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    const live = new Float32Array(VOXELS * 3);
+    const targetA = new Float32Array(VOXELS * 3);
+    const targetB = new Float32Array(VOXELS * 3);
+    let seededLive = false;
+
+    const voxelGeom = new THREE.BoxGeometry(0.075, 0.075, 0.075);
+    const voxelMat = new THREE.MeshBasicMaterial({
+      color: 0xd9d4ee,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const voxels = new THREE.InstancedMesh(voxelGeom, voxelMat, VOXELS);
+    voxels.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    model.add(voxels);
+
+    const glowGeo = new THREE.BufferGeometry();
+    glowGeo.setAttribute('position', new THREE.BufferAttribute(live, 3));
+    const glowMat = new THREE.PointsMaterial({
+      size: 0.115,
+      map: makeSprite(),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      color: 0xd9d4ee,
+      sizeAttenuation: true,
+    });
+    const glow = new THREE.Points(glowGeo, glowMat);
+    model.add(glow);
+
+    const SEGMENTS = VOXELS - 1;
+    const linePos = new Float32Array(SEGMENTS * 2 * 3);
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0xd9d4ee,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const lines = new THREE.LineSegments(lineGeo, lineMat);
+    model.add(lines);
+
+    const ringMats = [];
+    for (let i = 0; i < 3; i++) {
+      const g = new THREE.BufferGeometry();
+      const segs = 128;
+      const arr = new Float32Array((segs + 1) * 3);
+      for (let s = 0; s <= segs; s++) {
+        const a = s / segs * TAU;
+        const r = 2.55 + i * 0.22;
+        arr[s * 3] = Math.cos(a) * r;
+        arr[s * 3 + 1] = Math.sin(a) * r;
+        arr[s * 3 + 2] = 0;
+      }
+      g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+      const m = new THREE.LineBasicMaterial({
+        color: 0xd9d4ee,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const ring = new THREE.Line(g, m);
+      ring.rotation.x = i * 0.88 + 0.22;
+      ring.rotation.y = i * 0.54 - 0.18;
+      ringMats.push(m);
+      rig.add(ring);
+    }
+
+    const grid = new THREE.GridHelper(28, 28, 0x3c3554, 0x16141e);
+    grid.position.y = -2.32;
+    grid.material.transparent = true;
+    grid.material.opacity = 0;
+    root.add(grid);
+
+    /* ── Morph choreography buffers ────────────────────────────
+       Each particle gets its own departure beat and a personal curl
+       axis so blueprint transitions read as a living swarm rather
+       than a uniform crossfade. */
+    const morphPhase = new Float32Array(VOXELS);
+    const swirl = new Float32Array(VOXELS * 3);
+    {
+      const rnd = seeded(4242);
+      for (let i = 0; i < VOXELS; i++) {
+        morphPhase[i] = rnd();
+        const a = rnd() * TAU;
+        const b = Math.acos(2 * rnd() - 1);
+        const r = 0.55 + rnd() * 0.85;
+        swirl[i * 3]     = Math.sin(b) * Math.cos(a) * r;
+        swirl[i * 3 + 1] = Math.sin(b) * Math.sin(a) * r;
+        swirl[i * 3 + 2] = Math.cos(b) * r;
+      }
+    }
+
+    /* ── Data packets: signals racing across the lattice ─────── */
+    const PACKETS = 56;
+    const packetPos = new Float32Array(PACKETS * 3);
+    const packets = [];
+    {
+      const rnd = seeded(7321);
+      for (let i = 0; i < PACKETS; i++) {
+        packets.push({
+          a: (rnd() * VOXELS) | 0,
+          b: (rnd() * VOXELS) | 0,
+          t: rnd(),
+          speed: 0.35 + rnd() * 0.85,
+        });
+      }
+    }
+    const packetGeo = new THREE.BufferGeometry();
+    packetGeo.setAttribute('position', new THREE.BufferAttribute(packetPos, 3));
+    const packetMat = new THREE.PointsMaterial({
+      size: 0.15,
+      map: makeSprite(),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      color: 0x5ce87f,
+      sizeAttenuation: true,
+    });
+    const packetCloud = new THREE.Points(packetGeo, packetMat);
+    model.add(packetCloud);
+
+    /* ── Ambient dust field: deep parallax backdrop ──────────── */
+    const DUST = 420;
+    const dustPos = new Float32Array(DUST * 3);
+    {
+      const rnd = seeded(9151);
+      for (let i = 0; i < DUST; i++) {
+        const a = rnd() * TAU;
+        const b = Math.acos(2 * rnd() - 1);
+        const r = 7 + rnd() * 9;
+        dustPos[i * 3]     = Math.sin(b) * Math.cos(a) * r;
+        dustPos[i * 3 + 1] = Math.sin(b) * Math.sin(a) * r * 0.6;
+        dustPos[i * 3 + 2] = Math.cos(b) * r - 4;
+      }
+    }
+    const dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+    const dustMat = new THREE.PointsMaterial({
+      size: 0.05,
+      map: makeSprite(),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      color: 0x7a6aa8,
+      sizeAttenuation: true,
+    });
+    const dust = new THREE.Points(dustGeo, dustMat);
+    scene.add(dust);
+
+    const instCol = new THREE.Color();
+
+    const dummy = new THREE.Object3D();
+    const currentColor = new THREE.Color();
+    const nextColor = new THREE.Color();
+    const mixedColor = new THREE.Color();
+
+    const engineAnimate = window.anime && typeof window.anime.animate === 'function'
+      ? window.anime.animate.bind(window.anime)
+      : null;
+    const state = { intro: reduceMotion ? 1 : 0, pulse: 1, burst: 0, pSmooth: 0 };
+    if (!reduceMotion && engineAnimate) {
+      try {
+        engineAnimate(state, { intro: [0, 1], duration: 1700, ease: 'outExpo' });
+        engineAnimate(state, { pulse: [0.97, 1.035], duration: 3200, loop: true, alternate: true, ease: 'inOutSine' });
+        engineAnimate(camera.position, { z: 7.55, duration: 1800, ease: 'outExpo' });
+      } catch (e) {
+        state.intro = 1;
+        camera.position.z = 7.55;
+      }
+    }
+
+    function navOffsetPx() {
+      const nav = document.querySelector('.nav');
+      return nav ? Math.ceil(nav.getBoundingClientRect().height + 10) : 0;
+    }
+
+    function sectionAnchors() {
+      const secs = document.querySelectorAll('section');
+      const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const nav = navOffsetPx();
+      const tops = [];
+      for (let i = 0; i < secs.length; i++) {
+        const raw = secs[i].getBoundingClientRect().top + window.scrollY;
+        tops.push(Math.min(max, Math.max(0, Math.round(raw - nav))));
+      }
+      return tops;
+    }
+
+    function stagePos() {
+      const tops = sectionAnchors();
+      const n = Math.min(tops.length, STAGES);
+      if (n < 2) return 0;
+      const y = window.scrollY;
+      if (y <= tops[0]) return 0;
+      if (y >= tops[n - 1]) return n - 1;
+      for (let i = 0; i < n - 1; i++) {
+        if (y >= tops[i] && y <= tops[i + 1]) {
+          return i + (y - tops[i]) / Math.max(1, tops[i + 1] - tops[i]);
+        }
+      }
+      return n - 1;
+    }
+
+    function fillStage(out, stageIndex, t) {
+      const base = BLUEPRINTS[stageIndex].points;
+      const machineBreath = reduceMotion ? 0 : Math.sin(t * 1.25 + stageIndex) * 0.018;
+      for (let i = 0; i < VOXELS; i++) {
+        const k = i * 3;
+        const phase = i * 12.9898 + stageIndex * 7.31;
+        const shimmer = reduceMotion ? 0 : Math.sin(t * 2.0 + phase) * 0.009;
+        out[k] = base[k] + shimmer;
+        out[k + 1] = base[k + 1] + Math.cos(t * 1.7 + phase) * 0.007 + machineBreath;
+        out[k + 2] = base[k + 2] + Math.sin(t * 1.35 + phase * 0.7) * 0.008;
+      }
+    }
+
+    let mouseX = 0, mouseY = 0;
+    window.addEventListener('pointermove', (event) => {
+      mouseX = event.clientX / window.innerWidth - 0.5;
+      mouseY = event.clientY / window.innerHeight - 0.5;
+    }, { passive: true });
+
+    const clock = new THREE.Clock();
+    let lastNearest = -1;
+    let lastT = 0;
+
+    function frame() {
+      const t = reduceMotion ? 0 : clock.getElapsedTime();
+      const dt = Math.min(0.05, Math.max(0.0008, t - lastT));
+      lastT = t;
+      state.pSmooth += (stagePos() - state.pSmooth) * (reduceMotion ? 1 : 0.085);
+
+      let idx = Math.floor(state.pSmooth);
+      if (idx >= STAGES - 1) idx = STAGES - 2;
+      if (idx < 0) idx = 0;
+      /* Remap inter-section progress so the morph drives 0→1 over the
+         first 65% of the scroll gap between sections. This ensures all
+         particles complete their transition well before the next section
+         card reaches the viewport boundary. */
+      const f = smooth(clamp((state.pSmooth - idx) / 0.65));
+      /* morphE: 0 when a blueprint is settled, 1 mid-flight between
+         blueprints. Drives transition glow, line energy and packets. */
+      const morphE = reduceMotion ? 0 : Math.sin(clamp((state.pSmooth - idx) / 0.65) * Math.PI);
+      const nearest = Math.round(state.pSmooth);
+
+      if (nearest !== lastNearest) {
+        lastNearest = nearest;
+        if (!reduceMotion && engineAnimate) {
+          try { engineAnimate(state, { burst: [1, 0], duration: 950, ease: 'outExpo' }); }
+          catch (e) { state.burst = 0; }
+        }
+      }
+
+      fillStage(targetA, idx, t);
+      fillStage(targetB, idx + 1, t);
+
+      currentColor.setRGB(BLUEPRINTS[idx].color[0], BLUEPRINTS[idx].color[1], BLUEPRINTS[idx].color[2]);
+      nextColor.setRGB(BLUEPRINTS[idx + 1].color[0], BLUEPRINTS[idx + 1].color[1], BLUEPRINTS[idx + 1].color[2]);
+      mixedColor.copy(currentColor).lerp(nextColor, f);
+      voxelMat.color.copy(mixedColor);
+      glowMat.color.copy(mixedColor);
+      lineMat.color.copy(mixedColor).multiplyScalar(0.62);
+      for (const m of ringMats) m.color.copy(mixedColor).multiplyScalar(0.55);
+
+      const follow = reduceMotion ? 1 : 0.17;
+      for (let i = 0; i < VOXELS; i++) {
+        const k = i * 3;
+        /* Staggered departure: each particle leaves on its own beat so
+           blueprints dissolve and reassemble as a travelling wave
+           instead of a uniform crossfade.
+           Window tightened to 0.28 (was 0.42) so the last particle
+           finishes at f=1.0 (≈65% through the scroll gap) — well
+           before the incoming section card crosses its boundary. */
+        const fi = reduceMotion ? f : smooth(clamp((f - morphPhase[i] * 0.28) / 0.72));
+        const flight = reduceMotion ? 0 : Math.sin(fi * Math.PI);
+        let tx = lerp(targetA[k], targetB[k], fi);
+        let ty = lerp(targetA[k + 1], targetB[k + 1], fi);
+        let tz = lerp(targetA[k + 2], targetB[k + 2], fi);
+        if (flight > 0.001) {
+          /* Curl detour: in-flight particles arc outward along a
+             personal axis, wobbling slightly, like a swarm in transit. */
+          const wob = t * 3.1 + i * 1.7;
+          tx += swirl[k]     * flight * (0.55 + 0.20 * Math.sin(wob));
+          ty += swirl[k + 1] * flight * (0.55 + 0.20 * Math.cos(wob * 0.9));
+          tz += swirl[k + 2] * flight * 0.55;
+        }
+        if (!seededLive) {
+          live[k] = tx; live[k + 1] = ty; live[k + 2] = tz;
+        } else {
+          live[k] += (tx - live[k]) * follow;
+          live[k + 1] += (ty - live[k + 1]) * follow;
+          live[k + 2] += (tz - live[k + 2]) * follow;
+        }
+
+        dummy.position.set(live[k], live[k + 1], live[k + 2]);
+        const s = 0.72 + Math.sin(t * 2.4 + i * 0.37) * 0.10 + state.burst * 0.42 + flight * 0.30;
+        dummy.scale.setScalar(reduceMotion ? 0.82 : s);
+        dummy.rotation.set(t * 0.08 + i * 0.013, t * 0.06 + i * 0.021, t * 0.04);
+        dummy.updateMatrix();
+        voxels.setMatrixAt(i, dummy.matrix);
+
+        /* Per-particle luminance: a slow sparkle plus "transit heat" —
+           particles burn brighter while flying between blueprints. */
+        const sparkle = 0.80 + 0.28 * Math.sin(t * 2.1 + i * 0.61);
+        instCol.setScalar(reduceMotion ? 1 : sparkle + flight * 0.95);
+        voxels.setColorAt(i, instCol);
+      }
+      seededLive = true;
+      voxels.instanceMatrix.needsUpdate = true;
+      if (voxels.instanceColor) voxels.instanceColor.needsUpdate = true;
+      glowGeo.attributes.position.needsUpdate = true;
+
+      for (let s = 0; s < SEGMENTS; s++) {
+        const i = s, j = s + 1;
+        const a = i * 3, b = j * 3, o = s * 6;
+        const dx = live[a] - live[b], dy = live[a + 1] - live[b + 1], dz = live[a + 2] - live[b + 2];
+        const near = dx * dx + dy * dy + dz * dz < 0.18;
+        linePos[o] = live[a]; linePos[o + 1] = live[a + 1]; linePos[o + 2] = live[a + 2];
+        linePos[o + 3] = near ? live[b] : live[a];
+        linePos[o + 4] = near ? live[b + 1] : live[a + 1];
+        linePos[o + 5] = near ? live[b + 2] : live[a + 2];
+      }
+      lineGeo.attributes.position.needsUpdate = true;
+
+      /* Data packets: luminous signals racing along the live lattice.
+         They speed up while the machine is morphing — the engine is
+         "busy" re-routing itself. */
+      for (let i = 0; i < PACKETS; i++) {
+        const pk = packets[i];
+        pk.t += dt * pk.speed * (1 + morphE * 1.8);
+        if (pk.t >= 1) {
+          pk.t = 0;
+          pk.a = pk.b;
+          pk.b = (Math.random() * VOXELS) | 0;
+          pk.speed = 0.35 + Math.random() * 0.85;
+        }
+        const ea = smooth(pk.t);
+        const a3 = pk.a * 3, b3 = pk.b * 3, o = i * 3;
+        packetPos[o]     = lerp(live[a3],     live[b3],     ea);
+        packetPos[o + 1] = lerp(live[a3 + 1], live[b3 + 1], ea);
+        packetPos[o + 2] = lerp(live[a3 + 2], live[b3 + 2], ea);
+      }
+      packetGeo.attributes.position.needsUpdate = true;
+      packetMat.opacity = reduceMotion ? 0 : (0.55 + morphE * 0.40) * state.intro;
+      packetMat.size = 0.15 + state.burst * 0.08 + morphE * 0.05;
+
+      /* Ambient dust: deep parallax backdrop, barely-there. */
+      dust.rotation.y = t * 0.012 + mouseX * 0.05;
+      dust.rotation.x = mouseY * 0.03;
+      dustMat.opacity = 0.16 * state.intro;
+
+      const desktop = window.innerWidth > 900;
+      const portraitMobile = !desktop && window.innerHeight > window.innerWidth;
+      const targetX = desktop ? lerp(BLUEPRINTS[idx].x, BLUEPRINTS[idx + 1].x, f) : 0;
+      const targetY = desktop ? -0.02 : (portraitMobile ? -1.56 : -0.48);
+      const targetScale = desktop ? 1.02 : (portraitMobile ? 0.72 : 0.78);
+      const targetYaw = lerp(BLUEPRINTS[idx].yaw, BLUEPRINTS[idx + 1].yaw, f);
+      root.position.x += (targetX - root.position.x) * (reduceMotion ? 1 : 0.045);
+      root.position.y += (targetY - root.position.y) * 0.06;
+      root.scale.setScalar(targetScale * state.pulse);
+      model.rotation.y = targetYaw + Math.sin(t * 0.24) * 0.14 + mouseX * 0.32 + morphE * 0.22;
+      model.rotation.x = -0.08 + Math.sin(t * 0.18) * 0.055 + mouseY * 0.18;
+      model.rotation.z = Math.sin(t * 0.13) * 0.035;
+      rig.rotation.x = t * 0.045;
+      rig.rotation.y = t * 0.06;
+
+      voxelMat.opacity = (0.62 + morphE * 0.10) * state.intro;
+      glowMat.opacity = (0.50 + morphE * 0.18) * state.intro;
+      glowMat.size = 0.105 + state.burst * 0.055 + morphE * 0.035;
+      lineMat.opacity = (0.42 + morphE * 0.26) * state.intro;
+      for (const m of ringMats) m.opacity = (0.16 + morphE * 0.10) * state.intro;
+      grid.material.opacity = 0.11 * state.intro;
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+  })();
+
+
+  /* Section snap navigation */
+  (function initSectionSnapNav() {
+    const snapSections = Array.from(document.querySelectorAll('section'));
+    if (snapSections.length < 2) return;
+
+    let locked = false;
+    let unlockTimer = 0;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchConsumed = false;
+
+    function navOffset() {
+      const nav = document.querySelector('.nav');
+      return nav ? Math.ceil(nav.getBoundingClientRect().height + 10) : 0;
+    }
+
+    function rawTop(section) {
+      return section.getBoundingClientRect().top + window.scrollY;
+    }
+
+    function targetTop(section) {
+      return Math.max(0, Math.round(rawTop(section) - navOffset()));
+    }
+
+    function currentIndex() {
+      const y = window.scrollY + navOffset() + window.innerHeight * 0.35;
+      let index = 0;
+      for (let i = 0; i < snapSections.length; i++) {
+        if (rawTop(snapSections[i]) <= y) index = i;
+      }
+      return index;
+    }
+
+    function unlockSoon() {
+      window.clearTimeout(unlockTimer);
+      unlockTimer = window.setTimeout(() => { locked = false; }, reduceMotion ? 120 : 900);
+    }
+
+    function scrollToAdjacent(direction) {
+      const current = currentIndex();
+      const next = Math.max(0, Math.min(snapSections.length - 1, current + direction));
+      if (next === current) return;
+
+      locked = true;
+      window.scrollTo({ top: targetTop(snapSections[next]), behavior: reduceMotion ? 'auto' : 'smooth' });
+      unlockSoon();
+    }
+
+    function isEditing() {
+      const active = document.activeElement;
+      return active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(active.tagName));
+    }
+
+    window.addEventListener('wheel', (event) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (Math.abs(event.deltaY) < 8 || Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
+
+      event.preventDefault();
+      if (locked) return;
+      scrollToAdjacent(event.deltaY > 0 ? 1 : -1);
+    }, { passive: false });
+
+    window.addEventListener('touchstart', (event) => {
+      if (event.touches.length !== 1) return;
+      touchStartX = event.touches[0].clientX;
+      touchStartY = event.touches[0].clientY;
+      touchConsumed = false;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (event) => {
+      if (event.touches.length !== 1 || !touchStartY) return;
+
+      const touch = event.touches[0];
+      const dx = touchStartX - touch.clientX;
+      const dy = touchStartY - touch.clientY;
+      if (Math.abs(dy) < 36 || Math.abs(dy) < Math.abs(dx) * 1.2) return;
+
+      if (event.cancelable) event.preventDefault();
+      if (locked || touchConsumed) return;
+      touchConsumed = true;
+      scrollToAdjacent(dy > 0 ? 1 : -1);
+    }, { passive: false });
+
+    function clearTouchSnap() {
+      touchStartX = 0;
+      touchStartY = 0;
+      window.setTimeout(() => { touchConsumed = false; }, 120);
+    }
+
+    window.addEventListener('touchend', clearTouchSnap, { passive: true });
+    window.addEventListener('touchcancel', clearTouchSnap, { passive: true });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (isEditing()) return;
+
+      const forwardKeys = ['ArrowDown', 'PageDown', ' '];
+      const backKeys = ['ArrowUp', 'PageUp'];
+      if (!forwardKeys.includes(event.key) && !backKeys.includes(event.key)) return;
+
+      event.preventDefault();
+      if (locked) return;
+      scrollToAdjacent(forwardKeys.includes(event.key) ? 1 : -1);
+    }, { passive: false });
+
+    window.addEventListener('scrollend', () => {
+      locked = false;
+      window.clearTimeout(unlockTimer);
+    });
+  })();
+
+  // ── Entrance animations (anime.js v4) ───────────────────────
+  const { animate, stagger, createTimeline } = anime;
+
+  const tl = createTimeline({ defaults: { ease: 'outExpo' } });
+
+  tl.add('#hero-eyebrow', {
+    opacity:    [0, 1],
+    translateY: [20, 0],
+    duration:   700,
+  }, 300)
+  .add('#hero-heading', {
+    opacity:    [0, 1],
+    translateY: [30, 0],
+    duration:   800,
+  }, '-=500')
+  .add('#hero-sub', {
+    opacity:    [0, 1],
+    translateY: [20, 0],
+    duration:   700,
+  }, '-=600')
+  .add('#hero-cta', {
+    opacity:    [0, 1],
+    translateY: [16, 0],
+    duration:   600,
+  }, '-=550')
+  .add('#hero-extra', {
+    opacity:    [0, 1],
+    translateY: [14, 0],
+    duration:   600,
+  }, '-=500')
+  .add('#scroll-hint', {
+    opacity:  [0, 0.6],
+    duration: 600,
+  }, '-=200');
+
+  // Features intro fade
+  function revealOnScroll(selector, delay) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setTimeout(() => {
+            animate(entry.target, {
+              opacity:    [0, 1],
+              translateY: [30, 0],
+              duration:   700,
+              ease:       'outExpo',
+            });
+          }, delay || 0);
+          obs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    obs.observe(el);
+  }
+  revealOnScroll('#features-label',   0);
+  revealOnScroll('#features-heading', 100);
+
+  // Feature sections
+  const featureSections = document.querySelectorAll('.feature-section');
+  const sectionObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        sectionObs.unobserve(entry.target);
+        startFeatureAnimation(entry.target);
+      }
+    });
+  }, { threshold: 0.18 });
+  featureSections.forEach(s => sectionObs.observe(s));
+
+  // CTA
+  const ctaEl = document.querySelector('.cta-section');
+  if (ctaEl) {
+    new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.2 }).observe(ctaEl);
+  }
+
+  // ── Feature card micro-interactions ──────────────────────
+  function startFeatureAnimation(section) {
+    if (reduceMotion || !section) return;
+    const targets = section.querySelectorAll('.feature-title, .feature-desc, .dummy-copy, .tag');
+    if (!targets.length) return;
+    animate(targets, {
+      opacity: [0, 1],
+      translateY: [12, 0],
+      duration: 520,
+      delay: stagger(36),
+      ease: 'outExpo',
+    });
+  }
+
+  // ── Section HUD ──────────────────────────────────────────────
+  (function initHud() {
+    const sections = [
+      { el: document.querySelector('.hero'),                         num: '00', name: 'Command Center'      },
+      { el: document.querySelector('[data-feature="specialists"]'),  num: '01', name: 'Specialist handoff'  },
+      { el: document.querySelector('[data-feature="memory"]'),       num: '02', name: 'Memory substrate'    },
+      { el: document.querySelector('[data-feature="dag"]'),          num: '03', name: 'Workflow topology'   },
+      { el: document.querySelector('[data-feature="pulse"]'),        num: '04', name: 'Timed execution'     },
+      { el: document.querySelector('[data-feature="playground"]'),   num: '05', name: 'Experiment bay'      },
+      { el: document.querySelector('[data-feature="mcp"]'),          num: '06', name: 'Tool mesh'           },
+      { el: document.querySelector('.cta-section'),                  num: '07', name: 'Launch sequence'     },
+    ].filter(s => s.el);
+
+    const hudLabel = document.getElementById('section-hud-label');
+    const hudName  = document.getElementById('section-hud-name');
+    const hudDots  = document.querySelectorAll('.hud-dot');
+
+    let current = 0;
+
+    function setSection(idx) {
+      if (idx === current) return;
+      current = idx;
+      const s = sections[idx];
+      if (!s) return;
+
+      hudLabel.textContent = s.num;
+      // Fade name out then in
+      hudName.style.opacity = '0';
+      hudName.style.transform = 'translateY(4px)';
+      setTimeout(() => {
+        hudName.textContent = s.name;
+        hudName.style.opacity = '';
+        hudName.style.transform = '';
+      }, 180);
+
+      hudDots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    }
+
+    // IntersectionObserver with rootMargin to trigger at mid-viewport
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const idx = sections.findIndex(s => s.el === entry.target);
+          if (idx >= 0) setSection(idx);
+        }
+      });
+    }, { threshold: 0.35 });
+
+    sections.forEach(s => obs.observe(s.el));
+
+    // Dot click → scroll to section
+    hudDots.forEach((dot, i) => {
+      dot.style.pointerEvents = 'auto';
+      dot.style.cursor = 'pointer';
+      dot.addEventListener('click', () => {
+        const s = sections[i];
+        if (s && s.el) {
+          const navH = document.querySelector('.nav')?.offsetHeight || 80;
+          const top  = s.el.getBoundingClientRect().top + window.scrollY - navH;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
+      });
+    });
+  })();
+
+  // ── Scroll progress hairline ─────────────────────────────────
+  (function initScrollProgress() {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    let raf = 0;
+    function update() {
+      raf = 0;
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const p = Math.min(1, Math.max(0, window.scrollY / max));
+      bar.style.transform = 'scaleX(' + p.toFixed(4) + ')';
+    }
+    function schedule() {
+      if (!raf) raf = window.requestAnimationFrame(update);
+    }
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    update();
+  })();
+
+})();
+</script>
+</body>
+</html>

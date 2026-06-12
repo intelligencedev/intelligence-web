@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="halo-dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Articles | intelligence.dev</title>
+  <meta name="description" content="Research notes, technical essays, and long-form writing from intelligence.dev." />
+  <style>
+    /*
+     * Halo (Dark) — tokens mirrored from
+     * repos/manifold/web/agentd-ui/src/theme/themes.ts
+     *
+     * Design principle (from halo.css):
+     *   "Structure from strokes, not glass.
+     *    No blur, no gradients on surfaces, no stacked shadows."
+     */
+    :root {
+      color-scheme: dark;
+
+      /* Surface */
+      --color-background:       8   9  12;
+      --color-surface:         14  17  22;
+      --color-surface-muted:   20  24  33;
+
+      /* Strokes */
+      --color-border:          30  35  44;
+
+      /* Accent */
+      --color-accent:         124 134 255;
+      --color-accent-fg:       10  11  18;
+
+      /* Foreground scale */
+      --color-fg:             236 239 243;
+      --color-fg-muted:       154 164 176;
+      --color-fg-faint:        92 102 114;
+
+      /* Radii */
+      --r-sm:  6px;
+      --r-md: 10px;
+      --r-lg: 16px;
+
+      /* Spacing */
+      --page-x: clamp(20px, 5vw, 64px);
+      --page-y: clamp(24px, 5vw, 56px);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+                   "Segoe UI", sans-serif;
+      background: rgb(var(--color-background));
+      color: rgb(var(--color-fg));
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection {
+      background: rgb(var(--color-accent) / 0.22);
+      color: rgb(var(--color-fg));
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Halo frame: lateral hairlines ─────────────────────────── */
+    .halo-frame {
+      min-height: 100svh;
+      border-left:  1px solid rgb(var(--color-border));
+      border-right: 1px solid rgb(var(--color-border));
+      margin: 0 clamp(8px, 1.5vw, 16px);
+    }
+
+    /* ── Top bar ────────────────────────────────────────────────── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 13px var(--page-x);
+      background: rgb(var(--color-background) / 0.96);
+      border-bottom: 1px solid rgb(var(--color-border));
+      backdrop-filter: blur(0);   /* no glass — Halo principle */
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgb(var(--color-fg));
+    }
+
+    .brand-mark {
+      width: 8px;
+      height: 8px;
+      background: rgb(var(--color-accent));
+      flex-shrink: 0;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgb(var(--color-fg-muted));
+    }
+
+    .nav a {
+      border-bottom: 1px solid transparent;
+      padding-bottom: 1px;
+      transition: color 140ms ease, border-color 140ms ease;
+    }
+
+    .nav a:hover,
+    .nav a:focus-visible {
+      color: rgb(var(--color-fg));
+      border-bottom-color: rgb(var(--color-accent));
+      outline: none;
+    }
+
+    /* ── Main content ───────────────────────────────────────────── */
+    main {
+      width: min(880px, 100%);
+      margin: 0 auto;
+      padding: var(--page-y) var(--page-x) 80px;
+    }
+
+    /* ── Page header ────────────────────────────────────────────── */
+    .page-header {
+      padding-bottom: 28px;
+      border-bottom: 1px solid rgb(var(--color-border));
+      margin-bottom: 32px;
+    }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                   "Liberation Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgb(var(--color-fg-faint));
+    }
+
+    .section-label::before {
+      content: "";
+      display: block;
+      width: 20px;
+      height: 1px;
+      background: rgb(var(--color-accent));
+    }
+
+    /* The page title — toned down: factual, not monumental */
+    h1 {
+      font-size: 26px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+      color: rgb(var(--color-fg));
+    }
+
+    .page-desc {
+      margin-top: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgb(var(--color-fg-muted));
+      max-width: 560px;
+    }
+
+    /* ── Article list ───────────────────────────────────────────── */
+    .article-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* Each row is a hairline-separated entry — no cards, no shadows */
+    .article-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: baseline;
+      gap: 24px;
+      padding: 20px 0;
+      border-bottom: 1px solid rgb(var(--color-border));
+      transition: background 120ms ease;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .article-row:first-child {
+      border-top: none;
+    }
+
+    .article-row:hover .article-title,
+    .article-row:focus-visible .article-title {
+      color: rgb(var(--color-accent));
+    }
+
+    .article-row:focus-visible {
+      outline: 2px solid rgb(var(--color-accent));
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+
+    /* Article meta: tag + date on one line */
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 5px;
+    }
+
+    .article-tag {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                   "Liberation Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgb(var(--color-fg-faint));
+      border: 1px solid rgb(var(--color-border));
+      border-radius: var(--r-sm);
+      padding: 2px 6px;
+    }
+
+    .article-date {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                   "Liberation Mono", monospace;
+      font-size: 11px;
+      color: rgb(var(--color-fg-faint));
+    }
+
+    /* Article title — readable, not dramatic */
+    .article-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.35;
+      color: rgb(var(--color-fg));
+      transition: color 140ms ease;
+      margin-bottom: 4px;
+    }
+
+    .article-desc {
+      font-size: 13px;
+      line-height: 1.55;
+      color: rgb(var(--color-fg-muted));
+      max-width: 560px;
+    }
+
+    /* Right column: read indicator */
+    .article-read {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                   "Liberation Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: rgb(var(--color-fg-faint));
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: color 140ms ease;
+    }
+
+    .article-row:hover .article-read,
+    .article-row:focus-visible .article-read {
+      color: rgb(var(--color-accent));
+    }
+
+    .article-read::after {
+      content: "→";
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────── */
+    footer {
+      margin-top: 56px;
+      padding-top: 16px;
+      border-top: 1px solid rgb(var(--color-border));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: rgb(var(--color-fg-faint));
+    }
+
+    footer a {
+      color: rgb(var(--color-fg-faint));
+      transition: color 140ms ease;
+    }
+
+    footer a:hover { color: rgb(var(--color-fg-muted)); }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .article-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .article-read {
+        display: none;   /* arrow implied by hover on mobile */
+      }
+    }
+  </style>
+</head>
+<body class="halo">
+  <div class="halo-frame">
+
+    <header class="topbar" aria-label="Site navigation">
+      <a class="brand" href="/" aria-label="intelligence.dev home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        intelligence.dev
+      </a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="/">Home</a>
+        <a href="/manifold/">Manifold</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="page-header">
+        <p class="section-label">intelligence.dev</p>
+        <h1>Articles</h1>
+        <p class="page-desc">
+          Research notes, technical essays, and long-form writing on AI systems and infrastructure.
+        </p>
+      </div>
+
+      <ol class="article-list" aria-label="Published articles">
+
+        <li>
+          <a class="article-row" href="/mapping-the-flood/">
+            <div class="article-body">
+              <div class="article-meta">
+                <span class="article-tag">Research</span>
+                <time class="article-date" datetime="2024">2024</time>
+              </div>
+              <div class="article-title">Mapping the Flood</div>
+              <p class="article-desc">
+                How to reason about the volume, velocity, and variety of data produced by modern AI pipelines — and what it takes to make sense of it.
+              </p>
+            </div>
+            <span class="article-read" aria-hidden="true">Read</span>
+          </a>
+        </li>
+
+      </ol>
+    </main>
+
+    <footer>
+      <span>&copy; 2025 intelligence.dev</span>
+      <nav aria-label="Footer navigation">
+        <a href="/">Home</a>
+        &ensp;·&ensp;
+        <a href="/manifold/">Manifold</a>
+      </nav>
+    </footer>
+
+  </div>
+</body>
+</html>

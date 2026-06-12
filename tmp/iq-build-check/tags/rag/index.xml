@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Rag on intelligence.dev</title>
+    <link>https://intelligence.dev/tags/rag/</link>
+    <description>Recent content in Rag on intelligence.dev</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 05 Jun 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://intelligence.dev/tags/rag/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Memory Architecture in Manifold</title>
+      <link>https://intelligence.dev/manifold-memory-systems/</link>
+      <pubDate>Fri, 05 Jun 2026 00:00:00 +0000</pubDate>
+      <guid>https://intelligence.dev/manifold-memory-systems/</guid>
+      <description>&lt;style&gt;&#xA;.content { --evolving:#61f4d0; --transit:#6aaefc; --magma:#ff7a59; --rag:#c792ea; --belief:#ffd166; }&#xA;.content h2 { margin-top: 2.4em; padding-top: .6em; border-top: 1px solid rgba(230,237,243,.10); }&#xA;.content h3 { color: rgba(154,180,255,.9); margin-top: 1.8em; }&#xA;.content img { max-width: 100%; height: auto; display: block; border-radius: 12px; }&#xA;&#xA;.mem-anim { margin: 22px 0 34px; display: grid; gap: 10px; }&#xA;.mem-anim .lane {&#xA;  position: relative; height: 38px; border-radius: 999px; overflow: hidden;&#xA;  border: 1px solid rgba(230,237,243,.10); background: rgba(255,255,255,.025);&#xA;}&#xA;.mem-anim .tag {&#xA;  position: absolute; left: 16px; top: 50%; transform: translateY(-50%); z-index: 2;&#xA;  font: 600 .72rem/1 &#39;Space Grotesk&#39;, system-ui, sans-serif; letter-spacing: .12em;&#xA;  text-transform: uppercase; color: var(--c);&#xA;}&#xA;.mem-anim .pkt {&#xA;  position: absolute; top: 50%; width: 11px; height: 11px; margin-top: -5.5px;&#xA;  border-radius: 50%; background: var(--c); box-shadow: 0 0 12px var(--c);&#xA;  left: -5%; animation: memflow var(--d,4.5s) linear infinite var(--delay,0s);&#xA;}&#xA;@keyframes memflow {&#xA;  0% { left: -5%; opacity: 0; } 8% { opacity: 1; }&#xA;  92% { opacity: 1; } 100% { left: 105%; opacity: 0; }&#xA;}&#xA;@media (prefers-reduced-motion: reduce) { .mem-anim .pkt { animation: none; left: 55%; } }&#xA;&#xA;.mermaid { margin: 28px 0; text-align: center; }&#xA;.content table { border-collapse: collapse; width: 100%; font-size: .86rem; margin: 18px 0; }&#xA;.content th, .content td { border: 1px solid rgba(230,237,243,.12); padding: 8px 11px; text-align: left; vertical-align: top; }&#xA;.content th { background: rgba(255,255,255,.03); }&#xA;.tldr { border-left: 3px solid var(--transit); background: rgba(106,174,252,.06); padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 24px 0; }&#xA;.mem-figure { margin: 30px 0; border: 1px solid rgba(230,237,243,.10); border-radius: 14px; overflow: hidden; background: linear-gradient(180deg,#0f1219,#0b0c10); }&#xA;.mem-figure img { border-radius: 0; }&#xA;.mem-figcap { font-size: .84rem; color: #8aa0b6; padding: 11px 15px; border-top: 1px solid rgba(230,237,243,.08); }&#xA;&lt;/style&gt;&#xA;&lt;p&gt;An LLM call is stateless. Every invocation begins with exactly what the caller puts in the context window and nothing else. For short, single-turn tasks that is fine. For agents that run across dozens of tool calls, multiple specialists, and sessions separated by hours or days, statelessness is the core engineering problem.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Anime.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/animejs/dist/bundles/anime.umd.min.js"></script>
+    <style>
+        body {
+            background: #0a0a0f;
+            color: white;
+            font-family: sans-serif;
+            padding: 50px;
+        }
+        .box {
+            width: 100px;
+            height: 100px;
+            background: #00ff88;
+            margin: 20px;
+        }
+        h1 {
+            font-size: 4rem;
+        }
+        .char {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="title"></h1>
+    <div class="box"></div>
+    
+    <script>
+        console.log('Anime object:', anime);
+        console.log('Anime methods:', Object.keys(anime));
+        
+        // Split text
+        const title = document.getElementById('title');
+        const text = 'intelligence.dev';
+        title.innerHTML = '';
+        [...text].forEach(char => {
+            const span = document.createElement('span');
+            span.className = 'char';
+            span.textContent = char;
+            title.appendChild(span);
+        });
+        
+        // Try animation
+        try {
+            anime.animate('.char', {
+                translateY: [50, 0],
+                opacity: [0, 1],
+                duration: 800,
+                delay: anime.stagger(50),
+                ease: 'outExpo'
+            });
+            
+            anime.animate('.box', {
+                rotate: 360,
+                duration: 2000,
+                loop: true,
+                ease: 'linear'
+            });
+            
+            console.log('Animation started successfully!');
+        } catch(e) {
+            console.error('Animation error:', e);
+            document.body.innerHTML += '<p>Error: ' + e.message + '</p>';
+        }
+    </script>
+</body>
+</html>
