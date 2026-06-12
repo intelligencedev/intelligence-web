@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="halo-dark">
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,49 +8,73 @@
             name="description"
             content="intelligence.dev builds practical tools for applied intelligence—developer-first, privacy-aware, and designed to ship."
         />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap"
-            rel="stylesheet"
-        />
         <style>
+            /*
+             * Halo (Dark) — tokens mirrored from
+             * repos/manifold/web/agentd-ui/src/theme/themes.ts
+             *
+             * Design principle (from halo.css):
+             *   "Structure from strokes, not glass.
+             *    No blur, no gradients on surfaces, no stacked shadows."
+             */
             :root {
-                --bg: #05070c;
-                --text: rgba(245, 248, 255, 0.92);
-                --muted: rgba(245, 248, 255, 0.76);
-                --accent: #9ab4ff;
-                --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-                --veil-strong: rgba(0, 0, 0, 0.55);
-                --veil-soft: rgba(0, 0, 0, 0.35);
+                color-scheme: dark;
+
+                /* Surface */
+                --color-background:     8   9  12;
+                --color-surface:       14  17  22;
+                --color-surface-muted: 20  24  33;
+
+                /* Strokes */
+                --color-border:        30  35  44;
+
+                /* Accent */
+                --color-accent:       124 134 255;
+                --color-accent-fg:     10  11  18;
+
+                /* Foreground scale */
+                --color-fg:           236 239 243;
+                --color-fg-muted:     154 164 176;
+                --color-fg-faint:      92 102 114;
+
+                /* Radii */
+                --r-sm:  6px;
+                --r-md: 10px;
+
+                /* Spacing */
+                --page-x: clamp(20px, 5vw, 64px);
+
+                /* Type */
+                --font-sans: ui-sans-serif, system-ui, -apple-system,
+                    BlinkMacSystemFont, "Segoe UI", sans-serif;
+                --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco,
+                    Consolas, "Liberation Mono", monospace;
             }
 
-            * {
-                box-sizing: border-box;
-            }
+            *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-            html,
-            body {
+            html, body {
                 height: 100%;
-                margin: 0;
                 overflow-x: hidden;
             }
 
             body {
-                font-family: "Inter Tight", "Inter", system-ui, -apple-system, Segoe UI,
-                    Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji",
-                    "Segoe UI Emoji";
-                color: var(--text);
-                background: var(--bg);
+                font-family: var(--font-sans);
+                background: rgb(var(--color-background));
+                color: rgb(var(--color-fg));
+                font-size: 15px;
                 line-height: 1.6;
+                -webkit-font-smoothing: antialiased;
             }
 
-            a {
-                color: inherit;
-                text-decoration: none;
+            ::selection {
+                background: rgb(var(--color-accent) / 0.22);
+                color: rgb(var(--color-fg));
             }
 
-            /* Galaxy always fills the viewport */
+            a { color: inherit; text-decoration: none; }
+
+            /* ── Galaxy backdrop — always fills the viewport ────────── */
             .galaxy {
                 position: fixed;
                 inset: 0;
@@ -62,185 +86,199 @@
                 width: 100%;
                 height: 100%;
                 border: 0;
-                transform: translate(0, 0) scale(1);
-                transform-origin: center;
-                filter: saturate(1) brightness(1);
             }
 
-            /* Veil hidden by default — galaxy view has no overlay */
-            .veil {
-                display: none;
-            }
-
+            /* ── Foreground layout ──────────────────────────────────── */
             .container {
                 position: relative;
                 z-index: 2;
                 min-height: 100vh;
-                padding: clamp(20px, 4vw, 64px);
+                display: flex;
+                flex-direction: column;
                 pointer-events: none;
             }
 
-            .safe {
-                max-width: 620px;
+            /* ── Top bar — same structure as /articles/ ─────────────── */
+            .topbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 20px;
+                padding: 13px var(--page-x);
+                border-bottom: 1px solid rgb(var(--color-border) / 0.85);
                 pointer-events: auto;
             }
 
-            .site-header {
-                display: flex;
-                align-items: flex-start;
-                justify-content: space-between;
-                gap: 16px;
-            }
-
-            .site-nav {
-                display: flex;
-                gap: 24px;
-                font-size: 14px;
-                letter-spacing: 0.02em;
-                color: var(--muted);
-                text-transform: none;
-            }
-
-            .site-nav a {
-                position: relative;
-                opacity: 0.84;
-                transition: opacity 200ms ease, color 200ms ease;
-            }
-
-            .site-nav a::after {
-                content: "";
-                position: absolute;
-                left: 0;
-                bottom: -6px;
-                width: 100%;
-                height: 1px;
-                background: rgba(255, 255, 255, 0.4);
-                opacity: 0;
-                transform: translateY(4px);
-                transition: opacity 200ms ease, transform 200ms ease;
-            }
-
-            .site-nav a:hover {
-                opacity: 1;
-                color: var(--text);
-            }
-
-            .site-nav a:hover::after {
-                opacity: 1;
-                transform: translateY(0);
-            }
-
-            .menu-toggle {
-                display: none;
+            .brand {
+                display: inline-flex;
                 align-items: center;
-                justify-content: center;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                background: rgba(15, 17, 23, 0.35);
-                color: var(--text);
-                padding: 8px 12px;
-                border-radius: 999px;
-                font-size: 12px;
+                gap: 9px;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.16em;
+                text-transform: uppercase;
+                color: rgb(var(--color-fg));
+            }
+
+            .brand-mark {
+                width: 8px;
+                height: 8px;
+                background: rgb(var(--color-accent));
+                flex-shrink: 0;
+            }
+
+            .nav {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                font-size: 11px;
+                font-weight: 600;
                 letter-spacing: 0.08em;
                 text-transform: uppercase;
+                color: rgb(var(--color-fg-muted));
+            }
+
+            .nav a {
+                border-bottom: 1px solid transparent;
+                padding-bottom: 1px;
+                transition: color 140ms ease, border-color 140ms ease;
+            }
+
+            .nav a:hover,
+            .nav a:focus-visible {
+                color: rgb(var(--color-fg));
+                border-bottom-color: rgb(var(--color-accent));
+                outline: none;
+            }
+
+            /* ── Hero — quiet, factual, stroke-framed ───────────────── */
+            .hero-wrap {
+                flex: 1 0 auto;
+                display: flex;
+                align-items: flex-start;
+                padding: clamp(40px, 9vh, 96px) var(--page-x) 48px;
             }
 
             .hero {
-                margin-top: 22px;
+                pointer-events: auto;
+                max-width: 560px;
+                padding: 24px 26px 26px;
+                background: rgb(var(--color-background) / 0.82);
+                border: 1px solid rgb(var(--color-border));
+                border-radius: var(--r-md);
+            }
+
+            .section-label {
                 display: flex;
-                flex-direction: column;
-                gap: clamp(14px, 2vw, 20px);
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 12px;
+                font-family: var(--font-mono);
+                font-size: 11px;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
+                color: rgb(var(--color-fg-faint));
+            }
+
+            .section-label::before {
+                content: "";
+                display: block;
+                width: 20px;
+                height: 1px;
+                background: rgb(var(--color-accent));
             }
 
             .hero-title {
-                margin: 0;
-                font-size: clamp(36px, 6vw, 68px);
-                font-weight: 700;
-                letter-spacing: -0.03em;
-                line-height: 1.04;
-                color: var(--text);
-                text-shadow: var(--shadow);
+                font-size: clamp(26px, 4vw, 34px);
+                font-weight: 650;
+                letter-spacing: -0.02em;
+                line-height: 1.2;
+                color: rgb(var(--color-fg));
             }
 
             .hero-title .dot {
-                color: var(--accent);
+                color: rgb(var(--color-accent));
             }
 
             .lead {
-                margin: 0;
-                max-width: 560px;
-                color: var(--muted);
-                font-size: clamp(15px, 2.2vw, 18px);
-                line-height: 1.55;
+                margin-top: 10px;
+                max-width: 480px;
+                font-size: 15px;
+                line-height: 1.6;
+                color: rgb(var(--color-fg-muted));
             }
 
+            /* ── Actions — stroke buttons, single accent ────────────── */
             .cta-row {
                 display: flex;
-                gap: 12px;
-                margin-top: 4px;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 22px;
             }
 
             .btn {
-                padding: 10px 16px;
-                border-radius: 999px;
-                border: 1px solid rgba(255, 255, 255, 0.25);
-                color: var(--text);
-                background: rgba(15, 17, 23, 0.35);
-                font-size: 13px;
-                letter-spacing: 0.04em;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 14px;
+                border-radius: var(--r-sm);
+                border: 1px solid rgb(var(--color-border));
+                background: rgb(var(--color-surface));
+                color: rgb(var(--color-fg-muted));
+                font-family: var(--font-mono);
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 0.08em;
                 text-transform: uppercase;
-                transition: border-color 200ms ease, color 200ms ease,
-                    background 200ms ease;
+                transition: color 140ms ease, border-color 140ms ease,
+                    background 140ms ease;
             }
 
-            .btn:hover {
-                border-color: rgba(154, 180, 255, 0.6);
-                color: #f5f8ff;
-                background: rgba(20, 24, 36, 0.5);
+            .btn:hover,
+            .btn:focus-visible {
+                color: rgb(var(--color-fg));
+                border-color: rgb(var(--color-accent));
+                outline: none;
+            }
+
+            .btn:focus-visible {
+                box-shadow: 0 0 0 3px rgb(var(--color-accent) / 0.25);
             }
 
             .btn-primary {
-                background: var(--accent);
-                border-color: var(--accent);
-                color: #05070c;
-                font-weight: 600;
+                background: rgb(var(--color-accent));
+                border-color: rgb(var(--color-accent));
+                color: rgb(var(--color-accent-fg));
             }
 
-            .btn-primary:hover {
-                background: #b8c8ff;
-                border-color: #b8c8ff;
-                color: #05070c;
+            .btn-primary:hover,
+            .btn-primary:focus-visible {
+                background: rgb(var(--color-accent) / 0.88);
+                border-color: rgb(var(--color-accent));
+                color: rgb(var(--color-accent-fg));
             }
 
-            @media (max-width: 1023px) {
-                .hero-title {
-                    font-size: clamp(44px, 6vw, 56px);
-                }
+            /* ── Footer line — pinned below the hero ────────────────── */
+            .foot {
+                pointer-events: auto;
+                padding: 14px var(--page-x) 18px;
+                border-top: 1px solid rgb(var(--color-border) / 0.85);
+                font-family: var(--font-mono);
+                font-size: 11px;
+                letter-spacing: 0.06em;
+                color: rgb(var(--color-fg-faint));
             }
 
-            @media (max-width: 767px) {
-                .site-header {
+            /* ── Responsive ─────────────────────────────────────────── */
+            @media (max-width: 640px) {
+                .topbar {
                     flex-direction: column;
                     align-items: flex-start;
+                    gap: 10px;
                 }
 
-                .site-nav {
-                    display: none;
-                    flex-direction: column;
-                    gap: 12px;
-                    width: 100%;
-                    margin-top: 12px;
-                }
-
-                .site-nav.open {
-                    display: flex;
-                }
-
-                .menu-toggle {
-                    display: inline-flex;
-                }
-
-                .hero-title {
-                    font-size: clamp(36px, 9vw, 44px);
+                .hero {
+                    padding: 20px 18px 22px;
                 }
             }
 
@@ -252,37 +290,40 @@
             }
         </style>
     </head>
-    <body>
+    <body class="halo">
         <div class="galaxy" aria-hidden="true">
             <iframe src="/vis/galaxy/" title="Galaxy background"></iframe>
         </div>
 
         <div class="container">
+            <header class="topbar" aria-label="Site navigation">
+                <a class="brand" href="/" aria-label="intelligence.dev home">
+                    <span class="brand-mark" aria-hidden="true"></span>
+                    intelligence.dev
+                </a>
+                <nav class="nav" aria-label="Primary navigation">
+                    <a href="/articles/">Articles</a>
+                    <a href="/manifold/">Manifold</a>
+                </nav>
+            </header>
 
-            <main class="hero safe" id="hero">
-                <h1 class="hero-title">intelligence<span class="dot">.</span>dev</h1>
-                <p class="lead">
-                    Experiments with code, computer graphics, and machine learning.
-                </p>
-                <div class="cta-row" role="group" aria-label="Primary actions">
-                    <a class="btn btn-primary" href="/manifold/">Manifold →</a>
-                    <a class="btn" href="/articles/">Articles →</a>
-                </div>
-            </main>
+            <div class="hero-wrap">
+                <main class="hero" id="hero">
+                    <p class="section-label">applied intelligence</p>
+                    <h1 class="hero-title">intelligence<span class="dot">.</span>dev</h1>
+                    <p class="lead">
+                        Experiments with code, computer graphics, and machine learning.
+                    </p>
+                    <div class="cta-row" role="group" aria-label="Primary actions">
+                        <a class="btn btn-primary" href="/manifold/">Manifold →</a>
+                        <a class="btn" href="/articles/">Articles →</a>
+                    </div>
+                </main>
+            </div>
+
+            <footer class="foot">
+                &copy; 2025 intelligence.dev
+            </footer>
         </div>
-
-        <script>
-            (function () {
-                var nav = document.getElementById("site-nav");
-                var menuToggle = document.querySelector(".menu-toggle");
-
-                if (menuToggle && nav) {
-                    menuToggle.addEventListener("click", function () {
-                        var isOpen = nav.classList.toggle("open");
-                        menuToggle.setAttribute("aria-expanded", String(isOpen));
-                    });
-                }
-            })();
-        </script>
     </body>
 </html>
