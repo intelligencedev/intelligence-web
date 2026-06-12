@@ -238,6 +238,19 @@
                 background: rgba(20, 24, 36, 0.5);
             }
 
+            .btn-primary {
+                background: var(--accent);
+                border-color: var(--accent);
+                color: #05070c;
+                font-weight: 600;
+            }
+
+            .btn-primary:hover {
+                background: #b8c8ff;
+                border-color: #b8c8ff;
+                color: #05070c;
+            }
+
             .expand-toggle {
                 position: fixed;
                 bottom: clamp(20px, 4vw, 32px);
@@ -355,7 +368,7 @@
                     Experiments with code, computer graphics, and machine learning.
                 </p>
                 <div class="cta-row" role="group" aria-label="Primary actions">
-                    <a class="btn" href="https://github.com/intelligencedev/manifold">Explore Manifold</a>
+                    <a class="btn btn-primary" href="/manifold/">Manifold →</a>
                     <a class="btn" href="/mapping-the-flood/">Mapping the Flood →</a>
                 </div>
             </main>

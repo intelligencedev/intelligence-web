@@ -130,6 +130,46 @@
       letter-spacing: 0.14em;
       color: var(--faint);
     }
+    .nav-menu {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .nav-menu-toggle {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .nav-toggle {
+      display: none;
+      width: 40px;
+      height: 36px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--rule);
+      background: transparent;
+      color: var(--bone);
+      cursor: pointer;
+      list-style: none;
+    }
+    .nav-toggle span,
+    .nav-toggle::before,
+    .nav-toggle::after {
+      content: "";
+      display: block;
+      width: 17px;
+      height: 1px;
+      background: currentColor;
+      transition: transform 160ms ease, opacity 160ms ease;
+    }
+    .nav-toggle span { position: relative; }
+    .nav-toggle::before { transform: translateY(-6px); }
+    .nav-toggle::after  { transform: translateY(6px); }
+    .nav-menu-toggle:checked + .nav-toggle::before { transform: translateY(1px) rotate(45deg); }
+    .nav-menu-toggle:checked + .nav-toggle span { opacity: 0; }
+    .nav-menu-toggle:checked + .nav-toggle::after { transform: translateY(-1px) rotate(-45deg); }
     .nav-links {
       display: flex;
       align-items: center;
@@ -588,7 +628,49 @@
     /* ─── Responsive ──────────────────────────────────────────── */
     @media (max-width: 900px) {
       #page-frame { display: none; }
+      .nav {
+        padding: 12px clamp(16px, 5vw, 28px);
+      }
       .nav-logo-sub { display: none; }
+      .nav-menu { margin-left: auto; }
+      .nav-toggle { display: inline-flex; }
+      .nav-links {
+        position: absolute;
+        top: calc(100% + 12px);
+        right: 0;
+        display: none;
+        width: min(78vw, 280px);
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 10px;
+        border: 1px solid var(--rule);
+        background: rgba(10, 10, 8, 0.98);
+      }
+      .nav-menu-toggle:checked ~ .nav-links { display: flex; }
+      .nav-links a,
+      .nav-badge {
+        width: 100%;
+        justify-content: space-between;
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--rule-soft);
+      }
+      .nav-links a:hover { border-bottom-color: var(--rule-soft); }
+      .nav-badge {
+        margin-top: 4px;
+        border: 1px solid var(--signal-soft);
+      }
+      .hero,
+      .feature-section,
+      .cta-section {
+        isolation: isolate;
+      }
+      .hero-left,
+      .feature-section .feature-content,
+      .cta-content {
+        position: relative;
+        z-index: 10;
+      }
       .hero {
         grid-template-columns: 1fr;
         text-align: center;
@@ -763,11 +845,15 @@
     <span class="nav-logo-word">Manifold</span>
     <span class="nav-logo-sub">/ Orchestration Engine</span>
   </div>
-  <div class="nav-links">
-    <a href="https://github.com/intelligencedev/manifold">GitHub</a>
-    <a href="/manifold-memory-systems/">Memory Docs</a>
-    <a href="/manifold-quickstart/">Quickstart</a>
-    <span class="nav-badge">Dev Preview</span>
+  <div class="nav-menu">
+    <input class="nav-menu-toggle" type="checkbox" id="nav-menu-toggle" aria-label="Toggle navigation" />
+    <label class="nav-toggle" for="nav-menu-toggle" aria-hidden="true"><span></span></label>
+    <div class="nav-links">
+      <a href="https://github.com/intelligencedev/manifold">GitHub</a>
+      <a href="/manifold-memory-systems/">Memory Docs</a>
+      <a href="/manifold-quickstart/">Quickstart</a>
+      <span class="nav-badge">Dev Preview</span>
+    </div>
   </div>
 </nav>
 
