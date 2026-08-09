@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="halo-dark">
+<html lang="en" data-theme="desert-night">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,32 +7,37 @@
   <meta name="description" content="Research notes, technical essays, and long-form writing from intelligence.dev." />
   <style>
     /*
-     * Halo (Dark) — tokens mirrored from
-     * repos/manifold/web/agentd-ui/src/theme/themes.ts
+     * Desert Night — tokens mirrored from desertNightTokens in
+     * manifold-desktop/web/agentd-ui/src/theme/themes.ts
      *
-     * Design principle (from halo.css):
+     * Palette principle (from themes.ts):
+     *   "Surfaces stay blue-gray; warmth is confined to borders,
+     *    text hierarchy, and accent."
+     *
+     * Layout principle retained from halo.css — hence the .halo-*
+     * class names below, which name the frame, not the palette:
      *   "Structure from strokes, not glass.
      *    No blur, no gradients on surfaces, no stacked shadows."
      */
     :root {
       color-scheme: dark;
 
-      /* Surface */
-      --color-background:       8   9  12;
-      --color-surface:         14  17  22;
-      --color-surface-muted:   20  24  33;
+      /* Surface — deliberately blue-gray, per the palette principle */
+      --color-background:      11  12  14;
+      --color-surface:         20  22  26;
+      --color-surface-muted:   26  29  34;
 
-      /* Strokes */
-      --color-border:          30  35  44;
+      /* Strokes — warm */
+      --color-border:          58  52  40;
 
-      /* Accent */
-      --color-accent:         124 134 255;
-      --color-accent-fg:       10  11  18;
+      /* Accent — saffron */
+      --color-accent:         230 160  32;
+      --color-accent-fg:       11  12  14;
 
-      /* Foreground scale */
-      --color-fg:             236 239 243;
-      --color-fg-muted:       154 164 176;
-      --color-fg-faint:        92 102 114;
+      /* Foreground scale — the theme's first three warm tiers */
+      --color-fg:             242 236 226;
+      --color-fg-muted:       184 175 160;
+      --color-fg-faint:       140 131 114;
 
       /* Radii */
       --r-sm:  6px;

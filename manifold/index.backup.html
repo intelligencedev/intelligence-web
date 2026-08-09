@@ -3,19 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Manifold — Long-Horizon Agent Infrastructure</title>
-  <meta name="description" content="Manifold turns stateless model calls into persistent teams of specialists — with memory that survives the session, workflows that compose, and schedules that run without you. Open source. Bring your own models." />
+  <title>Manifold — The AI Orchestration Engine</title>
+  <meta name="description" content="Manifold is a cutting-edge AI orchestration platform with specialist registries, adaptive memory, visual workflows, and more." />
   <meta name="robots" content="noindex, nofollow" />
-  <meta property="og:title" content="Manifold — Long-Horizon Agent Infrastructure" />
-  <meta property="og:description" content="Manifold turns stateless model calls into persistent teams of specialists — with memory that survives the session, workflows that compose, and schedules that run without you. Open source. Bring your own models." />
-  <meta property="og:type" content="website" />
-  <meta property="og:image" content="/assets/img/manifold-og.png" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="theme-color" content="#0b0c0e" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
@@ -23,39 +16,28 @@
 
   <style>
     /* ═══════════════════════════════════════════════════════════
-       MANIFOLD — THE MANIFOLD FIELD
-       One idea: the particle cloud is latent possibility space.
-       Scrolling is dimensional reduction — the swarm condenses
-       out of entropy into named sub-manifolds (one per feature).
-       Space Grotesk display · Instrument Serif italic accent ·
-       IBM Plex Mono chrome · void / bone / spectral / synapse.
+       MANIFOLD — TECHNICAL DOSSIER
+       Visual language: drafting-table engineering document.
+       Instrument Serif display · IBM Plex Mono chrome ·
+       warm ink / bone / international orange.
        No glass, no gradient text, no pills, no neon.
-
-       Palette: Desert Night — tokens mirrored from desertNightTokens
-       in manifold-desktop/web/agentd-ui/src/theme/themes.ts. Cool
-       charcoal base; warmth confined to borders, the text hierarchy,
-       and the saffron accent. The page's two-part semantic — structure
-       vs. execution — maps onto the theme's accent vs. live.
     ═══════════════════════════════════════════════════════════ */
 
     /* ─── Design tokens ───────────────────────────────────────── */
     :root {
-      --void:         #0b0c0e;   /* background        11  12  14 */
-      --panel:        rgba(20, 22, 26, 0.88);  /* surface  20 22 26 */
-      --bone:         #f2ece2;   /* foreground       242 236 226 */
-      --bone-dim:     #b8afa0;   /* muted-foreground 184 175 160 */
-      --muted:        #8c8372;   /* subtle-fg 140 131 114 — AA on --void */
-      --faint:        #686256;   /* faint-foreground 104  98  86 */
-      --rule:         #3a3428;   /* border            58  52  40 */
-      --rule-soft:    rgba(58, 52, 40, 0.5);
-      --spectral:     #e6a020;   /* accent — structure, the manifold */
-      --spectral-hi:  #f0be5a;   /* ring — resolved highlight */
-      --spectral-soft: rgba(230, 160, 32, 0.35);
-      --synapse:      #3ecfcf;   /* live — execution, data in flight only */
-      --entropy:      #686256;   /* the field in unstructured state */
+      --ink:         #09090c;
+      --panel:       rgba(12, 12, 16, 0.86);
+      --bone:        #e7e7ec;
+      --bone-dim:    #c2c2cc;
+      --muted:       #8f8f9c;
+      --faint:       #5d5d68;
+      --rule:        rgba(231, 231, 236, 0.16);
+      --rule-soft:   rgba(231, 231, 236, 0.07);
+      --signal:      #9a4dff;  /* cosmic purple (from logo #5e17ac) */
+      --signal-soft: rgba(154, 77, 255, 0.35);
+      --amber:       #3fd966;  /* cosmic green (from logo #2d9e3f) */
       --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
       --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
-      --display: "Space Grotesk", var(--mono), sans-serif;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html {
@@ -64,7 +46,7 @@
     }
     body {
       font-family: var(--mono);
-      background: var(--void);
+      background: var(--ink);
       color: var(--bone);
       line-height: 1.6;
       overflow-x: hidden;
@@ -72,7 +54,7 @@
     }
     a { color: inherit; text-decoration: none; }
     em { font-style: italic; }
-    ::selection { background: var(--spectral); color: var(--void); }
+    ::selection { background: var(--signal); color: var(--ink); }
 
     /* ─── Canvas layer ────────────────────────────────────────── */
     #engine-canvas {
@@ -86,7 +68,7 @@
       display: block;
       z-index: 1;
       pointer-events: none;
-      opacity: 0.92;
+      opacity: 0.9;
       transform: translateZ(0);
     }
 
@@ -123,7 +105,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 16px clamp(24px, 5vw, 72px);
-      background: rgba(11, 12, 14, 0.92);
+      background: rgba(10, 10, 8, 0.92);
       border-bottom: 1px solid var(--rule);
     }
     .nav-logo {
@@ -205,7 +187,7 @@
     }
     .nav-links a:hover {
       color: var(--bone);
-      border-bottom-color: var(--spectral);
+      border-bottom-color: var(--signal);
     }
     .nav-badge {
       display: inline-flex;
@@ -216,14 +198,14 @@
       text-transform: uppercase;
       letter-spacing: 0.16em;
       padding: 5px 9px;
-      border: 1px solid var(--spectral-soft);
-      color: var(--synapse);
+      border: 1px solid var(--signal-soft);
+      color: var(--amber);
       background: transparent;
     }
     .nav-badge::before {
       content: "";
       width: 6px; height: 6px;
-      background: var(--synapse);
+      background: var(--signal);
       animation: badgeBlink 2.4s steps(2, jump-none) infinite;
     }
     @keyframes badgeBlink {
@@ -241,12 +223,12 @@
     .hero {
       min-height: 100svh;
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
+      grid-template-columns: 1fr 1fr;
       align-items: center;
       gap: 48px;
       padding: 120px clamp(24px, 6vw, 96px) 80px;
     }
-    .hero-left { max-width: 700px; }
+    .hero-left { max-width: 620px; }
     .hero-eyebrow {
       display: inline-flex;
       align-items: center;
@@ -261,25 +243,22 @@
     }
     .hero-eyebrow .idx {
       padding: 4px 8px;
-      border: 1px solid var(--spectral-soft);
-      color: var(--spectral);
+      border: 1px solid var(--signal-soft);
+      color: var(--signal);
       font-weight: 600;
     }
     .hero-title {
-      font-family: var(--display);
-      font-size: clamp(56px, 9vw, 132px);
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      line-height: 0.92;
+      font-family: var(--serif);
+      font-size: clamp(48px, 7vw, 96px);
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      line-height: 0.98;
       margin-bottom: 26px;
       opacity: 0;
     }
     .hero-title .grad {
-      font-family: var(--serif);
       font-style: italic;
-      font-weight: 400;
-      color: var(--spectral);
-      letter-spacing: -0.01em;
+      color: var(--signal);
     }
     .hero-sub {
       font-size: clamp(13px, 1.6vw, 15px);
@@ -297,9 +276,9 @@
     }
     .btn-primary {
       padding: 14px 22px;
-      border: 1px solid var(--spectral);
-      background: var(--spectral);
-      color: var(--void);
+      border: 1px solid var(--signal);
+      background: var(--signal);
+      color: var(--ink);
       font-family: var(--mono);
       font-size: 12px;
       font-weight: 600;
@@ -309,7 +288,7 @@
     }
     .btn-primary:hover {
       background: transparent;
-      color: var(--spectral);
+      color: var(--signal);
     }
     .btn-ghost {
       padding: 14px 22px;
@@ -323,34 +302,14 @@
       transition: border-color 160ms ease, color 160ms ease;
     }
     .btn-ghost:hover {
-      border-color: var(--spectral);
+      border-color: var(--signal);
       color: var(--bone);
     }
-    /* ─── Hero layout: copy left, the field breathes right ──── */
+    /* ─── Blueprint-backed hero layout ───────────────────────── */
     .hero-left {
       position: relative;
       z-index: 3;
       padding: clamp(6px, 1.5vw, 18px) 0;
-    }
-    .hero-meta-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 18px;
-      margin-top: 34px;
-      padding-top: 22px;
-      border-top: 1px solid var(--rule-soft);
-      font-size: 10px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--faint);
-      opacity: 0;
-    }
-    .hero-meta-row span { display: inline-flex; align-items: center; gap: 8px; }
-    .hero-meta-row i {
-      width: 5px; height: 5px;
-      background: var(--synapse);
-      display: inline-block;
     }
     .hero::after {
       content: "";
@@ -388,7 +347,7 @@
     }
     .scroll-hint-line {
       width: 1px; height: 44px;
-      background: linear-gradient(to bottom, transparent, var(--spectral));
+      background: linear-gradient(to bottom, transparent, var(--signal));
       animation: scrollPulse 2s ease-in-out infinite;
     }
     @keyframes scrollPulse {
@@ -396,170 +355,29 @@
       50%       { opacity: 1;   transform: scaleY(1.2); }
     }
 
-    /* ─── Manifesto (§01 — philosophy break) ──────────────────── */
-    .manifesto {
-      min-height: 92svh;
-      display: grid;
-      place-items: center;
-      padding: 120px clamp(24px, 6vw, 96px);
-      text-align: center;
-    }
-    .manifesto-inner { max-width: 880px; }
-    .manifesto-kicker {
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.22em;
-      color: var(--spectral);
-      margin-bottom: 30px;
-    }
-    .manifesto-line {
-      font-family: var(--display);
-      font-size: clamp(30px, 4.6vw, 58px);
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      line-height: 1.12;
-      color: var(--bone);
-      margin-bottom: 22px;
-    }
-    .manifesto-line em {
-      font-family: var(--serif);
-      font-weight: 400;
-      color: var(--spectral-hi);
-    }
-    .manifesto-fails {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px 26px;
-      margin-top: 44px;
-      font-size: 10px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: var(--entropy);
-    }
-    .manifesto-fails span::before {
-      content: "×";
-      margin-right: 8px;
-      color: var(--faint);
-    }
-
-    /* ─── Proof strip (§02 — dense evidence band) ─────────────── */
-    .proof-strip {
-      position: relative;
-      z-index: 2;
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: stretch;
-      gap: 0;
-      margin: 0 clamp(24px, 6vw, 96px);
-      border-top: 1px solid var(--rule);
-      border-bottom: 1px solid var(--rule);
-      background: var(--panel);
-    }
-    .proof-cell {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 6px;
-      padding: 26px clamp(20px, 3vw, 36px);
-      border-right: 1px solid var(--rule-soft);
-    }
-    .proof-cell:last-child { border-right: 0; }
-    .proof-label {
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-      color: var(--entropy);
-    }
-    .proof-value {
-      font-family: var(--display);
-      font-size: clamp(22px, 2.6vw, 32px);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--bone);
-      line-height: 1;
-    }
-    .proof-value .unit {
-      font-size: 0.5em;
-      font-weight: 500;
-      color: var(--faint);
-      margin-left: 4px;
-    }
-    .proof-stars { color: var(--spectral-hi); }
-    .proof-commands {
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-    }
-    .proof-cmd {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 12px;
-      color: var(--muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .proof-cmd .prompt { color: var(--synapse); }
-    .proof-cmd code {
-      font-family: var(--mono);
-      color: var(--bone-dim);
-    }
-    .proof-port {
-      font-family: var(--display);
-      font-size: clamp(22px, 2.6vw, 32px);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--synapse);
-      line-height: 1;
-    }
-    .proof-copy-btn {
-      align-self: flex-start;
-      margin-top: 10px;
-      padding: 7px 12px;
-      border: 1px solid var(--rule);
-      background: transparent;
-      color: var(--muted);
-      font-family: var(--mono);
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      cursor: pointer;
-      transition: border-color 160ms ease, color 160ms ease;
-    }
-    .proof-copy-btn:hover { border-color: var(--spectral); color: var(--bone); }
-    .proof-copy-btn.copied { border-color: var(--synapse); color: var(--synapse); }
-
     /* ─── Features index ──────────────────────────────────────── */
     .features-label {
       text-align: center;
-      padding: 110px clamp(24px,6vw,96px) 0;
+      padding: 80px clamp(24px,6vw,96px) 0;
       font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.22em;
-      color: var(--spectral);
+      color: var(--signal);
       opacity: 0;
     }
     .features-heading {
       text-align: center;
-      padding: 16px clamp(24px,6vw,96px) 84px;
-      font-family: var(--display);
-      font-size: clamp(30px, 4.2vw, 54px);
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      line-height: 1.08;
+      padding: 16px clamp(24px,6vw,96px) 72px;
+      font-family: var(--serif);
+      font-size: clamp(34px, 4.6vw, 58px);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      line-height: 1.06;
       opacity: 0;
     }
     .features-heading .dim {
-      font-family: var(--serif);
       font-style: italic;
-      font-weight: 400;
       color: var(--muted);
     }
 
@@ -569,7 +387,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       align-items: center;
-      gap: 56px;
+      gap: 64px;
       padding: 80px clamp(24px, 6vw, 96px);
       opacity: 0;
       transform: translateY(48px);
@@ -579,60 +397,61 @@
       opacity: 1;
       transform: translateY(0);
     }
-    .feature-content {
+    /* Section copy: text-only, no card chrome */
+    .feature-section .feature-content,
+    .cta-content {
       position: relative;
       z-index: 4;
-      max-width: 560px;
+      max-width: 580px;
       padding: clamp(26px, 3vw, 40px);
       border: 0;
       background: transparent;
     }
-    .feature-content > * {
+    .feature-section .feature-content > *,
+    .cta-content > * {
       position: relative;
       z-index: 1;
     }
-    /* Alternating sides: copy left / right */
-    .feature-section[data-side="right"] .feature-content { grid-column: 2; justify-self: start; }
-    .feature-section[data-side="left"]  .feature-content { grid-column: 1; justify-self: end; }
+    .feature-section .feature-content::before,
+    .feature-section .feature-content::after,
+    .cta-content::before,
+    .cta-content::after {
+      content: none;
+      display: none;
+    }
+    .feature-section[data-feature="specialists"] .feature-content,
+    .feature-section[data-feature="dag"] .feature-content,
+    .feature-section[data-feature="playground"] .feature-content {
+      grid-column: 2;
+      justify-self: start;
+    }
+    .feature-section[data-feature="memory"] .feature-content,
+    .feature-section[data-feature="pulse"] .feature-content,
+    .feature-section[data-feature="mcp"] .feature-content {
+      grid-column: 1;
+      justify-self: end;
+    }
 
-    .feature-kicker {
-      display: flex;
-      align-items: baseline;
-      gap: 14px;
-      margin-bottom: 20px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-      color: var(--spectral);
-    }
-    .feature-kicker .eq {
-      color: var(--entropy);
-      font-weight: 400;
-      letter-spacing: 0.08em;
-      text-transform: none;
-    }
     .feature-title {
-      font-family: var(--display);
-      font-size: clamp(28px, 3.4vw, 46px);
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      line-height: 1.05;
+      font-family: var(--serif);
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      line-height: 1.02;
       margin-bottom: 18px;
     }
     .feature-title em {
-      font-family: var(--serif);
-      font-weight: 400;
-      color: var(--spectral-hi);
+      font-style: italic;
+      color: var(--bone-dim);
     }
     .feature-desc {
       font-size: 13.5px;
       color: var(--muted);
       line-height: 1.8;
       max-width: 52ch;
-      margin-bottom: 22px;
+      margin-bottom: 24px;
     }
-    .section-note {
+    .dummy-copy {
       max-width: 52ch;
       margin-bottom: 26px;
       color: var(--faint);
@@ -641,91 +460,13 @@
       border-left: 1px solid var(--rule);
       padding-left: 14px;
     }
-    .feature-link {
-      display: inline-block;
-      margin-bottom: 26px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--spectral);
-      border-bottom: 1px solid var(--spectral-soft);
-      padding-bottom: 2px;
-      transition: color 160ms ease, border-color 160ms ease;
-    }
-    .feature-link:hover { color: var(--spectral-hi); border-bottom-color: var(--spectral-hi); }
-    .feature-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .tag {
-      font-size: 10px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 6px 10px;
-      border: 1px solid var(--rule);
-      color: var(--muted);
-      background: transparent;
-      transition: border-color 160ms, color 160ms;
-    }
-    .tag:hover { border-color: var(--spectral); color: var(--bone); }
-
-    /* ─── Product evidence frame (blueprint chrome) ───────────── */
-    .shot {
-      position: relative;
-      z-index: 3;
-      grid-row: 1;
-      max-width: 560px;
-      justify-self: center;
+    .hero-extra {
+      margin-top: 34px;
+      padding-top: 22px;
+      border-top: 1px solid var(--rule-soft);
       opacity: 0;
-      transform: translateY(24px);
-      transition: opacity 0.8s ease 0.15s, transform 0.8s ease 0.15s;
     }
-    .feature-section.visible .shot { opacity: 1; transform: translateY(0); }
-    .feature-section[data-side="right"] .shot { grid-column: 1; }
-    .feature-section[data-side="left"]  .shot { grid-column: 2; }
-    .shot-frame {
-      position: relative;
-      border: 1px solid var(--rule);
-      background: var(--panel);
-      padding: 10px;
-    }
-    .shot-frame::before,
-    .shot-frame::after {
-      content: "";
-      position: absolute;
-      width: 14px; height: 14px;
-      border: 1px solid var(--spectral);
-    }
-    .shot-frame::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
-    .shot-frame::after  { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
-    .shot img {
-      display: block;
-      width: 100%;
-      height: auto;
-      filter: saturate(0.92) contrast(1.02);
-    }
-    .shot-caption {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 2px 0;
-      font-size: 9px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--entropy);
-    }
-    .shot-caption .fig { color: var(--spectral); }
-
-    /* ─── Divider ─────────────────────────────────────────────── */
-    .section-divider {
-      margin: 0 clamp(24px,6vw,96px);
-      height: 1px;
-      background: var(--rule-soft);
-    }
+    .hero-extra .dummy-copy { margin-bottom: 0; }
 
     /* ─── Section HUD indicator ───────────────────────────────── */
     #section-hud {
@@ -745,7 +486,7 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.16em;
-      color: var(--spectral);
+      color: var(--signal);
       opacity: 0.9;
       transition: opacity 0.3s ease;
     }
@@ -755,17 +496,18 @@
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.12em;
-      color: rgba(242, 236, 226, 0.72);
+      color: rgba(231, 231, 236, 0.72);
       transition: opacity 0.3s ease, transform 0.3s ease;
       text-align: right;
     }
     #section-hud-bar {
       width: 32px;
       height: 1px;
-      background: var(--spectral);
+      background: var(--signal);
       transform-origin: right center;
       transition: transform 0.4s ease, background 0.4s ease;
     }
+    /* Tick trail */
     #section-hud-dots {
       display: flex;
       flex-direction: column;
@@ -781,9 +523,33 @@
       transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
     }
     .hud-dot.active {
-      background: var(--spectral);
-      border-color: var(--spectral);
+      background: var(--signal);
+      border-color: var(--signal);
       transform: scale(1.25);
+    }
+    .feature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 6px 10px;
+      border: 1px solid var(--rule);
+      color: var(--muted);
+      background: transparent;
+      transition: border-color 160ms, color 160ms;
+    }
+    .tag:hover { border-color: var(--signal); color: var(--bone); }
+
+    /* ─── Divider ─────────────────────────────────────────────── */
+    .section-divider {
+      margin: 0 clamp(24px,6vw,96px);
+      height: 1px;
+      background: var(--rule-soft);
     }
 
     /* ─── CTA section (last) ──────────────────────────────────── */
@@ -802,69 +568,32 @@
     .cta-content {
       grid-column: 2;
       justify-self: start;
-      max-width: 580px;
       padding: clamp(30px, 3.5vw, 46px);
     }
+    /* Desktop: rocket/particles occupy left column */
     .cta-visual-placeholder {
       grid-column: 1;
       grid-row: 1;
     }
-    .cta-kicker {
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.22em;
-      color: var(--spectral);
-      margin-bottom: 20px;
-    }
     .cta-section h2 {
-      font-family: var(--display);
-      font-size: clamp(34px, 4.4vw, 60px);
-      font-weight: 700;
-      letter-spacing: -0.02em;
+      font-family: var(--serif);
+      font-size: clamp(38px, 4.6vw, 62px);
+      font-weight: 400;
+      letter-spacing: -0.005em;
       line-height: 1.02;
       margin-bottom: 20px;
     }
     .cta-section h2 .grad {
-      font-family: var(--serif);
       font-style: italic;
-      font-weight: 400;
-      color: var(--spectral);
+      color: var(--signal);
     }
     .cta-section p {
       font-size: 14px;
       color: var(--muted);
-      margin-bottom: 28px;
+      margin-bottom: 32px;
       max-width: 46ch;
     }
-    .cta-terminal {
-      margin-bottom: 32px;
-      border: 1px solid var(--rule);
-      background: rgba(11, 12, 14, 0.9);
-      padding: 16px 18px;
-      max-width: 480px;
-    }
-    .cta-terminal-bar {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 12px;
-    }
-    .cta-terminal-bar i {
-      width: 8px; height: 8px;
-      border: 1px solid var(--rule);
-      display: block;
-    }
-    .cta-terminal-line {
-      display: block;
-      font-size: 12.5px;
-      line-height: 2;
-      color: var(--bone-dim);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .cta-terminal-line .prompt { color: var(--synapse); margin-right: 8px; }
-    .cta-terminal-line .comment { color: var(--entropy); }
+    .cta-section p.dummy-copy { margin-bottom: 36px; }
     .cta-glow {
       display: flex;
       gap: 14px;
@@ -886,20 +615,15 @@
       letter-spacing: 0.1em;
       color: var(--muted);
       border-top: 1px solid var(--rule);
-      background: rgba(11, 12, 14, 0.85);
+      background: rgba(10, 10, 8, 0.85);
     }
     footer a {
       color: var(--bone);
       border-bottom: 1px solid var(--rule);
       transition: border-color 160ms ease, color 160ms ease;
     }
-    footer a:hover { color: var(--spectral); border-bottom-color: var(--spectral); }
+    footer a:hover { color: var(--signal); border-bottom-color: var(--signal); }
     .footer-meta { color: var(--faint); }
-    .footer-doc {
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      color: var(--entropy);
-    }
 
     /* ─── Responsive ──────────────────────────────────────────── */
     @media (max-width: 900px) {
@@ -921,7 +645,7 @@
         gap: 0;
         padding: 10px;
         border: 1px solid var(--rule);
-        background: rgba(11, 12, 14, 0.98);
+        background: rgba(10, 10, 8, 0.98);
       }
       .nav-menu-toggle:checked ~ .nav-links { display: flex; }
       .nav-links a,
@@ -934,7 +658,7 @@
       .nav-links a:hover { border-bottom-color: var(--rule-soft); }
       .nav-badge {
         margin-top: 4px;
-        border: 1px solid var(--spectral-soft);
+        border: 1px solid var(--signal-soft);
       }
       .hero,
       .feature-section,
@@ -956,7 +680,6 @@
       .hero-eyebrow { justify-content: center; }
       .hero-sub { margin-left: auto; margin-right: auto; }
       .hero-cta-row { justify-content: center; }
-      .hero-meta-row { justify-content: center; }
       .hero::after {
         top: 10%;
         right: 50%;
@@ -965,37 +688,23 @@
         transform: translateX(50%);
         opacity: 0.34;
       }
-      .manifesto { min-height: 78svh; }
-      .proof-strip {
-        grid-template-columns: 1fr;
-        margin: 0 clamp(16px, 5vw, 28px);
-      }
-      .proof-cell { border-right: 0; border-bottom: 1px solid var(--rule-soft); }
-      .proof-cell:last-child { border-bottom: 0; }
       .feature-section {
         grid-template-columns: 1fr;
         gap: 40px;
         text-align: center;
-        min-height: auto;
-        padding: 72px clamp(24px, 6vw, 96px);
+        min-height: 100svh;
+        padding: 64px clamp(24px, 6vw, 96px);
       }
-      .feature-kicker { justify-content: center; }
       .feature-desc { margin-left: auto; margin-right: auto; }
-      .section-note {
+      .dummy-copy {
         margin-left: auto;
         margin-right: auto;
         border-left: 0;
         padding-left: 0;
       }
       .feature-tags { justify-content: center; }
-      .feature-section .feature-content {
-        grid-column: 1 !important;
-        grid-row: 1;
-        justify-self: center;
-      }
-      .shot {
-        display: none; /* the field takes precedence below 900px */
-      }
+      .feature-section .feature-content { grid-column: 1 !important; justify-self: center; }
+      /* CTA section: collapse to single column on mobile */
       .cta-section {
         grid-template-columns: 1fr;
         gap: 40px;
@@ -1004,30 +713,40 @@
       }
       .cta-section .cta-content { max-width: 100%; grid-column: 1; justify-self: center; }
       .cta-section p { max-width: 100%; margin-left: auto; margin-right: auto; }
-      .cta-terminal { margin-left: auto; margin-right: auto; text-align: left; }
       .cta-glow { justify-content: center; }
+      /* Hide the empty visual placeholder column on mobile */
       .cta-visual-placeholder { display: none; }
       footer { justify-content: center; text-align: center; }
     }
 
     @media (max-width: 900px) and (orientation: portrait) {
       #engine-canvas {
-        /* Reserve the upper half for the active section copy and render
-           the field choreography in the lower half on phones. */
+        /* Reserve the upper half for the active section card and render
+           the voxel/particle choreography in the lower half on phones. */
         clip-path: inset(50svh 0 0 0);
         opacity: 0.96;
       }
       .feature-section {
-        grid-template-rows: none;
-        min-height: auto;
-        padding: 64px clamp(20px, 5vw, 40px);
+        grid-template-rows:
+          minmax(0, calc(50svh - 68px - env(safe-area-inset-top)))
+          minmax(0, calc(50svh - env(safe-area-inset-bottom)));
+        align-items: stretch;
+        gap: 0;
+        padding: calc(68px + env(safe-area-inset-top)) clamp(14px, 5vw, 24px) env(safe-area-inset-bottom);
+      }
+      .feature-section .feature-content {
+        grid-row: 1;
+        align-self: center;
+        max-height: calc(50svh - 92px - env(safe-area-inset-top));
+        overflow: hidden;
+        padding: clamp(16px, 4.6vw, 22px);
       }
       .feature-title { font-size: clamp(24px, 7vw, 32px); }
       .feature-desc {
         font-size: clamp(12px, 3.6vw, 14px);
         line-height: 1.5;
       }
-      .section-note {
+      .dummy-copy {
         font-size: 11px;
         line-height: 1.45;
         margin-top: 12px;
@@ -1040,6 +759,30 @@
         font-size: 8px;
         padding: 5px 8px;
       }
+      /* CTA portrait: card in upper half, rocket in lower half */
+      .cta-section {
+        grid-template-columns: 1fr;
+        grid-template-rows:
+          minmax(0, calc(50svh - 68px - env(safe-area-inset-top)))
+          minmax(0, calc(50svh - env(safe-area-inset-bottom)));
+        align-items: stretch;
+        gap: 0;
+        padding: calc(68px + env(safe-area-inset-top)) clamp(14px, 5vw, 24px) env(safe-area-inset-bottom);
+        text-align: center;
+      }
+      .cta-section .cta-content {
+        grid-row: 1;
+        grid-column: 1;
+        justify-self: center;
+        align-self: center;
+        max-width: 100%;
+        max-height: calc(50svh - 92px - env(safe-area-inset-top));
+        overflow: hidden;
+        padding: clamp(16px, 4.6vw, 22px);
+      }
+      .cta-section p { max-width: 100%; }
+      .cta-glow { justify-content: center; }
+      .cta-visual-placeholder { grid-row: 2; display: block; }
     }
 
     /* ─── Atmosphere ──────────────────────────────────────────── */
@@ -1077,7 +820,7 @@
       top: 0; left: 0; right: 0;
       height: 2px;
       z-index: 120;
-      background: var(--spectral);
+      background: var(--signal);
       transform-origin: left center;
       transform: scaleX(0);
       pointer-events: none;
@@ -1089,7 +832,7 @@
 </head>
 <body>
 
-<!-- Morphing particle field — the manifold -->
+<!-- Morphing voxel blueprint field -->
 <canvas id="engine-canvas" aria-hidden="true"></canvas>
 
 <!-- Drafting-table edge rulers -->
@@ -1100,7 +843,7 @@
   <div class="nav-logo">
     <img class="nav-logo-icon" src="/assets/img/manifold_logo.png" alt="" aria-hidden="true" />
     <span class="nav-logo-word">Manifold</span>
-    <span class="nav-logo-sub">/ Agent Infrastructure</span>
+    <span class="nav-logo-sub">/ Orchestration Engine</span>
   </div>
   <div class="nav-menu">
     <input class="nav-menu-toggle" type="checkbox" id="nav-menu-toggle" aria-label="Toggle navigation" />
@@ -1109,11 +852,10 @@
       <a href="https://github.com/intelligencedev/manifold">GitHub</a>
       <a href="/manifold-memory-systems/">Memory Docs</a>
       <a href="/manifold-quickstart/">Quickstart</a>
-      <span class="nav-badge">Open Source</span>
+      <span class="nav-badge">Dev Preview</span>
     </div>
   </div>
 </nav>
-
 
 <!-- Scroll progress hairline -->
 <div id="scroll-progress" aria-hidden="true"></div>
@@ -1176,7 +918,7 @@
 <!-- ═══════════════════════════════════════════════════════════════
      FEATURE 1 — Specialists + Teams
 ═══════════════════════════════════════════════════════════════ -->
-<section class="feature-section" data-side="right" data-feature="specialists" aria-labelledby="f1-title">
+<section class="feature-section" data-feature="specialists" aria-labelledby="f1-title">
   <div class="feature-content">
     <h3 class="feature-title" id="f1-title">Specialists Registry<br/><em>+ Teams</em></h3>
     <p class="feature-desc">
@@ -1203,7 +945,7 @@
 <!-- ═══════════════════════════════════════════════════════════════
      FEATURE 2 — Memory Subsystems
 ═══════════════════════════════════════════════════════════════ -->
-<section class="feature-section" data-side="left" data-feature="memory" aria-labelledby="f2-title">
+<section class="feature-section" data-feature="memory" aria-labelledby="f2-title">
   <div class="feature-content">
     <h3 class="feature-title" id="f2-title">Memory<br/><em>Subsystems</em></h3>
     <p class="feature-desc">
@@ -1229,7 +971,7 @@
 <!-- ═══════════════════════════════════════════════════════════════
      FEATURE 3 — Visual Workflow DAG
 ═══════════════════════════════════════════════════════════════ -->
-<section class="feature-section" data-side="right" data-feature="dag" aria-labelledby="f3-title">
+<section class="feature-section" data-feature="dag" aria-labelledby="f3-title">
   <div class="feature-content">
     <h3 class="feature-title" id="f3-title">Visual Workflow<br/><em>DAG Editor</em></h3>
     <p class="feature-desc">
@@ -1255,7 +997,7 @@
 <!-- ═══════════════════════════════════════════════════════════════
      FEATURE 4 — Scheduled Tasks (Pulse)
 ═══════════════════════════════════════════════════════════════ -->
-<section class="feature-section" data-side="left" data-feature="pulse" aria-labelledby="f4-title">
+<section class="feature-section" data-feature="pulse" aria-labelledby="f4-title">
   <div class="feature-content">
     <h3 class="feature-title" id="f4-title">Scheduled Tasks<br/><em>for AI Agents</em></h3>
     <p class="feature-desc">
@@ -1282,7 +1024,7 @@
 <!-- ═══════════════════════════════════════════════════════════════
      FEATURE 5 — Playground
 ═══════════════════════════════════════════════════════════════ -->
-<section class="feature-section" data-side="right" data-feature="playground" aria-labelledby="f5-title">
+<section class="feature-section" data-feature="playground" aria-labelledby="f5-title">
   <div class="feature-content">
     <h3 class="feature-title" id="f5-title">Prompt, Dataset<br/>&amp; Experiments<br/><em>Playground</em></h3>
     <p class="feature-desc">
@@ -1309,7 +1051,7 @@
 <!-- ═══════════════════════════════════════════════════════════════
      FEATURE 6 — MCP Support
 ═══════════════════════════════════════════════════════════════ -->
-<section class="feature-section" data-side="left" data-feature="mcp" aria-labelledby="f6-title">
+<section class="feature-section" data-feature="mcp" aria-labelledby="f6-title">
   <div class="feature-content">
     <h3 class="feature-title" id="f6-title">MCP<br/><em>Support</em></h3>
     <p class="feature-desc">
@@ -1401,7 +1143,7 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0b0c0e, 0.052);
+    scene.fog = new THREE.FogExp2(0x09090c, 0.052);
 
     const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.set(0, 0, reduceMotion ? 7.7 : 9.4);
@@ -1756,18 +1498,15 @@
     const HERO_VISUAL_X = 1.72;
     const CTA_VISUAL_X = 1.84;
 
-    // Stage colors follow the page's semantic alternation, remapped onto
-    // Desert Night: pale stages -> foreground bone, structure stages ->
-    // saffron accent (and its ring highlight), execution stages -> live cyan.
     const BLUEPRINTS = [
-      { name: 'Command core',       color: [0.95, 0.93, 0.89], x:  HERO_VISUAL_X,    yaw: -0.34, points: fitAndSample(commandCore(), 11) },
-      { name: 'Specialist router',  color: [0.90, 0.63, 0.13], x: -FEATURE_VISUAL_X, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
-      { name: 'Memory vault',       color: [0.94, 0.75, 0.35], x:  FEATURE_VISUAL_X, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
-      { name: 'Workflow fabric',    color: [0.24, 0.81, 0.81], x: -FEATURE_VISUAL_X, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
-      { name: 'Chronometer',        color: [0.90, 0.63, 0.13], x:  FEATURE_VISUAL_X, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
-      { name: 'Experiment bay',     color: [0.24, 0.81, 0.81], x: -FEATURE_VISUAL_X, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
-      { name: 'MCP coupler',        color: [0.95, 0.93, 0.89], x:  FEATURE_VISUAL_X, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
-      { name: 'Launch engine',      color: [0.24, 0.81, 0.81], x: -CTA_VISUAL_X,  yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
+      { name: 'Command core',       color: [0.88, 0.86, 0.96], x:  HERO_VISUAL_X,    yaw: -0.34, points: fitAndSample(commandCore(), 11) },
+      { name: 'Specialist router',  color: [0.62, 0.36, 1.00], x: -FEATURE_VISUAL_X, yaw:  0.28, points: fitAndSample(specialistRouter(), 23) },
+      { name: 'Memory vault',       color: [0.72, 0.68, 0.88], x:  FEATURE_VISUAL_X, yaw: -0.22, points: fitAndSample(memoryVault(), 37) },
+      { name: 'Workflow fabric',    color: [0.30, 0.85, 0.42], x: -FEATURE_VISUAL_X, yaw:  0.26, points: fitAndSample(workflowFabric(), 41) },
+      { name: 'Chronometer',        color: [0.52, 0.24, 0.95], x:  FEATURE_VISUAL_X, yaw: -0.18, points: fitAndSample(schedulerChronometer(), 53) },
+      { name: 'Experiment bay',     color: [0.40, 0.95, 0.55], x: -FEATURE_VISUAL_X, yaw:  0.22, points: fitAndSample(experimentBay(), 67) },
+      { name: 'MCP coupler',        color: [0.80, 0.90, 0.82], x:  FEATURE_VISUAL_X, yaw: -0.28, points: fitAndSample(mcpCoupler(), 79) },
+      { name: 'Launch engine',      color: [0.30, 0.94, 0.46], x: -CTA_VISUAL_X,  yaw:  0.00, points: fitAndSample(launchEngine(), 97) },
     ];
     const STAGES = BLUEPRINTS.length;
 
@@ -1793,7 +1532,7 @@
 
     const voxelGeom = new THREE.BoxGeometry(0.075, 0.075, 0.075);
     const voxelMat = new THREE.MeshBasicMaterial({
-      color: 0xf2ece2,
+      color: 0xd9d4ee,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -1812,7 +1551,7 @@
       opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0xf2ece2,
+      color: 0xd9d4ee,
       sizeAttenuation: true,
     });
     const glow = new THREE.Points(glowGeo, glowMat);
@@ -1823,7 +1562,7 @@
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
     const lineMat = new THREE.LineBasicMaterial({
-      color: 0xf2ece2,
+      color: 0xd9d4ee,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -1846,7 +1585,7 @@
       }
       g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
       const m = new THREE.LineBasicMaterial({
-        color: 0xf2ece2,
+        color: 0xd9d4ee,
         transparent: true,
         opacity: 0,
         depthWrite: false,
@@ -1859,7 +1598,7 @@
       rig.add(ring);
     }
 
-    const grid = new THREE.GridHelper(28, 28, 0x3a3428, 0x1a1d22);
+    const grid = new THREE.GridHelper(28, 28, 0x3c3554, 0x16141e);
     grid.position.y = -2.32;
     grid.material.transparent = true;
     grid.material.opacity = 0;
@@ -1908,7 +1647,7 @@
       opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0x3ecfcf,
+      color: 0x5ce87f,
       sizeAttenuation: true,
     });
     const packetCloud = new THREE.Points(packetGeo, packetMat);
@@ -1937,7 +1676,7 @@
       opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0x8c8372,
+      color: 0x7a6aa8,
       sizeAttenuation: true,
     });
     const dust = new THREE.Points(dustGeo, dustMat);
@@ -2291,14 +2030,16 @@
 
   const tl = createTimeline({ defaults: { ease: 'outExpo' } });
 
-  // The hero has no eyebrow; the heading keeps the absolute start time the
-  // eyebrow's entry used to give it (300 + 700 - 500), so everything
-  // downstream — all relative offsets — lands exactly as before.
-  tl.add('#hero-heading', {
+  tl.add('#hero-eyebrow', {
+    opacity:    [0, 1],
+    translateY: [20, 0],
+    duration:   700,
+  }, 300)
+  .add('#hero-heading', {
     opacity:    [0, 1],
     translateY: [30, 0],
     duration:   800,
-  }, 500)
+  }, '-=500')
   .add('#hero-sub', {
     opacity:    [0, 1],
     translateY: [20, 0],

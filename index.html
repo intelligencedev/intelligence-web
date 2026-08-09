@@ -1,288 +1,495 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>intelligence.dev</title>
-        <meta
-            name="description"
-            content="intelligence.dev builds practical tools for applied intelligence—developer-first, privacy-aware, and designed to ship."
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap"
-            rel="stylesheet"
-        />
-        <style>
-            :root {
-                --bg: #05070c;
-                --text: rgba(245, 248, 255, 0.92);
-                --muted: rgba(245, 248, 255, 0.76);
-                --accent: #9ab4ff;
-                --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-                --veil-strong: rgba(0, 0, 0, 0.55);
-                --veil-soft: rgba(0, 0, 0, 0.35);
-            }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>intelligence.dev</title>
+    <meta
+      name="description"
+      content="Experiments with code, computer graphics, and machine learning. Home of Manifold — open-source, long-horizon agent infrastructure."
+    />
+    <meta name="theme-color" content="#0b0c0e" />
+    <meta property="og:title" content="intelligence.dev" />
+    <meta
+      property="og:description"
+      content="Experiments with code, computer graphics, and machine learning."
+    />
+    <meta property="og:type" content="website" />
 
-            * {
-                box-sizing: border-box;
-            }
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
 
-            html,
-            body {
-                height: 100%;
-                margin: 0;
-                overflow-x: hidden;
-            }
+    <style>
+      /* ═══════════════════════════════════════════════════════════
+         intelligence.dev — root
+         Same vocabulary as /manifold/ and /articles/:
+         structure from strokes, mono chrome, no glass, no pills.
+         The galaxy is the image; the page is the instrument frame
+         drawn over it.
+      ═══════════════════════════════════════════════════════════ */
 
-            body {
-                font-family: "Inter Tight", "Inter", system-ui, -apple-system, Segoe UI,
-                    Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji",
-                    "Segoe UI Emoji";
-                color: var(--text);
-                background: var(--bg);
-                line-height: 1.6;
-            }
+      /* Desert Night — tokens mirrored from desertNightTokens in
+         manifold-desktop/web/agentd-ui/src/theme/themes.ts.
+         Cool charcoal base; warmth confined to borders, the text
+         hierarchy, and the saffron accent. */
+      :root {
+        --void: #0b0c0e; /* background        11  12  14 */
+        --bone: #f2ece2; /* foreground       242 236 226 */
+        --bone-dim: #b8afa0; /* muted-foreground  184 175 160 */
+        --muted: #8c8372; /* subtle-foreground 140 131 114 */
+        --faint: #686256; /* faint-foreground  104  98  86 */
+        --rule: #3a3428; /* border             58  52  40 */
+        --rule-soft: rgba(58, 52, 40, 0.5);
+        --accent: #e6a020; /* accent — saffron 230 160  32 */
 
-            a {
-                color: inherit;
-                text-decoration: none;
-            }
+        --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --display: "Space Grotesk", ui-sans-serif, system-ui, -apple-system,
+          "Segoe UI", sans-serif;
 
-            /* Galaxy always fills the viewport */
-            .galaxy {
-                position: fixed;
-                inset: 0;
-                z-index: 0;
-                overflow: hidden;
-            }
+        --page-x: clamp(20px, 4.5vw, 60px);
+        --page-y: clamp(18px, 2.6vw, 30px);
+      }
 
-            .galaxy iframe {
-                width: 100%;
-                height: 100%;
-                border: 0;
-                transform: translate(0, 0) scale(1);
-                transform-origin: center;
-                filter: saturate(1) brightness(1);
-            }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-            /* Veil hidden by default — galaxy view has no overlay */
-            .veil {
-                display: none;
-            }
+      html,
+      body {
+        height: 100%;
+      }
 
-            .container {
-                position: relative;
-                z-index: 2;
-                min-height: 100vh;
-                padding: clamp(20px, 4vw, 64px);
-                pointer-events: none;
-            }
+      body {
+        font-family: var(--mono);
+        background: var(--void);
+        color: var(--bone);
+        font-size: 14px;
+        line-height: 1.6;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
 
-            .safe {
-                max-width: 620px;
-                pointer-events: auto;
-            }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
 
-            .site-header {
-                display: flex;
-                align-items: flex-start;
-                justify-content: space-between;
-                gap: 16px;
-            }
+      ::selection {
+        background: rgba(230, 160, 32, 0.26);
+        color: var(--bone);
+      }
 
-            .site-nav {
-                display: flex;
-                gap: 24px;
-                font-size: 14px;
-                letter-spacing: 0.02em;
-                color: var(--muted);
-                text-transform: none;
-            }
+      :focus-visible {
+        outline: 1px solid var(--accent);
+        outline-offset: 3px;
+      }
 
-            .site-nav a {
-                position: relative;
-                opacity: 0.84;
-                transition: opacity 200ms ease, color 200ms ease;
-            }
+      /* ── Galaxy: the image, full bleed ───────────────────────── */
+      .galaxy {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background: #000;
+      }
 
-            .site-nav a::after {
-                content: "";
-                position: absolute;
-                left: 0;
-                bottom: -6px;
-                width: 100%;
-                height: 1px;
-                background: rgba(255, 255, 255, 0.4);
-                opacity: 0;
-                transform: translateY(4px);
-                transition: opacity 200ms ease, transform 200ms ease;
-            }
+      .galaxy iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
 
-            .site-nav a:hover {
-                opacity: 1;
-                color: var(--text);
-            }
+      /* Scrim: only enough to hold type. Left column and the two
+         edges are dimmed; the galaxy core is left untouched. */
+      .scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background: linear-gradient(
+            100deg,
+            rgba(11, 12, 14, 0.86) 0%,
+            rgba(11, 12, 14, 0.62) 24%,
+            rgba(11, 12, 14, 0.24) 46%,
+            rgba(11, 12, 14, 0) 64%
+          ),
+          linear-gradient(
+            to top,
+            rgba(11, 12, 14, 0.7) 0%,
+            rgba(11, 12, 14, 0) 34%
+          ),
+          linear-gradient(
+            to bottom,
+            rgba(11, 12, 14, 0.6) 0%,
+            rgba(11, 12, 14, 0) 16%
+          );
+      }
 
-            .site-nav a:hover::after {
-                opacity: 1;
-                transform: translateY(0);
-            }
+      /* ── Frame: hairline instrument border + corner ticks ────── */
+      .frame {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: var(--page-y) var(--page-x);
+        pointer-events: none;
+      }
 
-            .menu-toggle {
-                display: none;
-                align-items: center;
-                justify-content: center;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                background: rgba(15, 17, 23, 0.35);
-                color: var(--text);
-                padding: 8px 12px;
-                border-radius: 999px;
-                font-size: 12px;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-            }
+      .frame::before {
+        content: "";
+        position: fixed;
+        inset: clamp(10px, 1.4vw, 18px);
+        border: 1px solid var(--rule-soft);
+        pointer-events: none;
+      }
 
-            .hero {
-                margin-top: 22px;
-                display: flex;
-                flex-direction: column;
-                gap: clamp(14px, 2vw, 20px);
-            }
+      .frame > * {
+        pointer-events: auto;
+      }
 
-            .hero-title {
-                margin: 0;
-                font-size: clamp(36px, 6vw, 68px);
-                font-weight: 700;
-                letter-spacing: -0.03em;
-                line-height: 1.04;
-                color: var(--text);
-                text-shadow: var(--shadow);
-            }
+      /* ── Top bar ─────────────────────────────────────────────── */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--rule-soft);
+      }
 
-            .hero-title .dot {
-                color: var(--accent);
-            }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--bone);
+      }
 
-            .lead {
-                margin: 0;
-                max-width: 560px;
-                color: var(--muted);
-                font-size: clamp(15px, 2.2vw, 18px);
-                line-height: 1.55;
-            }
+      .brand-mark {
+        width: 7px;
+        height: 7px;
+        background: var(--accent);
+        flex-shrink: 0;
+      }
 
-            .cta-row {
-                display: flex;
-                gap: 12px;
-                margin-top: 4px;
-            }
+      .topnav {
+        display: flex;
+        align-items: center;
+        gap: clamp(14px, 2vw, 26px);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
 
-            .btn {
-                padding: 10px 16px;
-                border-radius: 999px;
-                border: 1px solid rgba(255, 255, 255, 0.25);
-                color: var(--text);
-                background: rgba(15, 17, 23, 0.35);
-                font-size: 13px;
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
-                transition: border-color 200ms ease, color 200ms ease,
-                    background 200ms ease;
-            }
+      .topnav a {
+        padding-bottom: 2px;
+        border-bottom: 1px solid transparent;
+        transition: color 160ms ease, border-color 160ms ease;
+      }
 
-            .btn:hover {
-                border-color: rgba(154, 180, 255, 0.6);
-                color: #f5f8ff;
-                background: rgba(20, 24, 36, 0.5);
-            }
+      .topnav a:hover {
+        color: var(--bone);
+        border-bottom-color: var(--accent);
+      }
 
-            .btn-primary {
-                background: var(--accent);
-                border-color: var(--accent);
-                color: #05070c;
-                font-weight: 600;
-            }
+      /* ── Body column ─────────────────────────────────────────── */
+      main {
+        flex: 1 0 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        max-width: 560px;
+        width: 100%;
+        padding: clamp(18px, 3vh, 52px) 0;
+      }
 
-            .btn-primary:hover {
-                background: #b8c8ff;
-                border-color: #b8c8ff;
-                color: #05070c;
-            }
+      .lead {
+        max-width: 44ch;
+        font-family: var(--display);
+        font-size: clamp(20px, 2.6vw, 27px);
+        font-weight: 500;
+        letter-spacing: -0.018em;
+        line-height: 1.32;
+        color: var(--bone);
+      }
 
-            @media (max-width: 1023px) {
-                .hero-title {
-                    font-size: clamp(44px, 6vw, 56px);
-                }
-            }
+      /* ── Index: what's actually here ─────────────────────────── */
+      .index {
+        margin-top: clamp(22px, 3.6vh, 36px);
+        border-top: 1px solid var(--rule);
+      }
 
-            @media (max-width: 767px) {
-                .site-header {
-                    flex-direction: column;
-                    align-items: flex-start;
-                }
+      .row {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: baseline;
+        column-gap: 16px;
+        padding: 12px 0 12px 14px;
+        border-bottom: 1px solid var(--rule-soft);
+        transition: padding-left 200ms ease;
+      }
 
-                .site-nav {
-                    display: none;
-                    flex-direction: column;
-                    gap: 12px;
-                    width: 100%;
-                    margin-top: 12px;
-                }
+      .row::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 20px;
+        width: 6px;
+        height: 1px;
+        background: var(--accent);
+        opacity: 0;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: opacity 200ms ease, transform 200ms ease;
+      }
 
-                .site-nav.open {
-                    display: flex;
-                }
+      .row:hover,
+      .row:focus-visible {
+        padding-left: 22px;
+      }
 
-                .menu-toggle {
-                    display: inline-flex;
-                }
+      .row:hover::before,
+      .row:focus-visible::before {
+        opacity: 1;
+        transform: scaleX(1);
+      }
 
-                .hero-title {
-                    font-size: clamp(36px, 9vw, 44px);
-                }
-            }
+      .row-idx {
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        color: var(--faint);
+        transition: color 180ms ease;
+      }
 
-            @media (prefers-reduced-motion: reduce) {
-                * {
-                    animation: none !important;
-                    transition: none !important;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="galaxy" aria-hidden="true">
-            <iframe src="/vis/galaxy/" title="Galaxy background"></iframe>
+      .row-name {
+        display: block;
+        font-family: var(--display);
+        font-size: 17px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        color: var(--bone);
+        transition: color 180ms ease;
+      }
+
+      .row-desc {
+        display: block;
+        margin-top: 3px;
+        max-width: 42ch;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+
+      .row-go {
+        font-size: 12px;
+        color: var(--faint);
+        transition: color 180ms ease, transform 200ms ease;
+      }
+
+      .row:hover .row-name,
+      .row:focus-visible .row-name,
+      .row:hover .row-go,
+      .row:focus-visible .row-go,
+      .row:hover .row-idx,
+      .row:focus-visible .row-idx {
+        color: var(--accent);
+      }
+
+      .row:hover .row-go,
+      .row:focus-visible .row-go {
+        transform: translateX(3px);
+      }
+
+      /* ── Experiments strip ───────────────────────────────────── */
+      .strip {
+        margin-top: 22px;
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+      }
+
+      .strip-label {
+        color: var(--faint);
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+      }
+
+      .strip a {
+        color: var(--muted);
+        border-bottom: 1px solid var(--rule-soft);
+        padding-bottom: 1px;
+        transition: color 160ms ease, border-color 160ms ease;
+      }
+
+      .strip a:hover {
+        color: var(--bone);
+        border-bottom-color: var(--accent);
+      }
+
+      /* ── Footer ──────────────────────────────────────────────── */
+      footer {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px 20px;
+        padding-top: 14px;
+        border-top: 1px solid var(--rule-soft);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: var(--faint);
+      }
+
+      footer a {
+        transition: color 160ms ease;
+      }
+
+      footer a:hover {
+        color: var(--bone-dim);
+      }
+
+      /* ── Entrance ────────────────────────────────────────────── */
+      .rise {
+        opacity: 0;
+        transform: translateY(10px);
+        animation: rise 700ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+      }
+
+      @keyframes rise {
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      /* ── Responsive ──────────────────────────────────────────── */
+      /* Below ~1024px the text column spans most of the width, so the
+         lateral scrim can no longer shield it — the galaxy core ends up
+         directly behind the index. Switch to an even vertical scrim:
+         type stays legible, the galaxy stays visible as texture. */
+      @media (max-width: 1024px) {
+        .scrim {
+          background: linear-gradient(
+            to bottom,
+            rgba(11, 12, 14, 0.82) 0%,
+            rgba(11, 12, 14, 0.55) 20%,
+            rgba(11, 12, 14, 0.68) 52%,
+            rgba(11, 12, 14, 0.86) 100%
+          );
+        }
+      }
+
+      @media (max-width: 720px) {
+        main {
+          justify-content: flex-end;
+        }
+
+        .row-go {
+          display: none;
+        }
+
+        .row {
+          grid-template-columns: auto 1fr;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+
+        .rise {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="galaxy" aria-hidden="true">
+      <iframe src="/vis/galaxy/" title="Galaxy background" tabindex="-1"></iframe>
+    </div>
+    <div class="scrim" aria-hidden="true"></div>
+
+    <div class="frame">
+      <header class="topbar rise" style="animation-delay: 40ms">
+        <h1 class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          intelligence.dev
+        </h1>
+        <nav class="topnav" aria-label="Elsewhere">
+          <a href="https://github.com/intelligencedev">GitHub&nbsp;↗</a>
+        </nav>
+      </header>
+
+      <main>
+        <p class="lead rise" style="animation-delay: 260ms">
+          Experiments with code, computer graphics, and machine learning.
+        </p>
+
+        <nav class="index rise" style="animation-delay: 340ms" aria-label="Sections">
+          <a class="row" href="/manifold/">
+            <span class="row-idx">01</span>
+            <span>
+              <span class="row-name">Manifold</span>
+              <span class="row-desc"
+                >Long-horizon agent infrastructure — persistent memory,
+                composable workflows. Open source.</span
+              >
+            </span>
+            <span class="row-go" aria-hidden="true">→</span>
+          </a>
+
+          <a class="row" href="/articles/">
+            <span class="row-idx">02</span>
+            <span>
+              <span class="row-name">Articles</span>
+              <span class="row-desc"
+                >Research notes and technical essays on AI systems and
+                infrastructure.</span
+              >
+            </span>
+            <span class="row-go" aria-hidden="true">→</span>
+          </a>
+        </nav>
+
+        <div class="strip rise" style="animation-delay: 420ms">
+          <span class="strip-label">Renders</span>
+          <a href="/vis/galaxy/">Galaxy</a>
+          <a href="/vis/vortex/">Vortex</a>
+          <a href="/vis/clouds/">Clouds</a>
+          <a href="/vis/moonshot/">Moonshot</a>
+          <a href="/vis/vterrain/">Voxel Terrain</a>
         </div>
+      </main>
 
-        <div class="container">
-
-            <main class="hero safe" id="hero">
-                <h1 class="hero-title">intelligence<span class="dot">.</span>dev</h1>
-                <p class="lead">
-                    Experiments with code, computer graphics, and machine learning.
-                </p>
-                <div class="cta-row" role="group" aria-label="Primary actions">
-                    <a class="btn btn-primary" href="/manifold/">Manifold →</a>
-                    <a class="btn" href="/articles/">Articles →</a>
-                </div>
-            </main>
-        </div>
-
-        <script>
-            (function () {
-                var nav = document.getElementById("site-nav");
-                var menuToggle = document.querySelector(".menu-toggle");
-
-                if (menuToggle && nav) {
-                    menuToggle.addEventListener("click", function () {
-                        var isOpen = nav.classList.toggle("open");
-                        menuToggle.setAttribute("aria-expanded", String(isOpen));
-                    });
-                }
-            })();
-        </script>
-    </body>
+      <footer class="rise" style="animation-delay: 500ms">
+        <span>&copy; 2026</span>
+        <a href="mailto:admin@intelligence.dev">admin@intelligence.dev</a>
+      </footer>
+    </div>
+  </body>
 </html>
