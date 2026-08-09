@@ -535,34 +535,6 @@
     .proof-copy-btn:hover { border-color: var(--spectral); color: var(--bone); }
     .proof-copy-btn.copied { border-color: var(--synapse); color: var(--synapse); }
 
-    /* ─── Features index ──────────────────────────────────────── */
-    .features-label {
-      text-align: center;
-      padding: 110px clamp(24px,6vw,96px) 0;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.22em;
-      color: var(--spectral);
-      opacity: 0;
-    }
-    .features-heading {
-      text-align: center;
-      padding: 16px clamp(24px,6vw,96px) 84px;
-      font-family: var(--display);
-      font-size: clamp(30px, 4.2vw, 54px);
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      line-height: 1.08;
-      opacity: 0;
-    }
-    .features-heading .dim {
-      font-family: var(--serif);
-      font-style: italic;
-      font-weight: 400;
-      color: var(--muted);
-    }
-
     /* ─── Feature section ─────────────────────────────────────── */
     .feature-section {
       min-height: 100svh;
@@ -1098,7 +1070,7 @@
 <!-- Nav -->
 <nav class="nav" aria-label="Main navigation">
   <div class="nav-logo">
-    <img class="nav-logo-icon" src="/assets/img/manifold_logo.png" alt="" aria-hidden="true" />
+    <img class="nav-logo-icon" src="/assets/img/manifold_desert.png" alt="" aria-hidden="true" />
     <span class="nav-logo-word">Manifold</span>
     <span class="nav-logo-sub">/ Agent Infrastructure</span>
   </div>
@@ -1162,15 +1134,6 @@
     <div class="scroll-hint-line"></div>
   </div>
 </section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     FEATURES INTRO
-═══════════════════════════════════════════════════════════════ -->
-<p class="features-label" id="features-label">Index — What Manifold Does</p>
-<h2 class="features-heading" id="features-heading">
-  Every capability your agents need.<br/>
-  <span class="dim">Already built in.</span>
-</h2>
 
 <!-- ═══════════════════════════════════════════════════════════════
      FEATURE 1 — Specialists + Teams
@@ -2316,30 +2279,6 @@
     opacity:  [0, 0.6],
     duration: 600,
   }, '-=200');
-
-  // Features intro fade
-  function revealOnScroll(selector, delay) {
-    const el = document.querySelector(selector);
-    if (!el) return;
-    const obs = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          setTimeout(() => {
-            animate(entry.target, {
-              opacity:    [0, 1],
-              translateY: [30, 0],
-              duration:   700,
-              ease:       'outExpo',
-            });
-          }, delay || 0);
-          obs.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.15 });
-    obs.observe(el);
-  }
-  revealOnScroll('#features-label',   0);
-  revealOnScroll('#features-heading', 100);
 
   // Feature sections
   const featureSections = document.querySelectorAll('.feature-section');
